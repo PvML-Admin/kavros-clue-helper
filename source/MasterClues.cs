@@ -65,10 +65,9 @@ namespace KavrosClueHelper
                     g.FillRectangle(Brushes.Black,viewport.Right-29,viewport.Top+4,25,21);
                     TextRenderer.DrawText(g,"N",heading,new Rectangle(viewport.Right-26,viewport.Top+5,19,19),Color.White,TextFormatFlags.HorizontalCenter|TextFormatFlags.NoPadding);
                     g.FillRectangle(Brushes.Black,viewport.Left+3,viewport.Bottom-19,145,17);
-                    TextRenderer.DrawText(g,"Map: RuneApps / Jagex",small,new Rectangle(viewport.Left+6,viewport.Bottom-18,140,16),Color.Silver,TextFormatFlags.NoPadding);
                     g.Restore(mapState);
                 }
-                TextRenderer.DrawText(g,"Perform the emote in green. Wheel to zoom, drag to pan.",small,new Rectangle(10,272,440,18),Color.FromArgb(110,227,170),TextFormatFlags.NoPadding);
+                TextRenderer.DrawText(g,"Perform the emote in the green area.",small,new Rectangle(10,272,440,18),KavrosTheme.Ok,TextFormatFlags.NoPadding);
                 TextRenderer.DrawText(g,"DO: "+clue.Emote,heading,new Rectangle(10,296,440,25),Color.FromArgb(110,227,190),TextFormatFlags.NoPadding);
                 for(int i=0;i<clue.Equipment.Length;i++) TextRenderer.DrawText(g,"Wear: "+clue.Equipment[i],body,new Rectangle(10,327+i*21,440,21),Color.White,TextFormatFlags.NoPadding|TextFormatFlags.EndEllipsis);
                 TextRenderer.DrawText(g,"Double agent: defeat it, then repeat the emote for Uri.",small,new Rectangle(10,395,440,21),Color.Gold,TextFormatFlags.NoPadding|TextFormatFlags.WordBreak);
@@ -119,6 +118,19 @@ namespace KavrosClueHelper
             details.BackColor=KavrosTheme.Panel;details.ForeColor=KavrosTheme.TextSoft;details.Font=new Font("Segoe UI",9F);details.Visible=false;Controls.Add(details);
             Resize+=delegate{details.SetBounds(8,202,Math.Max(1,Width-16),Math.Max(1,Height-208));};
         }
+        private static string HideCoordinates(string value)
+        {
+            if(value==null)return "";
+            var kept=new List<string>();
+            foreach(string line in value.Replace("\r\n","\n").Replace('\r','\n').Split('\n'))
+            {
+                string trimmed=line.Trim();
+                if(trimmed.StartsWith("Tile ")||trimmed.StartsWith("Coordinates:")||trimmed.StartsWith("Calculated tile "))continue;
+                kept.Add(line);
+            }
+            while(kept.Count>0&&kept[kept.Count-1].Trim().Length==0)kept.RemoveAt(kept.Count-1);
+            return String.Join("\n",kept.ToArray());
+        }
         public void SetClue(MasterClue value,string assets)
         {
             if(clue==value) return;
@@ -136,12 +148,14 @@ namespace KavrosClueHelper
                     string regional=Path.Combine(assets,"location-maps",value.Id+"-wide.jpg");
                     regionalOverview=File.Exists(regional);
                     if(regionalOverview||value.Floor==0&&value.Area.X>=2032&&value.Area.X<4080&&value.Area.Y>=2544&&value.Area.Y<4080)
+                    {
                         overviewShared=!regionalOverview;
                         overview=regionalOverview?new Bitmap(regional):WorldMap.Get(assets);
+                    }
                 }
             }
             details.Visible=value!=null&&value.Reference;
-            details.Text=value==null?"":value.Travel;
+            details.Text=value==null?"":HideCoordinates(value.Travel);
             details.SetBounds(8,202,Math.Max(1,Width-16),Math.Max(1,Height-208));
             Invalidate();
         }
@@ -178,13 +192,12 @@ namespace KavrosClueHelper
                 g.FillEllipse(Brushes.Black,mx-5,my-5,10,10);g.FillEllipse(Brushes.Gold,mx-3,my-3,6,6);
                 g.Restore(clip);
             }
-            else TextRenderer.DrawText(g,clue.Area.IsEmpty?"Exact map tile is not verified.":"Interior / dungeon location\nUse the directions and coordinates below.",Font,box,Color.Cyan,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.WordBreak);
-            TextRenderer.DrawText(g,"RuneApps / Jagex  |  Wheel: zoom  |  Drag: pan  |  Right: reset",Font,new Rectangle(8,184,Width-16,18),Color.Silver,TextFormatFlags.NoPadding);
+            else TextRenderer.DrawText(g,clue.Area.IsEmpty?"This spot is not on the surface map.":"Interior or dungeon. Follow the directions.",Font,box,KavrosTheme.Ice,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.WordBreak);
         }
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             if(clue!=null&&MapBox.Contains(e.Location)&&e.Delta!=0)
-            {zoom=(float)Math.Max(!clue.Reference?1:detailed&&overview==null?.90:.24,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));Invalidate();}
+            {zoom=(float)Math.Max(!clue.Reference?0.35:0.04,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));Invalidate();}
             base.OnMouseWheel(e);
         }
         protected override void Dispose(bool disposing) { if(disposing && map!=null) { map.Dispose(); map=null; } if(disposing && overview!=null){if(!overviewShared)overview.Dispose();overview=null;} base.Dispose(disposing); }

@@ -295,7 +295,7 @@ namespace KavrosClueHelper
         {
             base.OnMouseWheel(e);if(Session.Region==null)return;
             PointF anchor=World(e.Location);
-            zoom=(float)Math.Max(1,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));
+            zoom=(float)Math.Max(0.25,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));
             PointF after=World(e.Location);pan.X+=anchor.X-after.X;pan.Y+=anchor.Y-after.Y;Invalidate();
         }
         private PointF ScreenPoint(PointF p){RectangleF r=View;return new PointF((p.X-r.Left)/r.Width*Width,Height-(p.Y-r.Top)/r.Height*Height);}
@@ -308,7 +308,11 @@ namespace KavrosClueHelper
             int mapId=region.Id*4+region.Level;
             if(loaded!=mapId){if(background!=null)background.Dispose();using(Bitmap loadedImage=new Bitmap(Path.Combine(assets,"scan",region.AssetKey+".png")))background=Pixels.Crop(loadedImage,new Rectangle(Point.Empty,loadedImage.Size),loadedImage.Size);loaded=mapId;zoom=1;pan=PointF.Empty;drag=null;}
             PointF tl=ScreenPoint(new PointF(region.MapBounds.Left,region.MapBounds.Bottom)),br=ScreenPoint(new PointF(region.MapBounds.Right,region.MapBounds.Top));
-            g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.PixelOffsetMode=PixelOffsetMode.HighQuality;g.DrawImage(background,RectangleF.FromLTRB(tl.X,tl.Y,br.X,br.Y));
+            g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.PixelOffsetMode=PixelOffsetMode.HighQuality;
+            Bitmap world=WorldMap.Get(assets);
+            PointF worldTop=ScreenPoint(new PointF(2032,4080)),worldBottom=ScreenPoint(new PointF(4080,2544));
+            g.DrawImage(world,RectangleF.FromLTRB(worldTop.X,worldTop.Y,worldBottom.X,worldBottom.Y));
+            g.DrawImage(background,RectangleF.FromLTRB(tl.X,tl.Y,br.X,br.Y));
             PointF? displayed=Session.Position??(Session.AutoTracking?Session.LastKnown:null);
             bool oldPosition=Session.AutoTracking&&!Session.PositionTracked;
             if(displayed.HasValue)
@@ -326,7 +330,6 @@ namespace KavrosClueHelper
             for(int i=0;i<region.Spots.Count;i++){if(region.SpotLevels!=null&&region.SpotLevels[i]!=region.Level)continue;PointF spot=region.Spots[i],p=ScreenPoint(spot);g.FillEllipse(Brushes.Black,p.X-5,p.Y-5,10,10);g.FillEllipse(Session.InRange(spot)?Brushes.Lime:Session.InRange(spot,2)?Brushes.Orange:Brushes.Cyan,p.X-3,p.Y-3,6,6);}
             // Keep the player above candidate markers, including at a dig spot.
             if(displayed.HasValue){PointF p=ScreenPoint(displayed.Value);g.FillEllipse(Brushes.Black,p.X-7,p.Y-7,14,14);g.FillEllipse(oldPosition?Brushes.Silver:Brushes.Yellow,p.X-4,p.Y-4,8,8);g.DrawEllipse(Pens.White,p.X-6,p.Y-6,12,12);}
-            TextRenderer.DrawText(g,"RuneApps / Jagex  |  Wheel to zoom  |  Drag to pan",Font,new Rectangle(3,Height-19,Width-6,18),Color.White,Color.FromArgb(18,25,32),TextFormatFlags.NoPadding);
             TextRenderer.DrawText(g,"N",Font,new Point(Width-20,3),Color.White,Color.Black);
         }
         protected override void Dispose(bool disposing){if(disposing&&background!=null)background.Dispose();base.Dispose(disposing);}

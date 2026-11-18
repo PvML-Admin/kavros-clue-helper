@@ -441,7 +441,7 @@ namespace KavrosClueHelper
                 if (overlay.Visible && GuidanceDrawing.HideForCapture(overlay.CaptureExcluded, current == null ? PuzzleKind.None : current.Kind))
                 { overlay.Hide(); Native.DwmFlush(); }
                 Rectangle fullClient=new Rectangle(Point.Empty,bounds.Size);
-                Rectangle captureArea=captureSearch.Choose(bounds.Size,lastLocated==null ? (Rectangle?)null : lastLocated.Bounds);
+                Rectangle captureArea=captureSearch.Choose(bounds.Size,lastLocated==null||!DetectionPolicy.IsBoardPuzzle(lastLocated.Kind) ? (Rectangle?)null : lastLocated.Bounds);
                 if(lastLocated!=null&&lastLocated.Kind==PuzzleKind.Sliding&&captureArea!=fullClient)captureArea=Rectangle.Intersect(fullClient,Rectangle.Inflate(captureArea,20,20));
                 captureArea = Rectangle.Intersect(captureArea, visible);
                 if (captureArea.Width < 60 || captureArea.Height < 60) captureArea = visible;

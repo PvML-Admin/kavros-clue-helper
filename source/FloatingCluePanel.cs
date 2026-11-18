@@ -185,7 +185,6 @@ namespace KavrosClueHelper
             g.FillRectangle(Brushes.DarkSlateGray,2,2,99,23);
             TextRenderer.DrawText(g,"Lodestones",Font,new Rectangle(4,3,96,21),Color.White,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter);
             using(Brush b=new SolidBrush(Color.FromArgb(210,12,20,28)))g.FillRectangle(b,0,Height-18,Width,18);
-            TextRenderer.DrawText(g,"Click lodestone | Drag: pan | Wheel: zoom | Right: position",Font,new Rectangle(5,Height-17,Width-10,17),Color.White,TextFormatFlags.NoPadding|TextFormatFlags.SingleLine);
             TextRenderer.DrawText(g,"N",Font,new Rectangle(Width-22,4,20,20),Color.White,TextFormatFlags.NoPadding);
         }
         protected override void Dispose(bool disposing){if(disposing){locationTip.Dispose();}base.Dispose(disposing);}

@@ -1592,9 +1592,12 @@ Use the stairs to floor 2 above ground.
 
 Tile 2504, 3636 | level 2</details>
   </clue>
-  <clue id="235" tier="hard" type="emote" heading="Yawn near the Wilderness Bandit camp obelisk" action="Yawn" x="3031" y="3728" width="9" height="9" level="0">
+  <clue id="235" tier="hard" type="emote" heading="Yawn in the rogues' general store" action="Yawn" x="3031" y="3728" width="9" height="9" level="0">
+    <text>Yawn in the rogues' general store. Beware of double agents! Equip an iron square shield, blue dragonhide vambraces, and an iron pickaxe.</text>
     <text>Yawn near the Wilderness Bandit camp obelisk. Beware of double agents! Equip an iron square shield, blue dragon vambraces and an iron pickaxe.</text>
-    <details>Fastest: from the Wilderness Crater lodestone, the destination lies north-west.
+    <details>Fastest: Wilderness Crater lodestone, then run north-west to the Wilderness Bandit Camp. Yawn in the rogues' general store (Noterazzo's Bandit Duty Free), the building in the camp just south of the level 27 obelisk.
+Alternatively: a burning amulet to the Bandit Camp, or the level 27 wilderness obelisk and walk south into the camp.
+This is the wilderness camp shop, not the Rogues' Den under Taverley.
 Do: Yawn
 Wear: Iron square shield
 Wear: Blue dragonhide vambraces

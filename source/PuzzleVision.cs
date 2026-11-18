@@ -451,7 +451,7 @@ namespace KavrosClueHelper
         private readonly Dictionary<float, ImagePattern[]> lockboxPatterns = new Dictionary<float, ImagePattern[]>();
         private readonly Dictionary<float, OldFrame[]> oldFrames = new Dictionary<float, OldFrame[]>();
         private readonly Dictionary<float, ImagePattern[]> oldSliderAnchors = new Dictionary<float, ImagePattern[]>();
-        private readonly float[] scales = { 1F, 0.8F, 8F/9F, 1.25F, 1.5F, 2F };
+        private readonly float[] scales = { 1F, 0.8F, 8F/9F, 2F/3F, 0.5F, 1.25F, 1.5F, 2F };
         public int LastTowerCluesRead;
         private string towerSolveKey;
         private List<int[]> towerSolutions;
@@ -493,19 +493,18 @@ namespace KavrosClueHelper
         }
         internal DetectedPuzzle Detect(Bitmap screenshot, Pixels pixels, bool allowBroadSearch, bool progressive)
         {
-            DetectedPuzzle scanTitle=scans.FindNativeTitle(pixels);if(scanTitle!=null)return scanTitle;
-            DetectedPuzzle emote=masterClues.Detect(screenshot,pixels); if(emote!=null) return emote;
-            DetectedPuzzle reference=referenceClues.Detect(screenshot,pixels);if(reference!=null)return reference;
-            DetectedPuzzle direction=compass.Find(screenshot,pixels);
-            if(direction!=null) return direction;
+            DetectedPuzzle board=DetectBoards(screenshot,pixels,allowBroadSearch,progressive);
+            if(board!=null) return board;
+            return DetectClues(screenshot,pixels);
+        }
+        internal DetectedPuzzle DetectBoards(Bitmap screenshot, Pixels pixels, bool allowBroadSearch, bool progressive)
+        {
             DetectedPuzzle fastTower = FindTowerGrid(screenshot, pixels);
             if (fastTower != null) return fastTower;
-            if(!allowBroadSearch) return scans.Find(screenshot,pixels);
-            BroadSearches++;
-            // Check supported symbol grids on every discovery pass. A new
-            // Lockbox must not wait for a sweep through unrelated frame scales.
             DetectedPuzzle lockbox=FindLockboxGrid(screenshot,pixels);
             if(lockbox!=null) return lockbox;
+            if(!allowBroadSearch) return null;
+            BroadSearches++;
             if(progressive)
             {
                 var timer=System.Diagnostics.Stopwatch.StartNew();
@@ -516,13 +515,22 @@ namespace KavrosClueHelper
                     DetectedPuzzle match=FindAtScale(screenshot,pixels,scale);
                     if(match!=null) return match;
                 } while(timer.ElapsedMilliseconds<180 && searched<scales.Length);
-                return scans.Find(screenshot,pixels);
+                return null;
             }
             foreach(float scale in scales)
             {
                 DetectedPuzzle match=FindAtScale(screenshot,pixels,scale);
                 if(match!=null) return match;
             }
+            return null;
+        }
+        internal DetectedPuzzle DetectClues(Bitmap screenshot, Pixels pixels)
+        {
+            DetectedPuzzle scanTitle=scans.FindNativeTitle(pixels);if(scanTitle!=null)return scanTitle;
+            DetectedPuzzle emote=masterClues.Detect(screenshot,pixels); if(emote!=null) return emote;
+            DetectedPuzzle reference=referenceClues.Detect(screenshot,pixels);if(reference!=null)return reference;
+            DetectedPuzzle direction=compass.Find(screenshot,pixels);
+            if(direction!=null) return direction;
             return scans.Find(screenshot,pixels);
         }
         private int nextSearchScale;

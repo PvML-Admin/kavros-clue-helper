@@ -117,19 +117,36 @@ namespace KavrosClueHelper
                   last=null;if(!keepSlider){cached=null;solveKey=null;}sliderFrame=null;pendingSliderKey=null; if(source!=sourceId)knotFrames.Reset();else knotFrames.Missing(DateTime.UtcNow); sourceId = source; lastSize = image.Size; nextBroadSearch=DateTime.MinValue; detector.ResetSearch(); }
                 lastSize = image.Size;
                 Pixels pixels = new Pixels(image);
-                if (last != null && DetectionPolicy.CanTrack(cached) && solveKey == cached.Puzzle.Key + ":" + reverse+(cached.Puzzle.Kind==PuzzleKind.Knot?":"+cached.KnotMoving:"")+":"+wholeRows && !cached.KnotMoving && new Rectangle(Point.Empty,image.Size).Contains(last.Bounds))
-                {
-                    ulong hash = pixels.Hash(last.Bounds);
-                    if (hash == lastHash)
-                    { UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
-                }
-                DetectedPuzzle puzzle = last == null ? null : detector.ReadAgain(image,last,pixels);
+                bool sameSolve = last != null && DetectionPolicy.CanTrack(cached) && solveKey == cached.Puzzle.Key + ":" + reverse+(cached.Puzzle.Kind==PuzzleKind.Knot?":"+cached.KnotMoving:"")+":"+wholeRows && !cached.KnotMoving && new Rectangle(Point.Empty,image.Size).Contains(last.Bounds);
+                bool hashUnchanged = sameSolve && pixels.Hash(last.Bounds) == lastHash;
+                bool trackingBoard = last != null && DetectionPolicy.IsBoardPuzzle(last.Kind);
+                // A stable board frame can be reused. A tracked text clue must
+                // still run the cheap board search, because a puzzle can open
+                // somewhere else on the same screen.
+                if (trackingBoard && hashUnchanged)
+                { UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
+                DetectedPuzzle puzzle = trackingBoard ? detector.ReadAgain(image,last,pixels) : null;
                 if (puzzle == null)
                 {
-                    FullSearches++;
                     bool broad=!livePolling || DateTime.UtcNow>=nextBroadSearch;
-                    puzzle = detector.Detect(image,pixels,broad,livePolling);
-                    if(livePolling && broad && puzzle==null) nextBroadSearch=DateTime.UtcNow.AddMilliseconds(100);
+                    DetectedPuzzle board=detector.DetectBoards(image,pixels,broad,livePolling);
+                    if(board!=null)
+                    {
+                        if(last==null||trackingBoard)FullSearches++;
+                        puzzle=board;
+                    }
+                    else
+                    {
+                        if(livePolling && broad) nextBroadSearch=DateTime.UtcNow.AddMilliseconds(100);
+                        if(hashUnchanged)
+                        { UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
+                        if(last!=null && !trackingBoard) puzzle=detector.ReadAgain(image,last,pixels);
+                        if(puzzle==null)
+                        {
+                            FullSearches++;
+                            puzzle=detector.DetectClues(image,pixels);
+                        }
+                    }
                 }
                 cancellation.ThrowIfCancellationRequested();
                 if (puzzle == null)
