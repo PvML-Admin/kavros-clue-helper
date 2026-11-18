@@ -5,6 +5,7 @@
 **Puzzles**
 - Puzzle boards are looked for before a clue scroll is read. A slider, lockbox, towers or knot on screen takes over even if a clue was already open, and the capture is no longer cropped down to that old clue.
 - Knot puzzles are also checked at the smaller interface sizes.
+- Right-clicking a tower or lockbox no longer makes the guidance vanish. The last reading stays while the menu covers the board, and it drops only after the board itself is gone.
 
 **Maps**
 - Location maps and the compass zoom out across the whole surface map. Scan maps show the world around the region when you zoom out.
@@ -24,6 +25,8 @@
 - The West Ardougne Recruiter is a few steps east of Dave's spellbook Ardougne teleport. The Ardougne lodestone stays as the other way there.
 - Twirl on the Barbarian Village bridge is a short walk east from the Barbarian Village teleport. Edgeville lodestone, then south, stays as the alternative.
 - A faster teleport does not replace the lodestone (or other) backup. Both stay on the card.
+- Luthas is reached with an amulet of glory to Karamja, then a short walk south-east into the banana plantation. The Karamja lodestone, then east, is the backup. Charter ships and the Port Sarim crossing are not used.
+- The Karamja shipyard, Musa Point docks, Entrana, and the Miscellania clues no longer send you onto a boat. Braindeath Island and the Witchaven fishing platform have no verified island teleport, so those cards say so instead of sending you to Pirate Pete or Holgart.
 - Wendlewick still has no verified tile, so its marker was left unset.
 
 **Install**

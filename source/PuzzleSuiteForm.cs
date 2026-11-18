@@ -532,6 +532,8 @@ namespace KavrosClueHelper
                 captureDetails += "; last analysis "+result.Milliseconds+" ms"+(result.Unchanged?"; cached":"");
                 if(result.Pending&&current!=null&&current.Kind==PuzzleKind.Sliding)
                 {status.Text="Waiting for the tiles to settle...";nextRead=DateTime.UtcNow.AddMilliseconds(75);ShowGuidance();return;}
+                if(result.Pending&&current!=null&&DetectionPolicy.IsBoardPuzzle(current.Kind)&&current.Kind!=PuzzleKind.Knot&&current.Kind!=PuzzleKind.Sliding)
+                {status.Text="Puzzle covered. Keeping the last reading.";nextRead=DateTime.UtcNow.AddMilliseconds(120);ShowGuidance();return;}
                 if(result.Pending&&current!=null&&current.Kind==PuzzleKind.Knot)
                 {marks=marks.Select(m=>new GuidanceMark{Box=m.Box,Text=m.Text,Colour=Color.Silver,Corner=m.Corner,Compact=m.Compact,Outline=m.Outline}).ToList();summary.Text="Updating counts - grey numbers show the last confirmed reading.";nextRead=DateTime.UtcNow.AddMilliseconds(75);ShowGuidance();return;}
                 if(!job.Offline && captureSearch.Complete(job.Cropped,DetectionPolicy.CanTrack(result.Plan)))
@@ -556,6 +558,8 @@ namespace KavrosClueHelper
                     }
                     if(!GameVisibility.Clear(area,point=>WindowLocator.AtPoint(job.Window,point,visibleOverlay)))
                     {
+                        if(current!=null&&DetectionPolicy.IsBoardPuzzle(current.Kind))
+                        {status.Text="Puzzle covered. Keeping the last reading.";nextRead=DateTime.UtcNow.AddMilliseconds(120);ShowGuidance();return;}
                         compassSession.Observe(null,DateTime.UtcNow);
                         lastLocated=null;current=null;marks.Clear();overlay.Hide();captureSearch.ForceFullWindow();
                         detected.Text="Keep the puzzle fully visible";

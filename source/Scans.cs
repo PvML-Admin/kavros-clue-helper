@@ -26,6 +26,17 @@ namespace KavrosClueHelper
     {
         public ScanRegion Region;
         public bool DifferentLevel;
+        public bool Meerkat;
+        public bool Outside;
+        public static ScanReading FromText(ScanRegion region, string text)
+        {
+            string n=ReferenceClueReader.Normalize(text);
+            var reading=new ScanReading{Region=region,DifferentLevel=n.Contains("different level"),Meerkat=n.Contains("meerkat"),Outside=n.Contains("too far")||n.Contains("nothing scans")};
+            System.Text.RegularExpressions.Match paces=System.Text.RegularExpressions.Regex.Match(n,@"\b(\d{1,2}) pace");
+            int value;
+            if(region!=null&&paces.Success&&Int32.TryParse(paces.Groups[1].Value,out value)&&value==region.BaseRange+5)reading.Meerkat=true;
+            return reading;
+        }
     }
     public sealed class ScanVision
     {
@@ -177,11 +188,11 @@ namespace KavrosClueHelper
                 {
                     LastText=ocr.Read(crop);string originalText=LastText;ScanRegion originalMatch=MatchScrollTranscript(LastText);
                     if(originalMatch!=null)
-                    {lastOcrHash=hash;lastOcrArea=area;ocrCached=true;lastOcr=new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=new ScanReading{Region=originalMatch,DifferentLevel=ReferenceClueReader.Normalize(LastText).Contains("different level")},Bounds=area,Scale=1,Confidence=0.96};return lastOcr;}
+                    {lastOcrHash=hash;lastOcrArea=area;ocrCached=true;lastOcr=new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=ScanReading.FromText(originalMatch,LastText),Bounds=area,Scale=1,Confidence=0.96};return lastOcr;}
                     using(Bitmap large=Pixels.Crop(crop,new Rectangle(Point.Empty,crop.Size),new Size(crop.Width*2,crop.Height*2)))
                     {
                         LastText=ocr.Read(large);ScanRegion scaledMatch=MatchScrollTranscript(LastText);
-                        if(scaledMatch!=null){lastOcrHash=hash;lastOcrArea=area;ocrCached=true;lastOcr=new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=new ScanReading{Region=scaledMatch,DifferentLevel=ReferenceClueReader.Normalize(LastText).Contains("different level")},Bounds=area,Scale=1,Confidence=0.96};return lastOcr;}
+                        if(scaledMatch!=null){lastOcrHash=hash;lastOcrArea=area;ocrCached=true;lastOcr=new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=ScanReading.FromText(scaledMatch,LastText),Bounds=area,Scale=1,Confidence=0.96};return lastOcr;}
                         originalText+=" UPSCALED: "+LastText;
                     }
                     // Scan scrolls use white text on tan paper. Isolate the ink
@@ -189,7 +200,7 @@ namespace KavrosClueHelper
                     var cp=new Pixels(crop);using(Graphics g=Graphics.FromImage(crop))g.Clear(Color.White);
                     for(int y=0;y<crop.Height;y++)for(int x=0;x<crop.Width;x++){Color c=cp.Get(x,y);if(c.R>185&&c.G>185&&c.B>185&&Math.Max(c.R,Math.Max(c.G,c.B))-Math.Min(c.R,Math.Min(c.G,c.B))<45)crop.SetPixel(x,y,Color.Black);}
                     LastText=ocr.Read(crop);string maskedText=LastText;ScanRegion region=MatchScrollTranscript(LastText);
-                    if(region==null)LastText="ORIGINAL: "+originalText+" MASK: "+maskedText;lastOcrHash=hash;ocrCached=true;lastOcr=region==null?null:new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=new ScanReading{Region=region,DifferentLevel=ReferenceClueReader.Normalize(LastText).Contains("different level")},Bounds=area,Scale=1,Confidence=0.96};
+                    if(region==null)LastText="ORIGINAL: "+originalText+" MASK: "+maskedText;lastOcrHash=hash;ocrCached=true;lastOcr=region==null?null:new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=ScanReading.FromText(region,originalText+" "+maskedText),Bounds=area,Scale=1,Confidence=0.96};
                     if(lastOcr!=null)return lastOcr;
                 }
             }
@@ -216,53 +227,87 @@ namespace KavrosClueHelper
         public ScanRegion Region;
         public PointF? Position;
         public PointF? LastKnown;
-        public bool Meerkat,DifferentLevel;
+        public bool Meerkat,MeerkatLocked,DifferentLevel,Outside;
         public bool AutoTracking=true,PositionTracked;
-        public string TrackingStatus="Looking for your position on the minimap...";
+        public const string ManualHint="Right-click your spot on the map.";
+        public string TrackingStatus=ManualHint;
         private MinimapMatch pending;
         private DateTime lastMatch;
         private DateTime lastConfirmed;
         private int confirmations;
+        private int misses;
         public int Range {get{return Region==null?0:Region.BaseRange+(Meerkat?5:0);}}
-        public void Observe(ScanReading reading){if(Region==null||Region.Id!=reading.Region.Id){Position=null;LastKnown=null;PositionTracked=false;pending=null;TrackingStatus="Looking for your position on the minimap...";}Region=reading.Region;DifferentLevel=reading.DifferentLevel;}
+        public void Observe(ScanReading reading)
+        {
+            bool changed=Region==null||reading.Region==null||Region.Id!=reading.Region.Id;
+            if(changed)
+            {
+                Position=null;LastKnown=null;PositionTracked=false;pending=null;confirmations=0;misses=0;MeerkatLocked=false;
+                Meerkat=reading.Meerkat;
+                TrackingStatus=reading.Outside?"Too far away for this scan. "+ManualHint:ManualHint;
+            }
+            else if(!MeerkatLocked&&reading.Meerkat)Meerkat=true;
+            Region=reading.Region;DifferentLevel=reading.DifferentLevel;Outside=reading.Outside;
+            if(Outside){Position=null;PositionTracked=false;pending=null;TrackingStatus="Too far away for this scan. "+ManualHint;}
+        }
         public bool InRange(PointF spot,int factor=1){return (!AutoTracking||PositionTracked)&&!DifferentLevel&&Position.HasValue&&Math.Max(Math.Abs(spot.X-Position.Value.X),Math.Abs(spot.Y-Position.Value.Y))<=Range*factor;}
-        public void Clear(){Region=null;Position=null;LastKnown=null;DifferentLevel=false;PositionTracked=false;pending=null;}
-        public void SetAutomatic(bool enabled){AutoTracking=enabled;Position=null;LastKnown=null;PositionTracked=false;pending=null;TrackingStatus=enabled?"Looking for your position on the minimap...":"Right-click your location on the map.";}
-        public void SetManual(PointF position){SetAutomatic(false);Position=position;}
-        public void PrepareRecheck(){if(LastKnown.HasValue)return;Position=null;PositionTracked=false;pending=null;TrackingStatus="Minimap found - checking your current position...";}
+        public void Clear(){Region=null;Position=null;LastKnown=null;DifferentLevel=false;Outside=false;PositionTracked=false;pending=null;}
+        public void SetAutomatic(bool enabled){AutoTracking=enabled;Position=null;LastKnown=null;PositionTracked=false;pending=null;misses=0;TrackingStatus=enabled?ManualHint:"Right-click your spot on the map.";}
+        public void SetManual(PointF position){SetAutomatic(false);Position=position;TrackingStatus="Manual position set. Right-click the map to move it.";}
+        public void PrepareRecheck(){if(LastKnown.HasValue)return;Position=null;PositionTracked=false;pending=null;TrackingStatus="Minimap found. Checking your current position...";}
         public void ApplyMatch(MinimapMatch match,DateTime now)
         {
             if(!AutoTracking)return;
+            if(Outside)
+            {
+                confirmations=0;PositionTracked=false;Position=null;pending=null;
+                TrackingStatus="Too far away for this scan. "+ManualHint;
+                return;
+            }
             if(match==null)
             {
                 confirmations=0;
                 PositionTracked=false;
                 if((now-lastMatch).TotalMilliseconds>650)Position=null;
-                TrackingStatus=LastKnown.HasValue?"Grey marker shows your last position. Rechecking minimap.":"Looking for your minimap. You can follow the marked spots now.";
+                misses++;
+                TrackingStatus=LastKnown.HasValue&&misses<3?"Grey marker shows your last position. "+ManualHint:ManualHint;
                 return;
             }
-            bool consistent=match!=null&&pending!=null&&(now-lastMatch).TotalSeconds<2&&CompassMath.Distance(match.Position,pending.Position)<=18;
+            misses=0;
+            bool consistent=pending!=null&&(now-lastMatch).TotalSeconds<2&&CompassMath.Distance(match.Position,pending.Position)<=18;
             confirmations=consistent?confirmations+1:1;consistent=consistent&&confirmations>=2;
             pending=match;lastMatch=now;
             PositionTracked=consistent;Position=consistent?(PointF?)match.Position:null;
             if(consistent){LastKnown=match.Position;lastConfirmed=now;}
-            TrackingStatus=consistent?"Following your minimap automatically.":"Position found - confirming the next frame...";
+            TrackingStatus=consistent?"Following your minimap automatically.":"Position found. Confirming the next frame...";
         }
         public void Expire(DateTime now)
-        {if(AutoTracking&&Position.HasValue&&(now-lastMatch).TotalMilliseconds>1500){Position=null;PositionTracked=false;pending=null;TrackingStatus="Position lost. Looking for the minimap...";}}
+        {if(AutoTracking&&Position.HasValue&&(now-lastMatch).TotalMilliseconds>1500){Position=null;PositionTracked=false;pending=null;TrackingStatus="Position lost. "+ManualHint;}}
 
-        public string Summary {get{return Region==null?"":Region.Name+" | "+Range+" paces"+(Meerkat?" (meerkat)":"")+" | Dig locations: level "+Region.Level+"\n"+(AutoTracking?TrackingStatus:Position.HasValue?"Manual position: "+Math.Round(Position.Value.X)+", "+Math.Round(Position.Value.Y)+". Enable Auto follow to track movement.":"Right-click your current location on the map.")+(AutoTracking&&!PositionTracked&&LastKnown.HasValue?"\nGrey marker: last confirmed "+Math.Max(0,(int)(DateTime.UtcNow-lastConfirmed).TotalSeconds)+"s ago.":"");}}
+        public string Summary {get{return Region==null?"":Region.Name+" | "+Range+" paces"+(Meerkat?" (meerkat)":"")+" | Dig locations: level "+Region.Level+"\n"+(AutoTracking?TrackingStatus:Position.HasValue?"Manual position set. Right-click the map to move it.":ManualHint)+(AutoTracking&&!PositionTracked&&LastKnown.HasValue?"\nGrey marker: last confirmed "+Math.Max(0,(int)(DateTime.UtcNow-lastConfirmed).TotalSeconds)+"s ago.":"");}}
 
     }
     public sealed class ScanMap : Control
     {
         private readonly string assets;private Bitmap background;private int loaded;
+        private readonly List<CompassPosition> lodestones=new List<CompassPosition>();
         private float zoom=1;
         private PointF pan;
         private Point? drag;
+        private Point mouseDown;
         public readonly ScanSession Session;
         public event Action PositionChanged;
-        public ScanMap(string directory,ScanSession session){assets=directory;Session=session;DoubleBuffered=true;TabStop=true;}
+        public ScanMap(string directory,ScanSession session)
+        {
+            assets=directory;Session=session;DoubleBuffered=true;TabStop=true;
+            string file=Path.Combine(directory,"compass","positions.tsv");
+            if(File.Exists(file))foreach(string line in File.ReadAllLines(file))
+            {
+                string[] p=line.Split('\t');int x,y;
+                if(p.Length>=3&&Int32.TryParse(p[1],out x)&&Int32.TryParse(p[2],out y)&&x>=2032&&x<=4079&&y>=2544&&y<=4079)
+                    lodestones.Add(new CompassPosition{Name=LodestoneNames.Clean(p[0]),X=x,Y=y});
+            }
+        }
         private RectangleF View
         {
             get {
@@ -278,7 +323,7 @@ namespace KavrosClueHelper
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);if(Session.Region==null)return;Focus();
-            if(e.Button==MouseButtons.Left){drag=e.Location;Capture=true;}
+            if(e.Button==MouseButtons.Left){mouseDown=e.Location;drag=e.Location;Capture=true;}
             if(e.Button==MouseButtons.Right){Session.SetManual(World(e.Location));if(PositionChanged!=null)PositionChanged();Invalidate();}
         }
         protected override void OnMouseMove(MouseEventArgs e)
@@ -289,13 +334,35 @@ namespace KavrosClueHelper
             pan.Y+=(e.Y-drag.Value.Y)*view.Height/Math.Max(1,Height);
             drag=e.Location;Invalidate();
         }
-        protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);drag=null;Capture=false;}
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            bool click=drag.HasValue&&Math.Abs(e.X-mouseDown.X)+Math.Abs(e.Y-mouseDown.Y)<5;
+            drag=null;Capture=false;
+            if(!click||e.Button!=MouseButtons.Left||Session.Region==null)return;
+            CompassPosition stone=HitLodestone(e.Location);
+            if(stone==null)return;
+            Session.SetManual(new PointF(stone.X,stone.Y));
+            if(PositionChanged!=null)PositionChanged();
+            Invalidate();
+        }
+        private CompassPosition HitLodestone(Point point)
+        {
+            CompassPosition best=null;float bestDistance=14;
+            foreach(CompassPosition stone in lodestones)
+            {
+                PointF p=ScreenPoint(stone.Point);
+                float distance=Math.Abs(p.X-point.X)+Math.Abs(p.Y-point.Y);
+                if(distance<bestDistance){bestDistance=distance;best=stone;}
+            }
+            return best;
+        }
         protected override void OnMouseCaptureChanged(EventArgs e){base.OnMouseCaptureChanged(e);if(!Capture)drag=null;}
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             base.OnMouseWheel(e);if(Session.Region==null)return;
             PointF anchor=World(e.Location);
-            zoom=(float)Math.Max(0.25,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));
+            zoom=(float)Math.Max(0.15,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));
             PointF after=World(e.Location);pan.X+=anchor.X-after.X;pan.Y+=anchor.Y-after.Y;Invalidate();
         }
         private PointF ScreenPoint(PointF p){RectangleF r=View;return new PointF((p.X-r.Left)/r.Width*Width,Height-(p.Y-r.Top)/r.Height*Height);}
@@ -329,6 +396,12 @@ namespace KavrosClueHelper
             }
             for(int i=0;i<region.Spots.Count;i++){if(region.SpotLevels!=null&&region.SpotLevels[i]!=region.Level)continue;PointF spot=region.Spots[i],p=ScreenPoint(spot);g.FillEllipse(Brushes.Black,p.X-5,p.Y-5,10,10);g.FillEllipse(Session.InRange(spot)?Brushes.Lime:Session.InRange(spot,2)?Brushes.Orange:Brushes.Cyan,p.X-3,p.Y-3,6,6);}
             // Keep the player above candidate markers, including at a dig spot.
+            foreach(CompassPosition stone in lodestones)
+            {
+                PointF p=ScreenPoint(stone.Point);
+                if(p.X<-16||p.Y<-16||p.X>Width+16||p.Y>Height+16)continue;
+                LodestoneIcons.Draw(g,p,stone.Name,false,assets);
+            }
             if(displayed.HasValue){PointF p=ScreenPoint(displayed.Value);g.FillEllipse(Brushes.Black,p.X-7,p.Y-7,14,14);g.FillEllipse(oldPosition?Brushes.Silver:Brushes.Yellow,p.X-4,p.Y-4,8,8);g.DrawEllipse(Pens.White,p.X-6,p.Y-6,12,12);}
             TextRenderer.DrawText(g,"N",Font,new Point(Width-20,3),Color.White,Color.Black);
         }

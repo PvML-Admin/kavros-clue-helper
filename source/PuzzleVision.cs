@@ -616,8 +616,18 @@ namespace KavrosClueHelper
             if(previous.Kind==PuzzleKind.Compass) return compass.Read(screenshot,previous.Bounds,previous.Scale);
             if(previous.Kind==PuzzleKind.Scan)return scans.Find(screenshot,pixels);
             if (previous.Kind == PuzzleKind.Sliding) return sliders.Read(screenshot, previous.Grid, previous.Scale);
-            if (previous.Kind == PuzzleKind.Towers) return ReadTowers(screenshot, previous.Grid, previous.Scale);
-            if (previous.Kind == PuzzleKind.Lockbox) return ReadLockboxGrid(screenshot,previous.Grid,previous.Scale,previous.Bounds,0.82);
+            if (previous.Kind == PuzzleKind.Towers)
+            {
+                DetectedPuzzle towers=ReadTowers(screenshot, previous.Grid, previous.Scale);
+                return towers!=null?towers:HoldTowers(screenshot, previous);
+            }
+            if (previous.Kind == PuzzleKind.Lockbox)
+            {
+                DetectedPuzzle box=ReadLockboxGrid(screenshot,previous.Grid,previous.Scale,previous.Bounds,0.82);
+                if(box!=null)return box;
+                Pixels ink=pixels??new Pixels(screenshot);
+                return LockboxSurface(ink, previous.Grid.Location, previous.Scale)?previous:null;
+            }
             return ReadModal(screenshot, previous.Bounds, previous.Scale);
         }
         public bool KnotFrameVisible(Bitmap image,DetectedPuzzle previous)
@@ -750,6 +760,28 @@ namespace KavrosClueHelper
                 if (towerSolutions.Count == 0) return null;
                 for (int i = 0; i < 25; i++) puzzle.Cells[i] = digits.Read(p, new Point(35 + i % 5 * 44 + 21, 35 + i / 5 * 44 + 21), false);
                 return new DetectedPuzzle { Kind = PuzzleKind.Towers, Bounds = area, Grid = grid, Scale = scale, Towers = puzzle, TowerSolutions = towerSolutions, Confidence = 1 };
+            }
+        }
+        // A right-click menu covers some cells. Keep the last complete board
+        // while the dark grid is still there, and return null once it is gone.
+        private DetectedPuzzle HoldTowers(Bitmap image, DetectedPuzzle previous)
+        {
+            if(previous==null||previous.Towers==null||previous.TowerSolutions==null)return null;
+            int pad=(int)Math.Round(35*previous.Scale);
+            Rectangle area=Rectangle.Inflate(previous.Grid, pad, pad);
+            if(!new Rectangle(Point.Empty, image.Size).Contains(area))return null;
+            using(Bitmap normalised=Pixels.Crop(image, area, new Size(288, 288)))
+            {
+                if(normalised==null)return null;
+                Pixels p=new Pixels(normalised);
+                int dark=0;
+                for(int cell=0;cell<25;cell++)
+                {
+                    Color colour=p.Get(35+cell%5*44+21, 35+cell/5*44+21);
+                    if(colour.R<80&&colour.G<100&&colour.B<110&&colour.G>=colour.R&&colour.B>=colour.R)dark++;
+                }
+                if(dark<8)return null;
+                return new DetectedPuzzle{Kind=PuzzleKind.Towers,Bounds=area,Grid=previous.Grid,Scale=previous.Scale,Towers=previous.Towers,TowerSolutions=previous.TowerSolutions,Confidence=previous.Confidence};
             }
         }
         private DetectedPuzzle FindTowerGrid(Bitmap image, Pixels pixels)

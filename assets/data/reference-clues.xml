@@ -568,7 +568,7 @@ Tile 2575, 3326 | level 1</details>
   </clue>
   <clue id="188" tier="medium" type="cryptic" heading="Fishing Platform off Witchaven" action="Search Crate" x="2764" y="3273" width="1" height="1" level="0">
     <text>Try not to step on any aquatic nasties while searching this crate.</text>
-    <details>Fastest: from Witchaven take Holgart's or Jeb's boat to the fishing platform. Search the crate inside the shack.
+    <details>Fastest: Ardougne lodestone, then south to Witchaven. The fishing platform has no lodestone; use a platform teleport if you have one, then search the crate in the shack. Holgart's boat is not used.
 
 Tile 2764, 3273 | level 0</details>
   </clue>
@@ -600,7 +600,8 @@ Tile 2524, 3438 | level 0</details>
   </clue>
   <clue id="193" tier="medium" type="cryptic" heading="Musa Point docks" action="Search Crate" x="2905" y="3189" width="1" height="1" level="0">
     <text>North of the best monkey restaurant on Karamja, look for the centre of the triangle of boats and search there.</text>
-    <details>Fastest: reach Karamja's banana plantation and follow the shore north to the dock with three rowboats. Search the middle crate.
+    <details>Fastest: Amulet of glory &gt; Karamja, then walk north-west along the shore to the dock with three rowboats. Search the middle crate.
+Alternatively: Karamja lodestone, then walk east to Musa Point and north to that dock.
 
 Tile 2905, 3189 | level 0</details>
   </clue>
@@ -825,7 +826,7 @@ Tile 2523, 3493 | level 1</details>
   </clue>
   <clue id="143" tier="hard" type="cryptic" heading="Braindeath Island summit" action="Dig" x="2134" y="5162" width="1" height="1" level="0">
     <text>You will need to wash the old ash off of your spade when you dig here, but the only water nearby is stagnant.</text>
-    <details>Fastest: take Pirate Pete's boat to Braindeath Island. Follow the bridges and climb to the stagnant pool. Dig on its west side.
+    <details>Fastest: there is no lodestone on Braindeath Island, and Pirate Pete's boat from Port Sarim is not used. Use a Braindeath teleport if your ;;t menu or spellbook has one, then follow the bridges to the stagnant pool and dig on its west side.
 
 Tile 2134, 5162 | level 0</details>
   </clue>
@@ -1037,7 +1038,7 @@ Tile 3088, 3468 | level 0</details>
   </clue>
   <clue id="178" tier="hard" type="cryptic" heading="Glassblower's house, Entrana" action="Search Drawers" x="2818" y="3351" width="1" height="1" level="0">
     <text>When no weapons are at hand, then is the time to reflect. In Saradomin's name, redemption draws closer.</text>
-    <details>Fastest: take the monks' boat from Port Sarim to Entrana. Find the house with the glassblowing pipe and search the drawers on the south wall.
+    <details>Fastest: hot air balloon to Entrana. The monks' boat from Port Sarim is not used. Find the house with the glassblowing pipe and search the drawers on the south wall.
 
 Tile 2818, 3351 | level 0</details>
   </clue>
@@ -1061,7 +1062,7 @@ Tile 3235, 3673 | level 0</details>
   </clue>
   <clue id="223" tier="hard" type="cryptic" heading="Etceteria crossroads" action="Dig" x="2591" y="3879" width="1" height="1" level="0">
     <text>And so on, and so on, and so on. Walking from the land of many unimportant things leads to a choice of paths.</text>
-    <details>Fastest: take the boat to Miscellania and go east onto Etceteria. Dig at the crossroads.
+    <details>Fastest: Ring of wealth &gt; Miscellania, then go east onto Etceteria. Dig at the crossroads.
 
 Tile 2591, 3879 | level 0</details>
   </clue>
@@ -1795,7 +1796,8 @@ Tile 2786, 3063 | level 0</details>
   <clue id="337" tier="medium" type="anagram" heading="Talk to Luthas at Musa Point" action="Talk to Luthas" x="2935" y="3152" width="7" height="5" level="0">
     <text>This anagram reveals who to speak to next: Halt Us</text>
     <anagram>Halt Us</anagram>
-    <details>Fastest: from the Port Sarim lodestone, the destination lies south-west.
+    <details>Fastest: Amulet of glory &gt; Karamja, then walk south-east into the banana plantation to Luthas.
+Alternatively: Karamja lodestone, then walk east across the island to the banana plantation.
 Talk to Luthas at Musa Point.
 
 Tile 2935, 3152 | level 0</details>
@@ -1970,7 +1972,8 @@ Tile 2525, 3160 | level 1</details>
   <clue id="298" tier="hard" type="anagram" heading="Talk to Queen Sigrid in Miscellania's Throneroom" action="Talk to Queen Sigrid" x="2499" y="3861" width="4" height="4" level="1">
     <text>This anagram reveals who to speak to next: Sequin Dirge</text>
     <anagram>Sequin Dirge</anagram>
-    <details>Fastest: from the Fremennik Province lodestone, the destination lies north-west.
+    <details>Fastest: Ring of wealth &gt; Miscellania, then go to the throne room.
+Alternatively: fairy ring CIP.
 Talk to Queen Sigrid in Miscellania's Throneroom.
 Talk to Queen Sigrid in Etceteria Castle.
 Use the stairs to floor 1 above ground.
@@ -2076,7 +2079,7 @@ Tile 2923, 3210 | level 0</details>
   </clue>
   <clue id="52" tier="medium" type="map" heading="Miscellania path" action="Dig" x="2536" y="3865" width="1" height="1" level="0">
     <text>X marks the spot between some trees at the end of a path.</text>
-    <details>Fastest: travel by boat to Miscellania and find the sign at the end of the path. Dig between the sign and the evergreen.
+    <details>Fastest: Ring of wealth &gt; Miscellania, then find the sign at the end of the path. Dig between the sign and the evergreen.
 
 Tile 2536, 3865 | level 0</details>
   </clue>
@@ -2380,7 +2383,8 @@ Tile 2581, 3030 | level 0</details>
   </clue>
   <clue id="423" tier="hard" type="coordinates" heading="Karamja Shipyard" action="Dig" x="2961" y="3024" width="1" height="1" level="0">
     <text>04 degrees 16 minutes south,16 degrees 16 minutes east</text>
-    <details>Fastest: use the Port Sarim lodestone and charter a ship to the Shipyard. Walk west to G.L.O. Caranock's building and dig outside its east window.
+    <details>Fastest: Amulet of glory &gt; Karamja, then walk south down the east coast to the shipyard. Dig outside the east window of G.L.O. Caranock's building.
+Alternatively: Karamja lodestone, then walk south-east to the same building.
 Be ready to fight the wizard when digging.
 
 Tile 2961, 3024 | level 0</details>

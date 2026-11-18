@@ -60,6 +60,7 @@ namespace KavrosClueHelper
         private Size lastSize;
         private Point? previousOrigin;
         private DateTime knotConfirmed;
+        private DateTime boardSeen;
         private int sourceId = Int32.MinValue;
         private DateTime nextBroadSearch = DateTime.MinValue;
         public int FullSearches { get; private set; }
@@ -124,7 +125,7 @@ namespace KavrosClueHelper
                 // still run the cheap board search, because a puzzle can open
                 // somewhere else on the same screen.
                 if (trackingBoard && hashUnchanged)
-                { UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
+                { boardSeen=DateTime.UtcNow; UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
                 DetectedPuzzle puzzle = trackingBoard ? detector.ReadAgain(image,last,pixels) : null;
                 if (puzzle == null)
                 {
@@ -153,6 +154,8 @@ namespace KavrosClueHelper
                 {
                     if(livePolling&&VisibleSlider(image,pixels))return PendingSlider(timer.ElapsedMilliseconds);
                     if(livePolling&&cached!=null&&last!=null&&last.Kind==PuzzleKind.Knot&&(DateTime.UtcNow-knotConfirmed).TotalMilliseconds<800&&detector.KnotFrameVisible(image,last))
+                        return new AnalysisResult{Plan=cached,Pending=true,Unchanged=true,Milliseconds=timer.ElapsedMilliseconds};
+                    if(livePolling&&cached!=null&&last!=null&&(last.Kind==PuzzleKind.Towers||last.Kind==PuzzleKind.Lockbox||last.Kind==PuzzleKind.Sliding)&&(DateTime.UtcNow-boardSeen).TotalMilliseconds<1500)
                         return new AnalysisResult{Plan=cached,Pending=true,Unchanged=true,Milliseconds=timer.ElapsedMilliseconds};
                     last = null; cached = null; solveKey = null; knotFrames.Missing(DateTime.UtcNow);
                     return new AnalysisResult { Preview = MakePreview(image,new Rectangle(Point.Empty,image.Size)), Milliseconds = timer.ElapsedMilliseconds };
@@ -205,6 +208,7 @@ namespace KavrosClueHelper
                 }
                 last = puzzle; cached = plan; solveKey = key;if(puzzle.Kind==PuzzleKind.Sliding)sliderFrame=SliderFrame(pixels,puzzle);else{sliderFrame=null;pendingSliderKey=null;} lastHash = pixels.Hash(puzzle.Bounds);
                 if(puzzle.Kind==PuzzleKind.Knot&&!knotMoving)knotConfirmed=DateTime.UtcNow;
+                if(DetectionPolicy.IsBoardPuzzle(puzzle.Kind))boardSeen=DateTime.UtcNow;
                 return new AnalysisResult { Plan = plan, Preview = MakePreview(image,puzzle.Bounds), Milliseconds = timer.ElapsedMilliseconds };
             }
             finally { if(decoded!=null)decoded.Dispose();SearchCancellation.Token = CancellationToken.None; }

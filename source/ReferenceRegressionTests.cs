@@ -46,6 +46,8 @@ namespace KavrosClueHelper
                     check(paper.Value.Width>300&&paper.Value.Height>160,"frame is the scroll, not a roof");
                     check(paper.Value.Top>300,"dark title bar is trimmed off the parchment");
                 }
+                foreach(string shot in new[]{"beasts.png","calc.png","foodles.png","alkharid-real.png","al1.png","al2.png","al3.png","yan.png","duel.png","slider2.png","slider-tree.png","slider3.png","mysterious-rogues-yawn.png"})
+                    check(File.Exists(Path.Combine(assets,"test_assets","reported",shot)),"reported fixture "+shot);
                 check(File.Exists(Path.Combine(assets,"test_assets","reported","beasts.png")),"beasts fixture");
                 check(File.Exists(Path.Combine(assets,"test_assets","reported","slider-tree.png")),"tree slider fixture");
                 log.AppendLine("Exact aliases, ambiguous/negative text and coordinate-number checks passed.");

@@ -236,6 +236,7 @@ namespace KavrosClueHelper
                     Rectangle box=fit.Viewport;box.Offset(captureOffset);fit.Viewport=box;fit.PlayerPixel=new Point(fit.PlayerPixel.X+captureOffset.X,fit.PlayerPixel.Y+captureOffset.Y);
                     previous=fit;previousStructure=true;misses=0;return fit;}
                 }
+                if(homes.Count==0&&previous==null){Diagnostics+="; no compass anchor, not guessing a position";continue;}
                 var samples=Samples(image,dot,viewport,9);
                 Diagnostics+="; dot "+dot+" viewport "+viewport+" samples "+samples.Count;if(!Textured(samples))continue;
                 double maxError=trusted?10:22,margin=trusted?5:2.5;
