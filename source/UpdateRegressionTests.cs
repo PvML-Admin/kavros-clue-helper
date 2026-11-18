@@ -56,7 +56,7 @@ namespace KavrosClueHelper
                 using(Bitmap original=new Bitmap(Path.Combine(root,"lumbridge-native.png")))
                 using(Bitmap scaled=Pixels.Crop(original,new Rectangle(Point.Empty,original.Size),new Size((int)Math.Round(original.Width*factor),(int)Math.Round(original.Height*factor))))
                 using(AnalysisResult r=engine.Analyze(scaled,200+count,false,CancellationToken.None,true))Check(r.Plan!=null&&r.Plan.Puzzle.Master!=null&&r.Plan.Puzzle.Master.Id==242,"new Lumbridge capture stays readable at scale "+factor);
-                var held=new ClueRetention();held.Accept(master);held.Missing();Check(held.Display(null)==master,"closing scroll retains master card");
+                var held=new ClueRetention();held.Accept(master);held.Missing();Check(held.Display(null)==null,"closing scroll does not keep a found card");
                 held.Accept(new DetectedPuzzle{Kind=PuzzleKind.Lockbox,Board=new int[25]});Check(held.Display(null)==null,"new puzzle replaces saved master");
                 held.Accept(master);held.Clear(master);Check(held.Display(master)==null,"Clear dismisses visible master until it is closed");
                 held.Missing();held.Accept(master);Check(held.Display(master)==master,"reopening dismissed clue restores recognition");
@@ -95,7 +95,7 @@ namespace KavrosClueHelper
                     PointF pos=scan.Position.Value;Check(scan.InRange(new PointF(pos.X+scan.Range,pos.Y+scan.Range)),"square range includes the diagonal boundary");
                     Check(!scan.InRange(new PointF(pos.X+scan.Range+1,pos.Y)),"one tile outside is not marked in range");
                     using(var map=new ScanMap(assets,scan)){map.Size=new Size(380,260);using(var bitmap=new Bitmap(380,260))using(var g=Graphics.FromImage(bitmap)){typeof(ScanMap).GetMethod("OnPaint",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(map,new object[]{new PaintEventArgs(g,new Rectangle(0,0,380,260))});bitmap.Save(Path.Combine(Path.GetDirectoryName(report),"scan-"+data.Id+"-preview.png"));}}
-                    held.Accept(p);held.Missing();Check(held.Display(null)==p,"scan map remains available when scroll closes");
+                    held.Accept(p);held.Missing();Check(held.Display(null)==null,"a closed scan is not shown as found");
                 }
                 // Real game scenery with the compass removed must remain negative.
                 using(Bitmap image=new Bitmap(Path.Combine(root,"compass-edgeville.png")))

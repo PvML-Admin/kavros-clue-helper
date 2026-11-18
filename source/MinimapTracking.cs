@@ -48,6 +48,7 @@ namespace KavrosClueHelper
         private RectangleF world,searchWorld;
         private int regionId;
         private int regionLevel=Int32.MinValue,misses;
+        private PointF velocity;
         private readonly string assets;
         private readonly MinimapAnchor anchor;
         private readonly MinimapOrientation orientation;
@@ -58,7 +59,7 @@ namespace KavrosClueHelper
         private int searchBatch;
         public string Diagnostics {get;private set;}
         public MinimapPositionReader(string directory){assets=directory;anchor=new MinimapAnchor(directory);orientation=new MinimapOrientation(directory);}
-        public void Reset(){previous=null;previousStructure=false;searchBatch=0;misses=0;}
+        public void Reset(){previous=null;previousStructure=false;searchBatch=0;misses=0;velocity=PointF.Empty;}
         public void SetReference(Bitmap image,RectangleF bounds,int id)
         {reference=new Surface(image);world=searchWorld=bounds;regionId=id;regionLevel=Int32.MinValue;Reset();}
         private void Load(ScanRegion region)
@@ -176,9 +177,11 @@ namespace KavrosClueHelper
             double[] scales={1,1.5,2,2.5,3,4,5,6,8,10,12,16,0.75};double[] angles=Enumerable.Range(0,24).Select(i=>i*Math.PI/12).ToArray();
             if(local&&previous!=null)
             {
-                left=previous.Position.X-12;right=previous.Position.X+12;bottom=previous.Position.Y-12;top=previous.Position.Y+12;step=2;
-                if(!adapt){scales=new[]{Math.Max(0.5,previous.PixelsPerTile-0.25),previous.PixelsPerTile,previous.PixelsPerTile+0.25};
-                angles=new[]{previous.Rotation-Math.PI/24,previous.Rotation,previous.Rotation+Math.PI/24};}
+                double radius=Math.Max(28,Math.Abs(velocity.X)+Math.Abs(velocity.Y)+18);
+                double cx=previous.Position.X+velocity.X,cy=previous.Position.Y+velocity.Y;
+                left=cx-radius;right=cx+radius;bottom=cy-radius;top=cy+radius;step=2;
+                if(!adapt){scales=new[]{Math.Max(0.5,previous.PixelsPerTile-0.35),previous.PixelsPerTile,previous.PixelsPerTile+0.35};
+                angles=new[]{previous.Rotation-Math.PI/18,previous.Rotation,previous.Rotation+Math.PI/18};}
             }
             foreach(double scale in scales)foreach(double angle in angles)
             {
@@ -236,7 +239,6 @@ namespace KavrosClueHelper
                     Rectangle box=fit.Viewport;box.Offset(captureOffset);fit.Viewport=box;fit.PlayerPixel=new Point(fit.PlayerPixel.X+captureOffset.X,fit.PlayerPixel.Y+captureOffset.Y);
                     previous=fit;previousStructure=true;misses=0;return fit;}
                 }
-                if(homes.Count==0&&previous==null){Diagnostics+="; no compass anchor, not guessing a position";continue;}
                 var samples=Samples(image,dot,viewport,9);
                 Diagnostics+="; dot "+dot+" viewport "+viewport+" samples "+samples.Count;if(!Textured(samples))continue;
                 double maxError=trusted?10:22,margin=trusted?5:2.5;
@@ -259,12 +261,14 @@ namespace KavrosClueHelper
                 Diagnostics+=" dense "+error.ToString("0.00");
                 if(!Textured(dense)||error>(trusted?12:23)||Math.Abs(error-sparse)>5)continue;
                 Rectangle clientViewport=viewport;clientViewport.Offset(captureOffset);
-                previous=new MinimapMatch{Viewport=clientViewport,Position=new PointF((float)winner.X,(float)winner.Y),PlayerPixel=new Point(dot.X+captureOffset.X,dot.Y+captureOffset.Y),PixelsPerTile=winner.Scale,Rotation=winner.Angle,Error=error};
+                var nextPos=new PointF((float)winner.X,(float)winner.Y);
+                if(previous!=null)velocity=new PointF(Math.Max(-10,Math.Min(10,nextPos.X-previous.Position.X)),Math.Max(-10,Math.Min(10,nextPos.Y-previous.Position.Y)));
+                previous=new MinimapMatch{Viewport=clientViewport,Position=nextPos,PlayerPixel=new Point(dot.X+captureOffset.X,dot.Y+captureOffset.Y),PixelsPerTile=winner.Scale,Rotation=winner.Angle,Error=error};
                 previousStructure=false;misses=0;return previous;
             }
             // A single obscured frame must not discard the local search seed.
             // Nothing is returned as a live match until new pixels validate it.
-            if(++misses>=4){previous=null;previousStructure=false;misses=0;}return null;
+            if(++misses>=12){velocity=PointF.Empty;}return null;
         }
     }
 }

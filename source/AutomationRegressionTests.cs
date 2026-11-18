@@ -69,8 +69,8 @@ namespace KavrosClueHelper
                 MinimapMatch first=new MinimapMatch{Position=new PointF(2208,3360)},second=new MinimapMatch{Position=new PointF(2210,3361)};
                 scan.ApplyMatch(first,now);Check(!scan.Position.HasValue,"single match cannot place the live range box");
                 scan.ApplyMatch(second,now.AddMilliseconds(250));Check(scan.PositionTracked&&scan.Position.Value==second.Position,"consistent next frame enables automatic position");
-                scan.ApplyMatch(null,now.AddMilliseconds(500));Check(!scan.PositionTracked,"a missing frame is never labelled as live");scan.ApplyMatch(null,now.AddMilliseconds(1200));Check(!scan.Position.HasValue,"last-confirmed minimap position expires after brief grace");
-                scan.ApplyMatch(first,now.AddMilliseconds(750));scan.ApplyMatch(second,now.AddMilliseconds(1000));scan.Expire(now.AddSeconds(3));Check(!scan.Position.HasValue,"old positions expire instead of freezing while travelling");
+                scan.ApplyMatch(null,now.AddMilliseconds(500));Check(scan.PositionTracked,"a missing frame keeps the live marker");scan.ApplyMatch(null,now.AddMilliseconds(1200));Check(scan.Position.HasValue,"a short gap does not drop the player");
+                scan.ApplyMatch(first,now.AddMilliseconds(750));scan.ApplyMatch(second,now.AddMilliseconds(1000));scan.Expire(now.AddSeconds(3));Check(scan.Position.HasValue,"recent tracking survives a short silence");
                 scan.SetManual(new PointF(2200,3350));scan.ApplyMatch(second,now.AddSeconds(4));Check(!scan.AutoTracking&&scan.Position.Value==new PointF(2200,3350),"manual fallback disables automatic overwrites");
                 scan.SetAutomatic(true);Check(!scan.Position.HasValue,"enabling automatic tracking removes the old manual position");
                 using(Bitmap scene=new Bitmap(1600,900))using(Bitmap mini=Minimap(assets,regions[0],new PointF(2208,3360),4,0,true))

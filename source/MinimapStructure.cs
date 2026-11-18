@@ -77,7 +77,7 @@ namespace KavrosClueHelper
    var coarse=samples.Take(32).ToList();var best=new List<Trial>();double left=region.MapBounds.Left,right=region.MapBounds.Right,bottom=region.MapBounds.Top,top=region.MapBounds.Bottom;
    double[] scales={0.75,1,1.5,2,2.5,3,3.5,4,4.5,5,6,8,12,16},angles=Enumerable.Range(0,48).Select(i=>i*Math.PI/24).ToArray();
    if(rotationHint.HasValue)angles=Enumerable.Range(-6,13).Select(i=>rotationHint.Value+i*Math.PI/36).ToArray();
-   if(previous!=null){left=previous.Position.X-14;right=previous.Position.X+14;bottom=previous.Position.Y-14;top=previous.Position.Y+14;scales=new[]{previous.PixelsPerTile*0.8,previous.PixelsPerTile-0.2,previous.PixelsPerTile,previous.PixelsPerTile+0.2,previous.PixelsPerTile*1.25};double a=rotationHint??previous.Rotation;angles=rotationHint.HasValue?new[]{a-Math.PI/36,a,a+Math.PI/36}:Enumerable.Range(-12,25).Select(i=>a+i*Math.PI/24).ToArray();}
+   if(previous!=null){left=previous.Position.X-28;right=previous.Position.X+28;bottom=previous.Position.Y-28;top=previous.Position.Y+28;scales=new[]{previous.PixelsPerTile*0.8,previous.PixelsPerTile-0.2,previous.PixelsPerTile,previous.PixelsPerTile+0.2,previous.PixelsPerTile*1.25};double a=rotationHint??previous.Rotation;angles=rotationHint.HasValue?new[]{a-Math.PI/18,a,a+Math.PI/18}:Enumerable.Range(-12,25).Select(i=>a+i*Math.PI/24).ToArray();}
    foreach(double scale in scales)foreach(double angle in angles)
    {
     token.ThrowIfCancellationRequested();for(double y=bottom;y<=top;y+=2)for(double x=left;x<=right;x+=2){double limit=best.Count<32?4:Math.Min(4,best.Last().Error);double e=Score(coarse,x,y,scale,angle,limit);if(e<limit)Keep(best,new Trial{X=x,Y=y,Scale=scale,Angle=angle,Error=e});}

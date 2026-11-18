@@ -698,7 +698,8 @@ Tile 2811, 3160 | level 0</details>
   </clue>
   <clue id="209" tier="medium" type="cryptic" heading="Dig Site Exam Centre" action="Search Closed chest" x="3354" y="3349" width="1" height="1" level="0">
     <text>The dead, red dragon watches over this chest. He must really dig the view.</text>
-    <details>Fastest: get the key from a barbarian in Barbarian Village. At the Exam Centre search the chest in the southern room with the dragon head.
+    <details>Fastest: Teleport to Barbarian Village (Ctrl+T or ;;t &gt; Locations &gt; Barbarian Village) and kill a male Barbarian for a key. Then teleport to the Archaeology Guild (Ctrl+T or ;;t &gt; Skills &gt; Archaeology &gt; Archaeology Guild), walk to the Exam Centre and search the chest in the southern room with the dragon head.
+Alternatively: a Digsite pendant to the Dig Site, or the Varrock lodestone then east to the Exam Centre.
 
 Tile 3354, 3349 | level 0</details>
   </clue>
