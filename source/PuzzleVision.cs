@@ -360,6 +360,20 @@ namespace KavrosClueHelper
             if(marked&&(result==null||!SlidingSolver.IsSolvable(result.Board)))return ReadCore(source,region,scale,false)??result;
             return result;
         }
+        private static string rememberedTheme;
+        private static int[] rememberedBoard;
+        private static int[] RememberBoard(string theme, int[] read, bool safe)
+        {
+            if (read == null) return null;
+            if (rememberedBoard != null && rememberedTheme == theme)
+            {
+                int diffs = 0, p = -1, q = -1;
+                for (int i = 0; i < 25; i++) if (rememberedBoard[i] != read[i]) { diffs++; if (p < 0) p = i; else q = i; }
+                if (diffs == 2 && rememberedBoard[p] == read[q] && rememberedBoard[q] == read[p]) return (int[])rememberedBoard.Clone();
+            }
+            if (!safe || rememberedBoard == null) { rememberedTheme = theme; rememberedBoard = (int[])read.Clone(); }
+            return read;
+        }
         private DetectedPuzzle ReadCore(Bitmap source, Rectangle region, float scale,bool safe)
 
         {
@@ -368,7 +382,7 @@ namespace KavrosClueHelper
                 if (crop == null) return null;
                 Pixels p = new Pixels(crop);
                 double[][] tiles = Enumerable.Range(0, 25).Select(i => (safe?TileFingerprint(p,new Rectangle(i % 5 * 56, i / 5 * 56, 49, 49)):p.Fingerprint(new Rectangle(i%5*56,i/5*56,49,49),7,7,true))).ToArray();
-                double best = 0; int[] bestMap = null; string theme = null; double minScore = 0;
+                double best = 0; int[] bestMap = null; string theme = null; double minScore = 0; double[,] bestScores = null;
                 foreach (Reference reference in references)
                 {
                     double[,] scores = new double[25, 25];
@@ -376,9 +390,24 @@ namespace KavrosClueHelper
                         scores[i, j] = j == 24 ? Math.Max(Pixels.Similarity(tiles[i], (safe?reference.Tiles:reference.FullTiles)[j], true), (safe?blanks:fullBlanks).Select(b => Pixels.Similarity(tiles[i], b, true)).DefaultIfEmpty(0).Max()) : Pixels.Similarity(tiles[i], (safe?reference.Tiles:reference.FullTiles)[j], true);
                     int[] assignment = Assign(scores);
                     double score = Enumerable.Range(0, 25).Average(i => scores[i, assignment[i]]);
-                    if (score > best) { best = score; bestMap = assignment; theme = reference.Name; minScore = Enumerable.Range(0, 25).Min(i => scores[i, assignment[i]]); }
+                    if (score > best) { best = score; bestMap = assignment; theme = reference.Name; minScore = Enumerable.Range(0, 25).Min(i => scores[i, assignment[i]]); bestScores = scores; }
                 }
                 if (best < 0.73 || minScore < 0.40) return null;
+                // Some pictures contain near-identical tiles (tree 10/14 and castle 5/9
+                // differ by ~1-2% of pixels). A single swap of such a pair gives an
+                // impossible parity. Real boards are always solvable, so repair it by
+                // swapping the pair whose exchange costs the least similarity.
+                if (!SlidingSolver.IsSolvable(bestMap))
+                {
+                    double cheapest = Double.MaxValue; int a = -1, b = -1;
+                    for (int i = 0; i < 25; i++) for (int k = i + 1; k < 25; k++)
+                    {
+                        double loss = bestScores[i, bestMap[i]] + bestScores[k, bestMap[k]] - bestScores[i, bestMap[k]] - bestScores[k, bestMap[i]];
+                        if (loss < cheapest) { cheapest = loss; a = i; b = k; }
+                    }
+                    if (cheapest < 0.05) { int swap = bestMap[a]; bestMap[a] = bestMap[b]; bestMap[b] = swap; }
+                }
+                bestMap = RememberBoard(theme, bestMap, safe);
                 return new DetectedPuzzle { Kind = PuzzleKind.Sliding, Bounds = region, Grid = region, Scale = scale, Board = bestMap, Theme = theme, Confidence = best };
             }
         }

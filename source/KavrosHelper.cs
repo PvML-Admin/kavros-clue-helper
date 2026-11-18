@@ -11,6 +11,7 @@ namespace KavrosClueHelper
 {
     public static class Program
     {
+        private static System.Threading.Mutex singleInstance;
         [STAThread]
         public static int Main(string[] args)
         {
@@ -81,9 +82,17 @@ namespace KavrosClueHelper
                     }
                     return 0;
                 }
+                bool firstInstance;
+                singleInstance = new System.Threading.Mutex(true, @"Local\KavrosClueHelper", out firstInstance);
+                if (!firstInstance) { MessageBox.Show("Kavros Clue Helper is already running (check the tray).", "Kavros Clue Helper"); return 0; }
                 PuzzleSuiteForm helper = new PuzzleSuiteForm();
-                helper.Shown += delegate { helper.CheckForUpdatesOnStartup(); };
+                helper.Shown += delegate
+                {
+                    if (!String.IsNullOrEmpty(AppUpdates.RestartedVersion)) helper.ShowToast("Updated to " + AppUpdates.RestartedVersion + ". See what's new.", false, "What's new", delegate { helper.ShowWhatsNew(); });
+                    helper.CheckForUpdatesOnStartup();
+                };
                 Application.Run(helper);
+                System.GC.KeepAlive(singleInstance);
                 return 0;
             }
             catch (Exception exception)
@@ -275,8 +284,7 @@ namespace KavrosClueHelper
                 if (text.Length > 0) found.Add(new GameWindow { Handle = handle, Title = text.ToString() });
                 return true;
             }, IntPtr.Zero);
-            found = found.OrderByDescending(w => w.Title.IndexOf("Kavros", StringComparison.OrdinalIgnoreCase) >= 0 && (w.Title.Contains("944") || w.Title.Contains("NXT")))
-                .ThenByDescending(w => w.Title.IndexOf("Kavros", StringComparison.OrdinalIgnoreCase) >= 0).ThenBy(w => w.Title).ToList();
+            found = found.Where(w => w.Title.IndexOf("Kavros", StringComparison.OrdinalIgnoreCase) >= 0).OrderBy(w => w.Title).ToList();
             windows.Items.Clear();
             foreach (GameWindow window in found) windows.Items.Add(window);
             int selected = found.FindIndex(w => w.Handle == previous);

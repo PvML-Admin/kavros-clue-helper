@@ -13,7 +13,7 @@ namespace KavrosClueHelper
     {
         public bool Enabled=true,Collapsed;
         public bool ShortestSlider = true;
-        public bool WholeRowClicks;
+        public bool WholeRowClicks=true;
         public bool CheckForUpdates = true;
         public Point Offset=new Point(12,72);
         public readonly List<CompassPosition> SavedPositions=new List<CompassPosition>();
@@ -88,7 +88,7 @@ namespace KavrosClueHelper
         public CompassMap(string assets)
         {
             DoubleBuffered=true;TabStop=true;SetStyle(ControlStyles.Selectable,true);
-            using(Bitmap loaded=new Bitmap(Path.Combine(assets,"compass","world.png")))map=Pixels.Crop(loaded,new Rectangle(Point.Empty,loaded.Size),loaded.Size);
+            map=WorldMap.Get(assets);
             MouseDown+=delegate(object sender,MouseEventArgs e){Focus();if(e.Button==MouseButtons.Left){mouseDown=e.Location;drag=e.Location;Capture=true;}if(e.Button==MouseButtons.Right&&PositionPicked!=null)PositionPicked(ToWorld(e.Location));};
             MouseMove+=delegate(object sender,MouseEventArgs e){if(!drag.HasValue){CompassPosition over=HitLodestone(e.Location);string label=over==null?"":over.Name;if(label!=hoverName){hoverName=label;locationTip.SetToolTip(this,label);}Cursor=over==null?Cursors.Default:Cursors.Hand;return;}if(Math.Abs(e.X-mouseDown.X)+Math.Abs(e.Y-mouseDown.Y)<5)return;centre.X-=(float)((e.X-drag.Value.X)*span/Width);centre.Y+=(float)((e.Y-drag.Value.Y)*span/Width);drag=e.Location;Invalidate();};
             MouseUp+=delegate(object sender,MouseEventArgs e){bool click=drag.HasValue&&Math.Abs(e.X-mouseDown.X)+Math.Abs(e.Y-mouseDown.Y)<5;drag=null;Capture=false;if(!click)return;if(e.Y<26&&e.X<102){Overview();return;}CompassPosition p=HitLodestone(e.Location);if(p!=null&&LodestonePicked!=null)LodestonePicked(p);};
@@ -188,7 +188,7 @@ namespace KavrosClueHelper
             TextRenderer.DrawText(g,"Click lodestone | Drag: pan | Wheel: zoom | Right: position",Font,new Rectangle(5,Height-17,Width-10,17),Color.White,TextFormatFlags.NoPadding|TextFormatFlags.SingleLine);
             TextRenderer.DrawText(g,"N",Font,new Rectangle(Width-22,4,20,20),Color.White,TextFormatFlags.NoPadding);
         }
-        protected override void Dispose(bool disposing){if(disposing){map.Dispose();locationTip.Dispose();}base.Dispose(disposing);}
+        protected override void Dispose(bool disposing){if(disposing){locationTip.Dispose();}base.Dispose(disposing);}
     }
     public sealed partial class FloatingCluePanel : Form
     {
@@ -204,9 +204,23 @@ namespace KavrosClueHelper
         private bool originSelected;
         private Button undoOrContinue, quickSlider;
         public event Action QuickSliderRequested;
+        private Label banner;
+        public void ShowBanner(string message, bool error)
+        {
+            if (banner == null)
+            {
+                banner = new Label { Height = 28, Dock = DockStyle.Bottom, TextAlign = ContentAlignment.MiddleLeft };
+                Controls.Add(banner);
+            }
+            banner.BackColor = error ? KavrosTheme.Danger : KavrosTheme.Panel;
+            banner.ForeColor = error ? KavrosTheme.GoldInk : KavrosTheme.Gold;
+            banner.Text = message;
+            banner.Visible = true;
+            banner.BringToFront();
+        }
         public void SetQuickOption(bool available)
         {
-            if (quickSlider != null && quickSlider.Visible != available) quickSlider.Visible = available;
+            if (quickSlider != null) quickSlider.Visible = false;
         }
         private int displayedCompassGeneration=-1;
         private string scanPaintKey;
@@ -233,7 +247,8 @@ namespace KavrosClueHelper
         public FloatingCluePanel(string directory,CompassSession compass,OverlayPreferences preferences)
         {
             assets=directory;session=compass;prefs=preferences;
-            FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;
+            FormClosing+=delegate(object sender,FormClosingEventArgs e){if(e.CloseReason==CloseReason.UserClosing){e.Cancel=true;Hide();}};
+            FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=false;DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;
             SetStyle(ControlStyles.UserPaint|ControlStyles.Opaque|ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
             ClientSize=new Size(400,140);BackColor=KavrosTheme.Bg;ForeColor=KavrosTheme.Text;Font=KavrosTheme.Ui(9F,false);
             title.SetBounds(0,0,294,32);title.TextAlign=ContentAlignment.MiddleLeft;title.Padding=new Padding(10,0,0,0);title.Font=new Font(Font,FontStyle.Bold);title.BackColor=KavrosTheme.BgRaise;Controls.Add(title);

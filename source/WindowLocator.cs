@@ -20,14 +20,12 @@ namespace KavrosClueHelper
             if (window == null || window.Automatic || window.Handle == IntPtr.Zero || Contains(window.Title, "Kavros Clue Helper") || Contains(window.ProcessName, "KavrosClueHelper")) return -1000;
             if (Contains(window.ClassName, "CabinetWClass") || Contains(window.ClassName, "WinRarWindow") || Contains(window.ClassName, "Chrome_WidgetWin") || Contains(window.ClassName, "ApplicationFrameWindow")) return -1000;
             if (IsLauncher(window)) return -1000;
+            // Title must contain Kavros. A rev number such as 944 or 951 is not required,
+            // and another server's rs2client window is not a match.
             bool titleMatch = Contains(window.Title, "kavros");
-            bool processMatch = Contains(window.ProcessName, "kavros");
-            bool nxtProcess = Contains(window.ProcessName, "rs2client");
-            if (!titleMatch && !processMatch && !nxtProcess) return -1000;
-            int score = titleMatch ? 400 : 160;
-            if (processMatch) score += 80;
-            if (Contains(window.Title, "nxt")) score += 120;
-            if (Contains(window.Title, "944")) score += 50;
+            if (!titleMatch) return -1000;
+            int score = 400;
+            if (Contains(window.ProcessName, "kavros")) score += 80;
             if (Contains(window.ClassName, "jag") || Contains(window.ClassName, "glfw") || Contains(window.ClassName, "lwjgl")) score += 70;
             if (window.Client.Width >= 600 && window.Client.Height >= 350) score += 40;
             if (window.Client.Width < 250 || window.Client.Height < 150) score -= 250;
@@ -81,7 +79,7 @@ namespace KavrosClueHelper
         }
         public static string Describe(IEnumerable<GameWindow> all, GameWindow selected)
         {
-            StringBuilder report = new StringBuilder("Kavros Clue Helper v0.6.1\r\n");
+            StringBuilder report = new StringBuilder("Kavros Clue Helper " + AppBranding.DisplayVersion + "\r\n");
             report.AppendLine("Windows: " + Environment.OSVersion.VersionString);
             if (selected == null) report.AppendLine("Game target: none");
             else

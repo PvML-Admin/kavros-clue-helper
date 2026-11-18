@@ -11,11 +11,13 @@ namespace KavrosClueHelper
     internal static class AppUpdates
     {
         internal const string RepositoryUrl = "https://github.com/Zenity-sys/kavros-clue-helper";
+        internal static string RestartedVersion;
+        internal static Action<string, bool, string, Action> Present;
         private static int busy;
 
         internal static void Start()
         {
-            VelopackApp.Build().Run();
+            VelopackApp.Build().OnRestarted(delegate(SemanticVersion version) { RestartedVersion = version == null ? "" : version.ToString(); }).Run();
         }
 
         internal static void Check(Form owner, bool interactive)
@@ -41,11 +43,7 @@ namespace KavrosClueHelper
                 UpdateManager manager = new UpdateManager(source, null, null);
                 if (!manager.IsInstalled)
                 {
-                    if (interactive)
-                    {
-                        Show(owner, "This copy cannot update itself. Install Setup.exe, or run the portable package from the GitHub release. Releases: " + RepositoryUrl + "/releases", MessageBoxIcon.Information);
-                        SetStatus(owner, "This copy was not installed with Setup.exe.");
-                    }
+                    if (interactive) Tell(owner, "This copy cannot update itself. Download Setup.exe from GitHub Releases.", true, null, null);
                     return;
                 }
                 UpdateInfo info = manager.CheckForUpdates();
@@ -54,42 +52,51 @@ namespace KavrosClueHelper
                     if (interactive)
                     {
                         string current = manager.CurrentVersion == null ? AppBranding.DisplayVersion : manager.CurrentVersion.ToString();
-                        Show(owner, "You are on the latest version (" + current + ").", MessageBoxIcon.Information);
-                        SetStatus(owner, "No update is available.");
+                        Tell(owner, "You are on the latest version (" + current + ").", false, null, null);
                     }
                     return;
                 }
                 string version = info.TargetFullRelease.Version.ToString();
-                DialogResult answer = Ask(owner, "Version " + version + " is available. Download it and restart now?", MessageBoxButtons.YesNo);
-                if (answer != DialogResult.Yes) return;
-                SetStatus(owner, "Downloading version " + version + "...");
-                manager.DownloadUpdates(info, null);
-                Action prepare = delegate
+                Tell(owner, "Version " + version + " is available.", false, "Update now", delegate
                 {
-                    PuzzleSuiteForm suite = owner as PuzzleSuiteForm;
-                    if (suite != null && !suite.IsDisposed) suite.PrepareForUpdate();
-                };
-                try
-                {
-                    if (owner != null && !owner.IsDisposed && owner.InvokeRequired) owner.Invoke(prepare);
-                    else prepare();
-                }
-                catch (ObjectDisposedException) { }
-                catch (InvalidOperationException) { }
-                manager.ApplyUpdatesAndRestart(info.TargetFullRelease, null);
+                    ThreadPool.QueueUserWorkItem(delegate
+                    {
+                        try
+                        {
+                            Tell(owner, "Downloading version " + version + "...", false, null, null);
+                            manager.DownloadUpdates(info, null);
+                            PuzzleSuiteForm suite = owner as PuzzleSuiteForm;
+                            if (suite != null && !suite.IsDisposed) suite.PrepareForUpdate();
+                            manager.ApplyUpdatesAndRestart(info.TargetFullRelease, null);
+                        }
+                        catch (Exception ex) { Tell(owner, Describe(ex), true, null, null); }
+                    });
+                });
             }
             catch (NotInstalledException)
             {
-                if (interactive) Show(owner, "This copy cannot update itself. Releases: " + RepositoryUrl + "/releases", MessageBoxIcon.Information);
+                if (interactive) Tell(owner, "This copy cannot update itself. Download Setup.exe from GitHub Releases.", true, null, null);
             }
             catch (Exception ex)
             {
-                if (interactive)
-                {
-                    Show(owner, "Could not check GitHub for updates." + Environment.NewLine + Describe(ex), MessageBoxIcon.Warning);
-                    SetStatus(owner, "Update check failed.");
-                }
+                if (interactive) Tell(owner, "Could not check GitHub for updates." + Environment.NewLine + Describe(ex), true, null, null);
             }
+        }
+
+        private static void Tell(Form owner, string message, bool error, string action, Action click)
+        {
+            Action show = delegate
+            {
+                if (Present != null) Present(message, error, action, click);
+                else SetStatus(owner, message);
+            };
+            try
+            {
+                if (owner != null && !owner.IsDisposed && owner.InvokeRequired) owner.BeginInvoke(show);
+                else show();
+            }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
         }
 
         private static string Describe(Exception ex)

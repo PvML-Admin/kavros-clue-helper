@@ -100,6 +100,7 @@ namespace KavrosClueHelper
         private Bitmap map;
         private bool detailed;
         private Bitmap overview;
+        private bool overviewShared;
         private bool regionalOverview;
         private float zoom=1;
         private PointF pan;
@@ -122,7 +123,7 @@ namespace KavrosClueHelper
         {
             if(clue==value) return;
             if(map!=null) { map.Dispose(); map=null; }
-            if(overview!=null){overview.Dispose();overview=null;}regionalOverview=false;
+            if(overview!=null){if(!overviewShared)overview.Dispose();overview=null;}regionalOverview=false;overviewShared=false;
             clue=value;zoom=1;pan=PointF.Empty;drag=null;detailed=false;
             if(value!=null)
             {
@@ -135,7 +136,8 @@ namespace KavrosClueHelper
                     string regional=Path.Combine(assets,"location-maps",value.Id+"-wide.jpg");
                     regionalOverview=File.Exists(regional);
                     if(regionalOverview||value.Floor==0&&value.Area.X>=2032&&value.Area.X<4080&&value.Area.Y>=2544&&value.Area.Y<4080)
-                        overview=new Bitmap(regionalOverview?regional:Path.Combine(assets,"compass","world.png"));
+                        overviewShared=!regionalOverview;
+                        overview=regionalOverview?new Bitmap(regional):WorldMap.Get(assets);
                 }
             }
             details.Visible=value!=null&&value.Reference;
@@ -185,6 +187,6 @@ namespace KavrosClueHelper
             {zoom=(float)Math.Max(!clue.Reference?1:detailed&&overview==null?.90:.24,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));Invalidate();}
             base.OnMouseWheel(e);
         }
-        protected override void Dispose(bool disposing) { if(disposing && map!=null) { map.Dispose(); map=null; } if(disposing && overview!=null){overview.Dispose();overview=null;} base.Dispose(disposing); }
+        protected override void Dispose(bool disposing) { if(disposing && map!=null) { map.Dispose(); map=null; } if(disposing && overview!=null){if(!overviewShared)overview.Dispose();overview=null;} base.Dispose(disposing); }
     }
 }

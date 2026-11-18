@@ -202,7 +202,7 @@ namespace KavrosClueHelper
             floatingPanel.PauseRequested+=delegate{automatic.Checked=!automatic.Checked;};
             floatingPanel.ExitRequested+=ExitHelper;
             floatingPanel.QuickSliderRequested += UseQuickRoute;
-            floatingPanel.ClearRequested+=delegate{CancelAnalysis();retainedClue.Clear(current);compassSession.NewClue();ShowMasterView(false);masterView.SetClue(null,assetPath);captureSearch.ForceFullWindow();nextRead=DateTime.MinValue;UpdateFloatingPanel();};
+            floatingPanel.ClearRequested+=delegate{CancelAnalysis();retainedClue.Clear(current);compassSession.NewClue();ShowMasterView(false);masterView.SetClue(null,assetPath);canvas.Puzzle=null;canvas.Lines=null;canvas.Values=null;canvas.Invalidate();captureSearch.ForceFullWindow();nextRead=DateTime.MinValue;UpdateFloatingPanel();};
             floatingPanel.UserMoved+=delegate{Rectangle game=SelectedWindow==IntPtr.Zero?Rectangle.Empty:Native.ClientBounds(SelectedWindow);preferences.Offset=new Point(floatingPanel.Left-game.Left,floatingPanel.Top-game.Top);preferences.Save();};
             floatingEnabled.Text="Floating clue panel";floatingEnabled.SetBounds(16,939,190,26);floatingEnabled.Checked=preferences.Enabled;Controls.Add(floatingEnabled);
             floatingEnabled.CheckedChanged+=delegate{preferences.Enabled=floatingEnabled.Checked;preferences.Save();UpdateFloatingPanel();};
@@ -212,6 +212,9 @@ namespace KavrosClueHelper
             sliderTips.SetToolTip(checkUpdates,"When this is on, startup asks GitHub whether a newer release exists.");
             checkUpdates.CheckedChanged+=delegate{preferences.CheckForUpdates=checkUpdates.Checked;preferences.Save();};
             ButtonAt("Check for updates",305,971,195,delegate{AppUpdates.Check(this,true);});
+            ButtonAt("What's new",16,1012,160,ShowWhatsNew);
+            ClientSize=new Size(ClientSize.Width,1048);
+            AppUpdates.Present=ShowToast;
             var trayMenu=new ContextMenuStrip();trayMenu.Items.Add("Open panel",null,delegate{OpenPanel();});trayMenu.Items.Add("Settings",null,delegate{ShowSettings();});trayMenu.Items.Add("Exit helper",null,delegate{ExitHelper();});
             AppBranding.ArrangeSettings(this);
             KavrosTheme.AddMainCards(this);
@@ -226,6 +229,46 @@ namespace KavrosClueHelper
             timer.Interval = 50; timer.Tick += delegate { TickReader(); }; timer.Start();
             FormClosed += delegate { closing=true; CancelAnalysis(); StopTracking(); timer.Stop(); timer.Dispose(); overlay.Dispose();floatingPanel.Dispose();tray.Visible=false;tray.Dispose();trayMenu.Dispose();if (Icon != null) Icon.Dispose(); if (preview.Image != null) preview.Image.Dispose(); if(diagnosticCapture!=null) diagnosticCapture.Dispose(); if(offlineSource!=null) offlineSource.Dispose(); Native.UnregisterHotKey(Handle, 11); Native.UnregisterHotKey(Handle, 12); };
         }
+        private Panel toastBar; private Label toastText; private Button toastAction; private Timer toastTimer; private TextBox whatsNew; private Action toastClick;
+        internal void ShowToast(string message, bool error, string action, Action click)
+        {
+            if (toastBar == null)
+            {
+                toastBar = new Panel { Name = "UpdateToast", Height = 40, Dock = DockStyle.Bottom, Visible = false };
+                toastText = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0) };
+                toastAction = new Button { Dock = DockStyle.Right, Width = 120, FlatStyle = FlatStyle.Flat, Visible = false };
+                toastAction.Click += delegate { if (toastClick != null) toastClick(); toastBar.Visible = false; if (toastTimer != null) toastTimer.Stop(); };
+                toastBar.Controls.Add(toastText); toastBar.Controls.Add(toastAction);
+                toastTimer = new Timer { Interval = 5000 };
+                toastTimer.Tick += delegate { toastTimer.Stop(); toastBar.Visible = false; };
+                Controls.Add(toastBar);
+            }
+            toastBar.BackColor = error ? KavrosTheme.Danger : KavrosTheme.Panel;
+            toastText.ForeColor = error ? KavrosTheme.GoldInk : KavrosTheme.Text;
+            toastText.Text = message;
+            toastClick = click;
+            toastAction.Text = action ?? "";
+            toastAction.Visible = action != null;
+            toastAction.BackColor = KavrosTheme.Gold;
+            toastAction.ForeColor = KavrosTheme.GoldInk;
+            toastBar.Visible = true; toastBar.BringToFront();
+            toastTimer.Stop();
+            if (click == null) toastTimer.Start();
+            if (floatingPanel != null && !floatingPanel.IsDisposed) floatingPanel.ShowBanner(message, error);
+        }
+        internal void ShowWhatsNew()
+        {
+            ShowSettings();
+            if (whatsNew == null)
+            {
+                whatsNew = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Font = KavrosTheme.Ui(9F, false), BackColor = KavrosTheme.Bg, ForeColor = KavrosTheme.Text };
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CHANGELOG.md");
+                whatsNew.Text = File.Exists(path) ? File.ReadAllText(path) : "What's new is listed in CHANGELOG.md next to the program.";
+                Controls.Add(whatsNew);
+            }
+            whatsNew.Bounds = new Rectangle(16, 88, Math.Max(40, ClientSize.Width - 32), Math.Max(40, ClientSize.Height - 140));
+            whatsNew.Visible = true; whatsNew.BringToFront();
+        }
         private void ShowSettings(){if(WindowState==FormWindowState.Minimized)WindowState=FormWindowState.Normal;Show();Activate();}
         internal void CheckForUpdatesOnStartup(){if(preferences.CheckForUpdates)AppUpdates.Check(this,false);}
         internal void PrepareForUpdate(){closing=true;}
@@ -234,8 +277,9 @@ namespace KavrosClueHelper
         private void ExitHelper(){closing=true;Close();}
         private void UpdateFloatingPanel()
         {
-            if(floatingPanel==null)return;
+            if(closing||floatingPanel==null||floatingPanel.IsDisposed)return;
             bool exists=SelectedWindow!=IntPtr.Zero&&Native.IsWindow(SelectedWindow);
+            if(floatingPanel.IsHandleCreated)try{Native.SetOwner(floatingPanel.Handle,exists?SelectedWindow:IntPtr.Zero);}catch(System.DllNotFoundException){}catch(EntryPointNotFoundException){}
             bool minimised=exists&&Native.IsIconic(SelectedWindow);
             bool foreground=exists&&WindowLocator.IsForeground(SelectedWindow);
             if(!draw.Checked||!FloatingPanelLayout.Visible(floatingEnabled.Checked,offline,exists,minimised,foreground,floatingPanel.ContainsFocus,ContainsFocus)){floatingPanel.Hide();return;}
@@ -276,7 +320,14 @@ namespace KavrosClueHelper
             b.Click += delegate { try { action(); } catch (Exception ex) { overlay.Hide(); status.Text = ex.Message; } }; Controls.Add(b);
         }
         private IntPtr SelectedWindow { get { return attachedWindow == null ? IntPtr.Zero : attachedWindow.Handle; } }
-        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); KavrosTheme.ApplyWindowChrome(Handle); Native.RegisterHotKey(Handle, 11, 0x4006, (uint)Keys.L); Native.RegisterHotKey(Handle, 12, 0x4006, (uint)Keys.H); }
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            KavrosTheme.ApplyWindowChrome(Handle);
+            bool scanKey = Native.RegisterHotKey(Handle, 11, 0x4006, (uint)Keys.L);
+            bool drawKey = Native.RegisterHotKey(Handle, 12, 0x4006, (uint)Keys.H);
+            if (!scanKey || !drawKey) status.Text = "Ctrl+Shift+" + (!scanKey ? "L" : "H") + " is taken by another program (or another copy of the helper). Use the buttons instead.";
+        }
         protected override void WndProc(ref Message m)
         {
             if (m.Msg == 0x312) { if (m.WParam.ToInt32() == 11) RequestScan(); if (m.WParam.ToInt32() == 12) draw.Checked = !draw.Checked; }
@@ -628,8 +679,9 @@ namespace KavrosClueHelper
                 {
                     List<int> clicks=wholeRowClicks.Checked?SlidingRoute.ClickRoute(puzzle.Board,slidingMoves):slidingMoves;
                     canvas.Next=clicks[0];
-                    marks=GuidanceDrawing.SliderMarks(puzzle,clicks,slidingBatchNumber,4);
-                    summary.Text="Click "+String.Join(" then ",Enumerable.Range(slidingBatchNumber,marks.Count))+" in order. "+clicks.Count+" "+(wholeRowClicks.Checked?"line clicks":"moves")+" remain. "+(prepared!=null&&prepared.SlidingWholeRows==wholeRowClicks.Checked&&prepared.SlidingOptimal?"Shortest route proven.":"Best route found.");
+                    marks=GuidanceDrawing.SliderMarks(puzzle,clicks,slidingBatchNumber,1);
+                    if(marks.Count>0){marks[0].Colour=KavrosTheme.Gold;marks[0].Pulse=true;int gap=Array.IndexOf(puzzle.Board,24);marks[0].ArrowX=gap%5-clicks[0]%5;marks[0].ArrowY=gap/5-clicks[0]/5;}
+                    summary.Text=clicks.Count+" left. "+(prepared!=null&&prepared.SlidingOptimal?"Shortest route.":"Best route so far.");
                 }
             }
             else if (puzzle.Kind == PuzzleKind.Knot)
@@ -678,7 +730,7 @@ namespace KavrosClueHelper
                 int consumed=slidingMoves.Count-remaining.Count;
                 slidingBatchNumber+=wholeRowClicks.Checked?SlidingRoute.CompletedClicks(slidingBoard,slidingMoves,consumed):consumed;slidingMoves=remaining;
             }
-            else{slidingMoves=preparedRoute==null?(wholeRowClicks.Checked?SlidingClickOptimizer.Solve(puzzle.Board).Moves:SlidingOptimizer.Solve(puzzle.Board).Moves):new List<int>(preparedRoute);slidingBatchNumber=1;}
+            else{slidingMoves=preparedRoute==null?(wholeRowClicks.Checked?SlidingClickOptimizer.Solve(puzzle.Board).Moves:SlidingOptimizer.Solve(puzzle.Board,SliderBudget.Milliseconds).Moves):new List<int>(preparedRoute);slidingBatchNumber=1;}
             slidingBoard=(int[])puzzle.Board.Clone();slidingTheme=puzzle.Theme;
         }
         private void ShowGuidance()
@@ -769,7 +821,7 @@ namespace KavrosClueHelper
         protected override void OnPaint(PaintEventArgs e)
         {
             e.Graphics.Clear(KavrosTheme.Input);
-            if (Puzzle == null) { TextRenderer.DrawText(e.Graphics, "Open a puzzle in Kavros\nto see its solution here.", Font, ClientRectangle, KavrosTheme.TextSoft, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter); return; }
+            if (Puzzle == null || (Puzzle.Board == null && Puzzle.Kind != PuzzleKind.Towers)) { TextRenderer.DrawText(e.Graphics, "Open a puzzle in Kavros\nto see its solution here.", Font, ClientRectangle, KavrosTheme.TextSoft, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter); return; }
             if (Lines != null)
             {
                 using (Font f = new Font("Segoe UI", 10F, FontStyle.Bold))
