@@ -14,6 +14,7 @@ namespace KavrosClueHelper
         [STAThread]
         public static int Main(string[] args)
         {
+            NetSecurity.EnableModernTls();
             try
             {
                 AppUpdates.Start();

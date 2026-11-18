@@ -57,6 +57,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Compilation failed.' }
         Copy-Item -LiteralPath $velopackDll -Destination (Join-Path $outputDirectory 'Velopack.dll') -Force
         Copy-Item -LiteralPath $jsonDll -Destination (Join-Path $outputDirectory 'Newtonsoft.Json.dll') -Force
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'KavrosClueHelper.exe.config') -Destination (Join-Path $outputDirectory 'KavrosClueHelper.exe.config') -Force
     } finally { [IO.File]::Delete($metadata) }
     Write-Output $outputFile
 } finally {

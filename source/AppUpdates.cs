@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Windows.Forms;
 using Velopack;
@@ -85,10 +86,22 @@ namespace KavrosClueHelper
             {
                 if (interactive)
                 {
-                    Show(owner, "Could not check GitHub for updates. " + ex.Message, MessageBoxIcon.Warning);
+                    Show(owner, "Could not check GitHub for updates." + Environment.NewLine + Describe(ex), MessageBoxIcon.Warning);
                     SetStatus(owner, "Update check failed.");
                 }
             }
+        }
+
+        private static string Describe(Exception ex)
+        {
+            List<string> parts = new List<string>();
+            Exception current = ex;
+            while (current != null)
+            {
+                if (!string.IsNullOrEmpty(current.Message)) parts.Add(current.GetType().Name + ": " + current.Message);
+                current = current.InnerException;
+            }
+            return string.Join(Environment.NewLine, parts.ToArray());
         }
 
         private static void SetStatus(Form owner, string message)

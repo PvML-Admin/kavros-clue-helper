@@ -441,6 +441,7 @@ FodyWeavers.xsd
 # Local build output. The release workflow builds the executable; do not
 # commit it or the restored Velopack assemblies. Do not use Git LFS.
 /KavrosClueHelper.exe
+/KavrosClueHelper.exe.config
 /Velopack.dll
 /Newtonsoft.Json.dll
 /source/packages/

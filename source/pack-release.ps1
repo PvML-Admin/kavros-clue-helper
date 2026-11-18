@@ -21,6 +21,9 @@ foreach ($dll in @('Velopack.dll', 'Newtonsoft.Json.dll')) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Missing $dll beside KavrosClueHelper.exe. Run source/build.ps1 first." }
     Copy-Item -LiteralPath $path -Destination (Join-Path $stage $dll)
 }
+$config = Join-Path $PSScriptRoot 'KavrosClueHelper.exe.config'
+if (-not (Test-Path -LiteralPath $config)) { throw 'Missing source/KavrosClueHelper.exe.config.' }
+Copy-Item -LiteralPath $config -Destination (Join-Path $stage 'KavrosClueHelper.exe.config')
 Copy-Item -LiteralPath (Join-Path $root 'assets') -Destination (Join-Path $stage 'assets') -Recurse
 foreach ($doc in @('README.txt', 'LICENSE.txt', 'THIRD_PARTY.txt', 'PATCH-NOTES.md')) {
     Copy-Item -LiteralPath (Join-Path $root $doc) -Destination (Join-Path $stage $doc)
