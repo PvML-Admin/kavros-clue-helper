@@ -39,7 +39,10 @@ try {
     $references = @('mscorlib.dll','System.dll','System.Core.dll','System.Drawing.dll','System.Windows.Forms.dll','System.Xml.dll','System.Xml.Linq.dll','System.Runtime.WindowsRuntime.dll','System.Net.Http.dll','System.IO.Compression.dll','System.IO.Compression.FileSystem.dll','System.Web.dll') |
         ForEach-Object { '/reference:' + (Join-Path $frameworkDirectory $_) }
     $references += '/reference:' + (Join-Path $env:WINDIR 'Microsoft.NET\assembly\GAC_MSIL\System.Runtime\v4.0_4.0.0.0__b03f5f7f11d50a3a\System.Runtime.dll')
-    $references += @('/reference:' + $velopackDll, '/reference:' + $jsonDll)
+    # Add these as two arguments. A comma inside @() binds tighter than +,
+    # so one array literal concatenates both paths into a single /reference.
+    $references += '/reference:' + $velopackDll
+    $references += '/reference:' + $jsonDll
     $references += @('Windows.Foundation','Windows.Media','Windows.Graphics','Windows.Storage','Windows.Globalization') | ForEach-Object { '/reference:' + (Join-Path $env:WINDIR ('System32\WinMetadata\'+$_+'.winmd')) }
     $identity = ([xml](Get-Content -LiteralPath 'app.manifest' -Raw)).assembly.assemblyIdentity
     $version = [Version]::Parse([string]$identity.version).ToString(4)
