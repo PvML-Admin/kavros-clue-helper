@@ -22,6 +22,16 @@ namespace KavrosClueHelper
                 foreach(string text in new[]{"","Beware of double agents!","Search","You are scanning on a different level.","Open a supported clue or puzzle.","This is an unrelated note on parchment.","This anagram reveals who to speak to next: NOT A REAL NPC"})check(reader.MatchText(text)==null,"False positive "+text);
                 foreach(ReferenceClue c in reader.Clues.Where(c=>c.Type=="coordinates"))
                 {string text=System.Text.RegularExpressions.Regex.Replace(c.Text[0],@"\d+",m=>(Int32.Parse(m.Value)+37).ToString());check(reader.MatchText(text)==null,"Wrong coordinate numbers "+c.Card.Id);}
+                ReferenceClue alkharid=reader.MatchText("sf "+reader.Clues.First(c=>c.Card.Id==95).Text[0]+" zz");
+                check(alkharid!=null&&alkharid.Card.Id==95,"Al Kharid tents survive border junk");
+                ReferenceClue beasts=reader.MatchText(reader.Clues.First(c=>c.Card.Id==156).Text[0]+" sand rocks");
+                check(beasts!=null&&beasts.Card.Id==156,"Beasts poem survives border junk");
+                ReferenceClue calc=reader.MatchText("me am the calc");
+                check(calc!=null&&calc.Card.Id==20,"Calc anagram line matches");
+                ReferenceClue food=reader.MatchText(reader.Clues.First(c=>c.Card.Id==155).Text[0]+" sand");
+                check(food!=null&&food.Card.Id==155,"Foodles clue survives border junk");
+                check(File.Exists(Path.Combine(assets,"test_assets","reported","beasts.png")),"beasts fixture");
+                check(File.Exists(Path.Combine(assets,"test_assets","reported","slider-tree.png")),"tree slider fixture");
                 log.AppendLine("Exact aliases, ambiguous/negative text and coordinate-number checks passed.");
                 foreach(ReferenceClue c in reader.Clues.Where(c=>c.Type=="map"))
                 using(Bitmap original=new Bitmap(Path.Combine(assets,"reference-maps",c.Card.Id+".png")))

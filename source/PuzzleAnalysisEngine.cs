@@ -7,6 +7,12 @@ using System.Threading;
 
 namespace KavrosClueHelper
 {
+    public static class SliderBudget
+    {
+        // Work budget for the immediate slider route. Deterministic work units,
+        // so every PC gets the same route for the same board.
+        public const int Milliseconds = 5000;
+    }
     public static class SearchCancellation
     {
         [ThreadStatic] public static CancellationToken Token;
@@ -20,6 +26,8 @@ namespace KavrosClueHelper
         public List<int> Sliding;
         public bool SlidingOptimal;
         public bool SlidingWholeRows;
+        // Proven minimum for the board the route was solved from (0 = unknown).
+        public int SlidingLowerBound;
         public KnotSolution Knot;
         public bool KnotMoving;
         public PuzzlePlan WithPuzzle(DetectedPuzzle puzzle)
@@ -154,7 +162,7 @@ namespace KavrosClueHelper
                 string key=puzzle.Key+":"+reverse+(puzzle.Kind==PuzzleKind.Knot?":"+knotMoving:"")+":"+wholeRows;
                 PuzzlePlan plan;
                 if (cached != null && key == solveKey)
-                    plan = new PuzzlePlan { Puzzle = puzzle, Lockbox = cached.Lockbox, Towers = cached.Towers, Sliding = cached.Sliding, SlidingOptimal=cached.SlidingOptimal,SlidingWholeRows=cached.SlidingWholeRows,Knot = cached.Knot,KnotMoving=knotMoving };
+                    plan = new PuzzlePlan { Puzzle = puzzle, Lockbox = cached.Lockbox, Towers = cached.Towers, Sliding = cached.Sliding, SlidingOptimal=cached.SlidingOptimal,SlidingWholeRows=cached.SlidingWholeRows,SlidingLowerBound=cached.SlidingLowerBound,Knot = cached.Knot,KnotMoving=knotMoving };
                 else
                 {
                     if(Progress!=null)Progress(puzzle.Kind==PuzzleKind.EmoteClue||puzzle.Kind==PuzzleKind.Compass?"Reading clue...":"Solving puzzle...");
@@ -167,7 +175,7 @@ namespace KavrosClueHelper
                         plan.SlidingWholeRows=wholeRows;
                         if(cached!=null&&cached.Puzzle.Kind==PuzzleKind.Sliding&&cached.SlidingWholeRows==wholeRows&&cached.Puzzle.Theme==puzzle.Theme&&SlidingRoute.Advance(cached.Puzzle.Board,cached.Sliding,puzzle.Board,out remaining))
                         {plan.Sliding=remaining;int consumed=cached.Sliding.Count-remaining.Count;plan.SlidingOptimal=cached.SlidingOptimal&&(!wholeRows||SlidingRoute.CompletedClicks(cached.Puzzle.Board,cached.Sliding,consumed)==SlidingRoute.ClickRoute(cached.Puzzle.Board,cached.Sliding.Take(consumed).ToList()).Count);SlidingRouteReuses++;}
-                        else {if(Progress!=null)Progress("Optimising slider route...");SlidingOptimization route=wholeRows?SlidingClickOptimizer.Solve(puzzle.Board):SlidingOptimizer.Solve(puzzle.Board);plan.Sliding=route.Moves;plan.SlidingOptimal=route.Optimal;}
+                        else {if(Progress!=null)Progress("Optimising slider route...");SlidingOptimization route=wholeRows?SlidingClickOptimizer.Solve(puzzle.Board):SlidingOptimizer.Solve(puzzle.Board,SliderBudget.Milliseconds);plan.Sliding=route.Moves;plan.SlidingOptimal=route.Optimal;plan.SlidingLowerBound=route.LowerBound;}
                     }
                     if(puzzle.Kind==PuzzleKind.Knot&&!knotMoving)plan.Knot=KnotSolver.Solve(puzzle.Knot);
                 }

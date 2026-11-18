@@ -3,8 +3,8 @@ $ErrorActionPreference = 'Stop'
 $vpkVersion = '1.2.161'
 $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $tag = $env:RELEASE_TAG
-if ([string]::IsNullOrWhiteSpace($tag)) { throw 'Set RELEASE_TAG to the release tag, for example v0.6.5.' }
-if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Tag '$tag' must look like v0.6.5." }
+if ([string]::IsNullOrWhiteSpace($tag)) { throw 'Set RELEASE_TAG to the release tag, for example v0.6.6.' }
+if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Tag '$tag' must look like v0.6.6." }
 $version = $Matches[1]
 $identity = [string]([xml](Get-Content -LiteralPath (Join-Path $PSScriptRoot 'app.manifest') -Raw)).assembly.assemblyIdentity.version
 $manifestVersion = ([Version]$identity).ToString(3)
@@ -25,7 +25,7 @@ $config = Join-Path $PSScriptRoot 'KavrosClueHelper.exe.config'
 if (-not (Test-Path -LiteralPath $config)) { throw 'Missing source/KavrosClueHelper.exe.config.' }
 Copy-Item -LiteralPath $config -Destination (Join-Path $stage 'KavrosClueHelper.exe.config')
 Copy-Item -LiteralPath (Join-Path $root 'assets') -Destination (Join-Path $stage 'assets') -Recurse
-foreach ($doc in @('README.txt', 'LICENSE.txt', 'THIRD_PARTY.txt', 'PATCH-NOTES.md')) {
+foreach ($doc in @('README.txt', 'LICENSE.txt', 'THIRD_PARTY.txt', 'PATCH-NOTES.md', 'CHANGELOG.md')) {
     Copy-Item -LiteralPath (Join-Path $root $doc) -Destination (Join-Path $stage $doc)
 }
 

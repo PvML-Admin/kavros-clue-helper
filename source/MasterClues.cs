@@ -39,11 +39,11 @@ namespace KavrosClueHelper
         {Draw(g,bounds,clue,map,1,PointF.Empty);}
         public static void Draw(Graphics g, Rectangle bounds, MasterClue clue, Image map,float zoom,PointF pan)
         {
-            g.Clear(Color.FromArgb(25,34,47));
+            g.Clear(KavrosTheme.Panel);
             float sx=bounds.Width/460F, sy=bounds.Height/471F;
             System.Drawing.Drawing2D.GraphicsState state=g.Save();
             g.TranslateTransform(bounds.X,bounds.Y); g.ScaleTransform(sx,sy);
-            using(Font heading=new Font("Segoe UI",14F,FontStyle.Bold,GraphicsUnit.Pixel))
+            using(Font heading=(Font)KavrosTheme.DisplayPixels(14F).Clone())
             using(Font body=new Font("Segoe UI",13F,FontStyle.Regular,GraphicsUnit.Pixel))
             using(Font small=new Font("Segoe UI",11F,FontStyle.Regular,GraphicsUnit.Pixel))
             {
@@ -100,6 +100,7 @@ namespace KavrosClueHelper
         private Bitmap map;
         private bool detailed;
         private Bitmap overview;
+        private bool overviewShared;
         private bool regionalOverview;
         private float zoom=1;
         private PointF pan;
@@ -115,14 +116,14 @@ namespace KavrosClueHelper
             MouseMove+=delegate(object sender,MouseEventArgs e){if(!drag.HasValue||clue==null)return;float units=Span/MapBox.Width;pan.X-=(e.X-drag.Value.X)*units;pan.Y+=(e.Y-drag.Value.Y)*units;drag=e.Location;Invalidate();};
             MouseUp+=delegate{drag=null;Capture=false;};
             MouseCaptureChanged+=delegate{if(!Capture)drag=null;};
-            details.BackColor=Color.FromArgb(25,34,47);details.ForeColor=Color.White;details.Font=new Font("Segoe UI",9F);details.Visible=false;Controls.Add(details);
+            details.BackColor=KavrosTheme.Panel;details.ForeColor=KavrosTheme.TextSoft;details.Font=new Font("Segoe UI",9F);details.Visible=false;Controls.Add(details);
             Resize+=delegate{details.SetBounds(8,202,Math.Max(1,Width-16),Math.Max(1,Height-208));};
         }
         public void SetClue(MasterClue value,string assets)
         {
             if(clue==value) return;
             if(map!=null) { map.Dispose(); map=null; }
-            if(overview!=null){overview.Dispose();overview=null;}regionalOverview=false;
+            if(overview!=null){if(!overviewShared)overview.Dispose();overview=null;}regionalOverview=false;overviewShared=false;
             clue=value;zoom=1;pan=PointF.Empty;drag=null;detailed=false;
             if(value!=null)
             {
@@ -135,7 +136,8 @@ namespace KavrosClueHelper
                     string regional=Path.Combine(assets,"location-maps",value.Id+"-wide.jpg");
                     regionalOverview=File.Exists(regional);
                     if(regionalOverview||value.Floor==0&&value.Area.X>=2032&&value.Area.X<4080&&value.Area.Y>=2544&&value.Area.Y<4080)
-                        overview=new Bitmap(regionalOverview?regional:Path.Combine(assets,"compass","world.png"));
+                        overviewShared=!regionalOverview;
+                        overview=regionalOverview?new Bitmap(regional):WorldMap.Get(assets);
                 }
             }
             details.Visible=value!=null&&value.Reference;
@@ -151,8 +153,8 @@ namespace KavrosClueHelper
                 pan.X=Math.Max(-horizontal,Math.Min(horizontal,pan.X));pan.Y=Math.Max(-vertical,Math.Min(vertical,pan.Y));
                 MasterClueDrawing.Draw(e.Graphics,ClientRectangle,clue,map,zoom,pan);return;
             }
-            Graphics g=e.Graphics;g.Clear(Color.FromArgb(25,34,47));
-            TextRenderer.DrawText(g,clue.Location,Font,new Rectangle(8,2,Width-16,38),Color.White,TextFormatFlags.WordBreak|TextFormatFlags.EndEllipsis);
+            Graphics g=e.Graphics;g.Clear(KavrosTheme.Panel);
+            TextRenderer.DrawText(g,clue.Location,Font,new Rectangle(8,2,Width-16,38),KavrosTheme.Text,TextFormatFlags.WordBreak|TextFormatFlags.EndEllipsis);
             Rectangle box=MapBox;
             float cx=clue.Area.X+clue.Area.Width/2F,cy=clue.Area.Y+clue.Area.Height/2F;
             if(map!=null&&(detailed||cx>=2032&&cx<=4079&&cy>=2544&&cy<=4079))
@@ -185,6 +187,6 @@ namespace KavrosClueHelper
             {zoom=(float)Math.Max(!clue.Reference?1:detailed&&overview==null?.90:.24,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));Invalidate();}
             base.OnMouseWheel(e);
         }
-        protected override void Dispose(bool disposing) { if(disposing && map!=null) { map.Dispose(); map=null; } if(disposing && overview!=null){overview.Dispose();overview=null;} base.Dispose(disposing); }
+        protected override void Dispose(bool disposing) { if(disposing && map!=null) { map.Dispose(); map=null; } if(disposing && overview!=null){if(!overviewShared)overview.Dispose();overview=null;} base.Dispose(disposing); }
     }
 }

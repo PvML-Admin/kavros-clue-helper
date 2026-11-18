@@ -29,6 +29,25 @@ namespace KavrosClueHelper
             }
             catch(IOException){return new byte[0][];}catch(UnauthorizedAccessException){return new byte[0][];}
         }
+        // Allocation-free variant for hot search loops: positions[tile] = cell, tile 24 = blank.
+        internal static int BoundFromPositions(int[] positions)
+        {
+            if(tables.Length==0)return 0;
+            int maximum=0,blank=positions[24],tb=transpose[blank]*390625,nb=blank*390625;
+            for(int partition=0;partition<2;partition++)
+            {
+                int normal=0,reflected=0;
+                for(int group=0;group<6;group++)
+                {
+                    int t0,t1,t2,t3;if(partition==0){t0=group*4;t1=t0+1;t2=t0+2;t3=t0+3;}else{int[] c=clusters[group];t0=c[0];t1=c[1];t2=c[2];t3=c[3];}
+                    byte[] table=tables[partition*6+group];
+                    normal+=table[positions[t0]+positions[t1]*25+positions[t2]*625+positions[t3]*15625+nb];
+                    reflected+=table[transpose[positions[transpose[t0]]]+transpose[positions[transpose[t1]]]*25+transpose[positions[transpose[t2]]]*625+transpose[positions[transpose[t3]]]*15625+tb];
+                }
+                if(normal>maximum)maximum=normal;if(reflected>maximum)maximum=reflected;
+            }
+            return maximum;
+        }
         public static int Bound(int[] board,bool clustersEnabled=true)
         {
             if(tables.Length==0)return 0;

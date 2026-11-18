@@ -88,7 +88,36 @@ namespace KavrosClueHelper
             return good>=3;
         }
         public static string Normalize(string text)
-        {return Regex.Replace((text??"").ToLowerInvariant().Replace('\u2019','\''),"[^a-z0-9]+"," ").Trim();}
+        {
+            string t=Regex.Replace(text??"",@"\|(?=\s*[A-Za-z])","I").Replace("\uFB01","fi").Replace("\uFB02","fl").ToLowerInvariant().Replace('\u2019','\'');
+            t=Regex.Replace(t,"[^a-z0-9]+"," ").Trim();
+            return Regex.Replace(t,"(?<=[a-z])0(?=[a-z])","o");
+        }
+        static string KeepKnownWords(string text, IEnumerable<string> dictionary)
+        {
+            var known=new HashSet<string>(dictionary);
+            var kept=new List<string>();
+            foreach(string word in text.Split(new[]{' '},StringSplitOptions.RemoveEmptyEntries))
+                if(known.Contains(word)||word.All(char.IsDigit))kept.Add(word);
+            return kept.Count==0?text:String.Join(" ",kept.ToArray());
+        }
+        static double WindowScore(string hay, string needle)
+        {
+            if(hay.Length==0||needle.Length==0)return 0;
+            if(hay==needle||hay.Contains(needle))return 1;
+            double best=Similarity(hay,needle);
+            string[] words=hay.Split(new[]{' '},StringSplitOptions.RemoveEmptyEntries);
+            string[] wanted=needle.Split(new[]{' '},StringSplitOptions.RemoveEmptyEntries);
+            int count=wanted.Length;
+            for(int width=Math.Max(1,count-1);width<=count+3;width++)
+                for(int i=0;i+width<=words.Length;i++)
+                {
+                    var slice=new string[width];
+                    Array.Copy(words,i,slice,0,width);
+                    best=Math.Max(best,Similarity(String.Join(" ",slice),needle));
+                }
+            return best;
+        }
         internal static double Similarity(string a,string b)
         {
             if(a==b)return 1;if(a.Length==0||b.Length==0)return 0;
@@ -100,25 +129,36 @@ namespace KavrosClueHelper
         public ReferenceClue MatchText(string raw)
         {
             string text=Normalize(raw);if(text.Length<8)return null;
+            var dictionary=Clues.SelectMany(c=>c.Text.Concat(c.Anagrams)).SelectMany(t=>Normalize(t).Split(new[]{' '},StringSplitOptions.RemoveEmptyEntries));
+            string cleaned=KeepKnownWords(text,dictionary);
             double best=0,runner=0;ReferenceClue winner=null;
             foreach(ReferenceClue c in Clues)
             {
                 if(c.Type=="map")continue;
-                double score=c.Text.Max(t=>Similarity(text,Normalize(t)));
+                double score=c.Text.Max(t=>WindowScore(cleaned,Normalize(t)));
                 if(c.Type=="coordinates")
                 {
-                    // All four numbers and all directions must agree exactly.
                     string nums=String.Join(",",Regex.Matches(text,@"\d+|north|south|east|west").Cast<Match>().Select(m=>m.Value.TrimStart('0').PadLeft(1,'0')));
                     bool exact=c.Text.Any(t=>nums==String.Join(",",Regex.Matches(Normalize(t),@"\d+|north|south|east|west").Cast<Match>().Select(m=>m.Value.TrimStart('0').PadLeft(1,'0'))));
                     if(!exact)score=0;
                 }
                 if(c.Type=="anagram")
                 {
-                    if(!text.Contains("anagram")||!c.Anagrams.Any(a=>text.EndsWith(Normalize(a))))score=0;
+                    string flat=cleaned.Replace(" ","");
+                    double anagram=0;
+                    foreach(string a in c.Anagrams)
+                    {
+                        string n=Normalize(a);
+                        if(cleaned==n||cleaned.EndsWith(" "+n)||cleaned.EndsWith(n))anagram=1;
+                        else anagram=Math.Max(anagram,WindowScore(cleaned,n));
+                    }
+                    if(anagram>=0.9)score=Math.Max(score,anagram);
+                    else if(!flat.Contains("anagram"))score=0;
                 }
                 if(score>best){runner=best;best=score;winner=c;}else runner=Math.Max(runner,score);
             }
-            if(winner!=null&&best>=(text.Length<18?1:text.Length<35?0.96:0.90)&&best-runner>=0.035)return winner;
+            bool confident=winner!=null&&(best>=0.90&&best-runner>=0.035||best>=0.80&&best-runner>=0.20);
+            if(confident)return winner;
             Match coordinate=Coordinates.Match(text);
             if(!coordinate.Success||lodestones.Count==0)return null;
             int lat=Int32.Parse(coordinate.Groups[1].Value),lm=Int32.Parse(coordinate.Groups[2].Value);
@@ -139,7 +179,7 @@ namespace KavrosClueHelper
             {
                 SearchCancellation.Check();ulong hash=pixels.Hash(paper);
                 if(hasCache&&cached!=null&&cachedSize==image.Size&&cachedPaper==paper&&cachedHash==hash)return Result(cached,paper);
-                ReferenceClue known;if(recent.TryGetValue(hash,out known)){if(known!=null)return Result(known,paper);continue;}
+                ReferenceClue known;if(recent.TryGetValue(hash,out known)&&known!=null)return Result(known,paper);
                 ReferenceClue found=null;
                 MapSignature signature=MapSignature.Read(pixels,paper);
                 if(signature!=null)
@@ -152,12 +192,14 @@ namespace KavrosClueHelper
                 {
                     if(Progress!=null)Progress("Reading clue...");
                     // Upscale the parchment, retaining antialiasing and real ink.
-                    double scale=Math.Min(2,2000.0/Math.Max(paper.Width,paper.Height));
-                    using(Bitmap crop=Pixels.Crop(image,paper,new Size((int)(paper.Width*scale),(int)(paper.Height*scale))))
+                    int mx=Math.Max(4,paper.Width/10),my=Math.Max(4,paper.Height/8);
+                    Rectangle inner=new Rectangle(paper.X+mx,paper.Y+my,Math.Max(8,paper.Width-2*mx),Math.Max(8,paper.Height-2*my));
+                    double scale=Math.Min(2,2000.0/Math.Max(inner.Width,inner.Height));
+                    using(Bitmap crop=Pixels.Crop(image,inner,new Size((int)(inner.Width*scale),(int)(inner.Height*scale))))
                     {LastText=ocr.Read(crop);LastError=ocr.Unavailable;found=MatchText(LastText);}
                 }
-                cachedHash=hash;cachedSize=image.Size;cachedPaper=paper;cached=found;hasCache=true;
-                recent[hash]=found;recentOrder.Enqueue(hash);while(recentOrder.Count>24)recent.Remove(recentOrder.Dequeue());
+                cachedHash=hash;cachedSize=image.Size;cachedPaper=paper;cached=found;hasCache=found!=null;
+                if(found!=null){recent[hash]=found;recentOrder.Enqueue(hash);while(recentOrder.Count>24)recent.Remove(recentOrder.Dequeue());}
                 if(found!=null)return Result(found,paper);
             }
             return null;

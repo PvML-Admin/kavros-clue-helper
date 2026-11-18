@@ -92,8 +92,9 @@ namespace KavrosClueHelper
             lock (gate)
             {
                 if (active == null || active.Upper == 0) return "Finding the shortest route...";
-                return "Finding the shortest route. " + (active.Lower > 0 ? "At least " + active.Lower + " clicks. " : "") +
-                    "Quick route available in " + active.Upper + " clicks.";
+                string unit = active.Lines ? " clicks" : " moves";
+                return "Finding the shortest route. " + (active.Lower > 0 ? "At least " + active.Lower + unit + ". " : "") +
+                    "Quick route available in " + active.Upper + unit + ".";
             }
         }
 
@@ -125,7 +126,7 @@ namespace KavrosClueHelper
 
     public sealed partial class PuzzleSuiteForm
     {
-        private readonly System.Windows.Forms.CheckBox shortestSlider = new System.Windows.Forms.CheckBox();
+        private readonly System.Windows.Forms.CheckBox shortestSlider = new KavrosCheckBox();
         private PuzzlePlan waitingSlider;
         private bool quickForThisSlider;
 
@@ -141,8 +142,9 @@ namespace KavrosClueHelper
         private void SetupShortestSlider()
         {
             shortestSlider.Text = "Wait for shortest slider route";
-            shortestSlider.SetBounds(20, 194, 260, 18);
-            shortestSlider.Checked = preferences.ShortestSlider;
+            shortestSlider.SetBounds(264, 262, 224, 24);
+            shortestSlider.Checked = false;
+            shortestSlider.Visible = false;
             Controls.Add(shortestSlider);
             sliderTips.SetToolTip(shortestSlider, "Prove the minimum number of clicks. Untick to use the current quick route.");
             shortestSlider.CheckedChanged += delegate
@@ -167,19 +169,13 @@ namespace KavrosClueHelper
                 analysisEngine.Proofs.Cancel();
                 return;
             }
-            if (waitingSlider == null) return;
+            if (waitingSlider == null || slidingBatchNumber != 1) return;
             List<int> route;
             string error;
-            if (analysisEngine.Proofs.Read(current.Board, current.Theme, wholeRowClicks.Checked, out route, out error))
-            {
-                waitingSlider = null;
-                SolveAndShow(current, new PuzzlePlan { Puzzle = current, Sliding = route, SlidingOptimal = true, SlidingWholeRows = wholeRowClicks.Checked });
-            }
-            else
-            {
-                string label = error == null ? analysisEngine.Proofs.Progress() : "Shortest search stopped. Use quick route or rescan. " + error;
-                if (summary.Text != label) summary.Text = label;
-            }
+            if (!analysisEngine.Proofs.Read(current.Board, current.Theme, wholeRowClicks.Checked, out route, out error) || route == null) return;
+            if (waitingSlider.Sliding != null && route.Count >= waitingSlider.Sliding.Count) return;
+            waitingSlider = null;
+            SolveAndShow(current, new PuzzlePlan { Puzzle = current, Sliding = route, SlidingOptimal = true, SlidingWholeRows = wholeRowClicks.Checked });
         }
 
         private bool AwaitShortestSlider(DetectedPuzzle puzzle, ref PuzzlePlan plan)
@@ -190,26 +186,20 @@ namespace KavrosClueHelper
                 List<int> remaining;
                 quickForThisSlider = slidingTheme == puzzle.Theme && SlidingRoute.Advance(slidingBoard, slidingMoves, puzzle.Board, out remaining);
             }
-            if (!shortestSlider.Checked || quickForThisSlider) return false;
             bool lines = wholeRowClicks.Checked;
             List<int> route;
             string error;
-            if (analysisEngine.Proofs.Read(puzzle.Board, puzzle.Theme, lines, out route, out error))
+            if (analysisEngine.Proofs.Read(puzzle.Board, puzzle.Theme, lines, out route, out error) && route != null)
             {
                 plan = new PuzzlePlan { Puzzle = puzzle, Sliding = route, SlidingOptimal = true, SlidingWholeRows = lines };
                 return false;
             }
-            if (plan != null && plan.SlidingOptimal && plan.SlidingWholeRows == lines)
+            if (plan != null && plan.Sliding != null && !plan.SlidingOptimal)
             {
-                analysisEngine.Proofs.Cancel();
-                return false;
+                waitingSlider = plan;
+                analysisEngine.Proofs.Start(puzzle.Board, puzzle.Theme, lines, plan.Sliding);
             }
-            waitingSlider = plan ?? new PuzzlePlan { Puzzle = puzzle, SlidingWholeRows = lines };
-            analysisEngine.Proofs.Start(puzzle.Board, puzzle.Theme, lines, waitingSlider.Sliding);
-            summary.Text = "Finding the shortest route. Select Use quick route for immediate hints.";
-            canvas.Invalidate();
-            ShowGuidance();
-            return true;
+            return false;
         }
     }
 }

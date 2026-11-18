@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.6.6
+
+v0.6.6: redesign, clue fixes, slider overhaul, update toast.
+
+Settings shows **Made by Zenity · v0.6.6**.
+
 # Kavros Clue Helper v0.6.5
 
 v0.6.5: fix update check (TLS 1.2), ship exe.config.

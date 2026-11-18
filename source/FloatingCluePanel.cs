@@ -13,7 +13,7 @@ namespace KavrosClueHelper
     {
         public bool Enabled=true,Collapsed;
         public bool ShortestSlider = true;
-        public bool WholeRowClicks;
+        public bool WholeRowClicks=true;
         public bool CheckForUpdates = true;
         public Point Offset=new Point(12,72);
         public readonly List<CompassPosition> SavedPositions=new List<CompassPosition>();
@@ -88,7 +88,7 @@ namespace KavrosClueHelper
         public CompassMap(string assets)
         {
             DoubleBuffered=true;TabStop=true;SetStyle(ControlStyles.Selectable,true);
-            using(Bitmap loaded=new Bitmap(Path.Combine(assets,"compass","world.png")))map=Pixels.Crop(loaded,new Rectangle(Point.Empty,loaded.Size),loaded.Size);
+            map=WorldMap.Get(assets);
             MouseDown+=delegate(object sender,MouseEventArgs e){Focus();if(e.Button==MouseButtons.Left){mouseDown=e.Location;drag=e.Location;Capture=true;}if(e.Button==MouseButtons.Right&&PositionPicked!=null)PositionPicked(ToWorld(e.Location));};
             MouseMove+=delegate(object sender,MouseEventArgs e){if(!drag.HasValue){CompassPosition over=HitLodestone(e.Location);string label=over==null?"":over.Name;if(label!=hoverName){hoverName=label;locationTip.SetToolTip(this,label);}Cursor=over==null?Cursors.Default:Cursors.Hand;return;}if(Math.Abs(e.X-mouseDown.X)+Math.Abs(e.Y-mouseDown.Y)<5)return;centre.X-=(float)((e.X-drag.Value.X)*span/Width);centre.Y+=(float)((e.Y-drag.Value.Y)*span/Width);drag=e.Location;Invalidate();};
             MouseUp+=delegate(object sender,MouseEventArgs e){bool click=drag.HasValue&&Math.Abs(e.X-mouseDown.X)+Math.Abs(e.Y-mouseDown.Y)<5;drag=null;Capture=false;if(!click)return;if(e.Y<26&&e.X<102){Overview();return;}CompassPosition p=HitLodestone(e.Location);if(p!=null&&LodestonePicked!=null)LodestonePicked(p);};
@@ -188,13 +188,13 @@ namespace KavrosClueHelper
             TextRenderer.DrawText(g,"Click lodestone | Drag: pan | Wheel: zoom | Right: position",Font,new Rectangle(5,Height-17,Width-10,17),Color.White,TextFormatFlags.NoPadding|TextFormatFlags.SingleLine);
             TextRenderer.DrawText(g,"N",Font,new Rectangle(Width-22,4,20,20),Color.White,TextFormatFlags.NoPadding);
         }
-        protected override void Dispose(bool disposing){if(disposing){map.Dispose();locationTip.Dispose();}base.Dispose(disposing);}
+        protected override void Dispose(bool disposing){if(disposing){locationTip.Dispose();}base.Dispose(disposing);}
     }
-    public sealed class FloatingCluePanel : Form
+    public sealed partial class FloatingCluePanel : Form
     {
-        private readonly Label title=new Label(),summary=new Label(),heading=new Label();
+        private readonly Label title=new PaintedLabel(),summary=new Label(),heading=new Label();
         private readonly Button collapse=new OpaqueButton(),pause=new OpaqueButton(),record=new OpaqueButton();
-        private readonly ProgressBar reading=new ProgressBar();
+        private readonly ProgressBar reading=new KavrosProgressBar();
         private readonly Panel compassControls=new OpaquePanel(),footer=new OpaquePanel();
         private readonly MasterClueView master=new MasterClueView();
         private readonly SlidingGuideView sliderGuide;
@@ -204,9 +204,23 @@ namespace KavrosClueHelper
         private bool originSelected;
         private Button undoOrContinue, quickSlider;
         public event Action QuickSliderRequested;
+        private Label banner;
+        public void ShowBanner(string message, bool error)
+        {
+            if (banner == null)
+            {
+                banner = new Label { Height = 28, Dock = DockStyle.Bottom, TextAlign = ContentAlignment.MiddleLeft };
+                Controls.Add(banner);
+            }
+            banner.BackColor = error ? KavrosTheme.Danger : KavrosTheme.Panel;
+            banner.ForeColor = error ? KavrosTheme.GoldInk : KavrosTheme.Gold;
+            banner.Text = message;
+            banner.Visible = true;
+            banner.BringToFront();
+        }
         public void SetQuickOption(bool available)
         {
-            if (quickSlider != null && quickSlider.Visible != available) quickSlider.Visible = available;
+            if (quickSlider != null) quickSlider.Visible = false;
         }
         private int displayedCompassGeneration=-1;
         private string scanPaintKey;
@@ -216,7 +230,7 @@ namespace KavrosClueHelper
         private readonly ScanSession scanSession=new ScanSession();
         private readonly ScanMap scanMap;
         private readonly Panel scanControls=new OpaquePanel();
-        private readonly CheckBox meerkat=new CheckBox(),autoFollow=new CheckBox();
+        private readonly CheckBox meerkat=new KavrosCheckBox(),autoFollow=new KavrosCheckBox();
         private readonly ComboBox scanFloor=new ComboBox();
         private int floorRegion=-1;private bool changingFloor;
         private readonly string assets;
@@ -233,10 +247,11 @@ namespace KavrosClueHelper
         public FloatingCluePanel(string directory,CompassSession compass,OverlayPreferences preferences)
         {
             assets=directory;session=compass;prefs=preferences;
-            FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;
+            FormClosing+=delegate(object sender,FormClosingEventArgs e){if(e.CloseReason==CloseReason.UserClosing){e.Cancel=true;Hide();}};
+            FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=false;DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;
             SetStyle(ControlStyles.UserPaint|ControlStyles.Opaque|ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
-            ClientSize=new Size(400,140);BackColor=Color.FromArgb(18,23,32);ForeColor=Color.White;Font=new Font("Segoe UI",9F);
-            title.SetBounds(0,0,294,32);title.TextAlign=ContentAlignment.MiddleLeft;title.Padding=new Padding(10,0,0,0);title.Font=new Font(Font,FontStyle.Bold);title.BackColor=Color.FromArgb(30,48,61);Controls.Add(title);
+            ClientSize=new Size(400,140);BackColor=KavrosTheme.Bg;ForeColor=KavrosTheme.Text;Font=KavrosTheme.Ui(9F,false);
+            title.SetBounds(0,0,294,32);title.TextAlign=ContentAlignment.MiddleLeft;title.Padding=new Padding(10,0,0,0);title.Font=new Font(Font,FontStyle.Bold);title.BackColor=KavrosTheme.BgRaise;Controls.Add(title);
             title.MouseDown+=delegate(object sender,MouseEventArgs e){if(e.Button!=MouseButtons.Left)return;dragging=true;dragStart=Cursor.Position;windowStart=Location;title.Capture=true;};
             title.MouseMove+=delegate{if(dragging)Location=new Point(windowStart.X+Cursor.Position.X-dragStart.X,windowStart.Y+Cursor.Position.Y-dragStart.Y);};
             title.MouseUp+=delegate{if(!dragging)return;dragging=false;title.Capture=false;if(UserMoved!=null)UserMoved();};
@@ -244,8 +259,8 @@ namespace KavrosClueHelper
             ButtonAt(this,"Settings",298,4,65,delegate{if(SettingsRequested!=null)SettingsRequested();});
             collapse.Text=prefs.Collapsed?"+":"-";collapse.SetBounds(369,4,25,24);Style(collapse);Controls.Add(collapse);collapse.Click+=delegate{prefs.Collapsed=!prefs.Collapsed;collapse.Text=prefs.Collapsed?"+":"-";prefs.Save();LayoutMode();};
             summary.BackColor=BackColor;heading.BackColor=BackColor;originStatus.BackColor=BackColor;
-            summary.SetBounds(10,38,380,56);summary.ForeColor=Color.FromArgb(123,232,191);Controls.Add(summary);
-            heading.SetBounds(10,38,380,23);heading.ForeColor=Color.Cyan;Controls.Add(heading);
+            summary.SetBounds(10,38,380,56);summary.ForeColor=KavrosTheme.Ok;Controls.Add(summary);
+            heading.SetBounds(10,38,380,23);heading.ForeColor=KavrosTheme.Ice;Controls.Add(heading);
             map=new CompassMap(directory);map.SetBounds(10,66,380,260);map.PositionPicked+=delegate(PointF p){selectingOrigin=true;positions.SelectedIndex=-1;positions.Text="Custom position";x.Value=Clamp((decimal)Math.Round(p.X),x);y.Value=Clamp((decimal)Math.Round(p.Y),y);selectingOrigin=false;originSelected=true;RefreshCompass(false);};map.LodestonePicked+=SelectOrigin;Controls.Add(map);
             master.SetBounds(6,36,388,397);Controls.Add(master);
             sliderGuide=new SlidingGuideView(directory);sliderGuide.SetBounds(10,98,380,182);Controls.Add(sliderGuide);
@@ -256,7 +271,7 @@ namespace KavrosClueHelper
             autoFollow.BackColor=BackColor;meerkat.BackColor=BackColor;
             autoFollow.Text="Auto follow minimap";autoFollow.SetBounds(0,0,380,24);autoFollow.Checked=true;autoFollow.CheckedChanged+=delegate{if(scanSession.AutoTracking!=autoFollow.Checked)scanSession.SetAutomatic(autoFollow.Checked);RefreshScan();};scanControls.Controls.Add(autoFollow);
             meerkat.Text="Meerkat (+5 paces)";meerkat.SetBounds(0,25,380,24);meerkat.CheckedChanged+=delegate{scanSession.Meerkat=meerkat.Checked;RefreshScan();};scanControls.Controls.Add(meerkat);
-            meerkat.Width=210;scanFloor.SetBounds(220,25,155,24);scanFloor.DropDownStyle=ComboBoxStyle.DropDownList;scanFloor.BackColor=Color.FromArgb(35,48,64);scanFloor.ForeColor=Color.White;scanFloor.FlatStyle=FlatStyle.Flat;scanFloor.Visible=false;scanControls.Controls.Add(scanFloor);scanFloor.BringToFront();
+            meerkat.Width=210;scanFloor.SetBounds(220,25,155,24);scanFloor.DropDownStyle=ComboBoxStyle.DropDownList;scanFloor.BackColor=KavrosTheme.Input;scanFloor.ForeColor=KavrosTheme.Text;scanFloor.FlatStyle=FlatStyle.Flat;scanFloor.Visible=false;scanControls.Controls.Add(scanFloor);scanFloor.BringToFront();
             scanFloor.SelectedIndexChanged+=delegate{if(changingFloor||scanSession.Region==null||scanFloor.SelectedIndex<0)return;scanSession.Region.Level=scanSession.Region.Levels[scanFloor.SelectedIndex];scanSession.SetAutomatic(autoFollow.Checked);RefreshScan();};
             LabelAt(scanControls,"Green box: scan range | Dashed: double range",0,54,380,30);
             compassControls.SetBounds(10,391,380,121);Controls.Add(compassControls);
@@ -280,7 +295,7 @@ namespace KavrosClueHelper
             LabelAt(compassControls,"X",0,34,14,23);x.SetBounds(17,31,81,25);x.Maximum=6400;compassControls.Controls.Add(x);
             LabelAt(compassControls,"Y",107,34,14,23);y.SetBounds(124,31,81,25);y.Maximum=12800;compassControls.Controls.Add(y);
             LabelAt(compassControls,"Radius",214,34,49,23);radius.SetBounds(266,31,52,25);radius.Minimum=0;radius.Maximum=32;radius.Value=1;compassControls.Controls.Add(radius);LabelAt(compassControls,"tiles",323,34,52,23);
-            originStatus.Text="Click a lodestone on the map to choose your start.";originStatus.SetBounds(0,61,380,23);originStatus.ForeColor=Color.Gold;compassControls.Controls.Add(originStatus);
+            originStatus.Text="Click a lodestone on the map to choose your start.";originStatus.SetBounds(0,61,380,23);originStatus.ForeColor=KavrosTheme.Gold;compassControls.Controls.Add(originStatus);
             foreach(NumericUpDown number in new[]{x,y,radius})number.ValueChanged+=delegate{if(!selectingOrigin){originSelected=true;RefreshCompass(false);}};
             positions.SelectedIndexChanged+=delegate{CompassPosition p=positions.SelectedItem as CompassPosition;if(p!=null&&!selectingOrigin)SelectOrigin(p);};
             positions.TextChanged+=delegate{if(!selectingOrigin&&(positions.SelectedItem==null||!String.Equals(((CompassPosition)positions.SelectedItem).Name,positions.Text,StringComparison.OrdinalIgnoreCase))){originSelected=false;map.SelectedOrigin=null;RefreshCompass(false);}};
@@ -294,6 +309,7 @@ namespace KavrosClueHelper
             ButtonAt(footer,"Exit",294,0,86,delegate{if(ExitRequested!=null)ExitRequested();});
             positions.Text="";
             SetWaiting("Open Kavros and a clue or puzzle.");
+            ApplyOverlayPolish();
         }
         private void SelectOrigin(CompassPosition position)
         {
@@ -309,9 +325,9 @@ namespace KavrosClueHelper
             if(old!=null){prefs.SavedPositions.Remove(old);positions.Items.Remove(old);session.Positions.Remove(old);}
             prefs.SavedPositions.Add(p);session.Positions.Add(p);positions.Items.Add(p);positions.SelectedItem=p;prefs.Save();
         }
-        private static void Style(Button b){b.FlatStyle=FlatStyle.Flat;b.BackColor=Color.FromArgb(35,48,64);b.ForeColor=Color.White;b.FlatAppearance.BorderColor=Color.FromArgb(62,81,104);b.Font=new Font("Segoe UI",9F);}
+        private static void Style(Button b){b.FlatStyle=FlatStyle.Flat;b.BackColor=KavrosTheme.Button;b.ForeColor=KavrosTheme.Text;b.FlatAppearance.BorderColor=KavrosTheme.ButtonLine;b.Font=KavrosTheme.Ui(9F,false);}
         private static Button ButtonAt(Control parent,string text,int x,int y,int width,Action click){Button b=new OpaqueButton{Text=text,Left=x,Top=y,Width=width,Height=28};Style(b);parent.Controls.Add(b);b.Click+=delegate{click();};return b;}
-        private static void LabelAt(Control parent,string text,int x,int y,int w,int h){parent.Controls.Add(new Label{Text=text,Left=x,Top=y,Width=w,Height=h,BackColor=Color.FromArgb(18,23,32),ForeColor=Color.White});}
+        private static void LabelAt(Control parent,string text,int x,int y,int w,int h){parent.Controls.Add(new Label{Text=text,Left=x,Top=y,Width=w,Height=h,BackColor=KavrosTheme.Bg,ForeColor=KavrosTheme.Text});}
         public void SetPaused(bool value){pause.Text=value?"Resume":"Pause";}
         private string cardTitle="MASTER CLUE";
         public void SetRetained(bool value){if(value)title.Text=mode==PuzzleKind.EmoteClue?cardTitle+" / SAVED":mode==PuzzleKind.Scan?scanSession.Region.Tier.ToUpperInvariant()+" SCAN / SAVED":title.Text;}
@@ -350,7 +366,7 @@ namespace KavrosClueHelper
                 changingFloor=true;scanFloor.Items.Clear();foreach(int level in scanSession.Region.Levels)scanFloor.Items.Add("Map level "+level);scanFloor.SelectedIndex=Array.IndexOf(scanSession.Region.Levels,scanSession.Region.Level);scanFloor.Visible=scanFloor.Items.Count>1;floorRegion=scanSession.Region.Id;changingFloor=false;
             }
             heading.Text=scanSession.Region.Name+" | "+scanSession.Range+" paces";
-            heading.ForeColor=scanSession.DifferentLevel?Color.Gold:Color.Cyan;
+            heading.ForeColor=scanSession.DifferentLevel?KavrosTheme.Gold:KavrosTheme.Ice;
             string status=scanSession.AutoTracking?scanSession.TrackingStatus:scanSession.Position.HasValue?"Manual position set. Right-click the map to move it.":"Right-click your position on the map.";
             string guidance=scanSession.Region.Route+"\n"+(scanSession.DifferentLevel?"Different level. Check the marked floor. ":"")+"Map level "+scanSession.Region.Level+". "+status;
             if(summary.Text!=guidance)summary.Text=guidance;
@@ -368,7 +384,7 @@ namespace KavrosClueHelper
             if(undoOrContinue!=null)undoOrContinue.Text=session.HasPrevious?"Continue":"Undo";
             bool stable=session.Stable(DateTime.UtcNow);
             if(mode==PuzzleKind.Compass)heading.Text=session.Current==null?"Waiting for a visible compass...":session.Current.Heading+(stable?" | stable":" | waiting for a stable reading");
-            if(mode==PuzzleKind.Compass)heading.ForeColor=Color.Cyan;
+            if(mode==PuzzleKind.Compass)heading.ForeColor=KavrosTheme.Ice;
             if(mode==PuzzleKind.Compass)summary.Text=session.Summary;
             if(mode==PuzzleKind.Compass&&session.Candidates.Count==1&&session.Bearings.Count>=2&&!(session.Current!=null&&session.Current.Solved))
             {
@@ -411,8 +427,11 @@ namespace KavrosClueHelper
             // child controls. Parent/child compositor buffering left these gaps
             // showing the live game on the reported machine.
             using(Brush fill=new SolidBrush(BackColor))e.Graphics.FillRectangle(fill,ClientRectangle);
+            using(Brush bar=new SolidBrush(KavrosTheme.BgRaise))e.Graphics.FillRectangle(bar,0,0,Width,title.Height);
+            using(Pen rule=new Pen(KavrosTheme.LineSoft))e.Graphics.DrawLine(rule,0,title.Height-1,Width,title.Height-1);
             base.OnPaint(e);
-            using(Pen p=new Pen(Color.FromArgb(70,104,120)))e.Graphics.DrawRectangle(p,0,0,Width-1,Height-1);
+            using(Pen p=new Pen(KavrosTheme.Frame))e.Graphics.DrawRectangle(p,0,0,Width-1,Height-1);
+            using(Brush gold=new SolidBrush(KavrosTheme.Gold))e.Graphics.FillRectangle(gold,1,1,Width-2,2);
         }
     }
 }

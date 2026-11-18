@@ -10,12 +10,13 @@ namespace KavrosClueHelper
         public Rectangle Box;
         public string Text;
         public Color Colour;
-        public bool Corner, Compact, Sliding;
+        public bool Corner, Compact, Sliding, Pulse;
         public bool Outline = true;
+        public int ArrowX, ArrowY;
         public GuidanceMark Offset(int x, int y)
         {
             Rectangle box = Box; box.Offset(x, y);
-            return new GuidanceMark { Box = box, Text = Text, Colour = Colour, Corner = Corner, Compact = Compact, Outline = Outline, Sliding=Sliding };
+            return new GuidanceMark { Box = box, Text = Text, Colour = Colour, Corner = Corner, Compact = Compact, Outline = Outline, Sliding=Sliding, Pulse=Pulse, ArrowX=ArrowX, ArrowY=ArrowY };
         }
     }
 
@@ -75,7 +76,7 @@ namespace KavrosClueHelper
             for (int i = 0; i < first.Count; i++)
             {
                 GuidanceMark a = first[i], b = second[i];
-                if (a.Box != b.Box || a.Text != b.Text || a.Colour.ToArgb() != b.Colour.ToArgb() || a.Corner != b.Corner || a.Compact != b.Compact || a.Outline != b.Outline || a.Sliding!=b.Sliding) return false;
+                if (a.Box != b.Box || a.Text != b.Text || a.Colour.ToArgb() != b.Colour.ToArgb() || a.Corner != b.Corner || a.Compact != b.Compact || a.Outline != b.Outline || a.Sliding!=b.Sliding || a.Pulse!=b.Pulse || a.ArrowX!=b.ArrowX || a.ArrowY!=b.ArrowY) return false;
             }
             return true;
         }
@@ -91,9 +92,16 @@ namespace KavrosClueHelper
             {
                 if(mark.Sliding)
                 {
-                    Rectangle box=Rectangle.Inflate(mark.Box,2,2);
-                    using(Pen shadow=new Pen(Color.Black,5))graphics.DrawRectangle(shadow,box);
-                    using(Pen ink=new Pen(mark.Colour,2))graphics.DrawRectangle(ink,box);
+                    int grow=mark.Pulse?(((Environment.TickCount/180)%2==0)?4:8):2;
+                    Rectangle box=Rectangle.Inflate(mark.Box,grow,grow);
+                    using(Pen shadow=new Pen(Color.Black,mark.Pulse?7:5))graphics.DrawRectangle(shadow,box);
+                    using(Pen ink=new Pen(mark.Colour,mark.Pulse?4:2))graphics.DrawRectangle(ink,box);
+                    if(mark.ArrowX!=0||mark.ArrowY!=0)
+                    {
+                        int x1=mark.Box.Left+mark.Box.Width/2,y1=mark.Box.Top+mark.Box.Height/2;
+                        int x2=x1+mark.ArrowX*mark.Box.Width,y2=y1+mark.ArrowY*mark.Box.Height;
+                        using(Pen arrow=new Pen(mark.Colour,3)){arrow.EndCap=System.Drawing.Drawing2D.LineCap.ArrowAnchor;graphics.DrawLine(arrow,x1,y1,x2,y2);}
+                    }
                     int size=Math.Max(12,Math.Min(22,(int)Math.Round(mark.Box.Width*0.40)));Rectangle badge=new Rectangle(mark.Box.Left+1,mark.Box.Top+1,size,size);
                     graphics.FillEllipse(Brushes.Black,badge);
                     using(Font digit=new Font("Segoe UI",size*(mark.Text.Length>2?0.43F:0.65F),FontStyle.Bold,GraphicsUnit.Pixel))TextRenderer.DrawText(graphics,mark.Text,digit,badge,mark.Colour,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.NoPadding);

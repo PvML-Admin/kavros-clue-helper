@@ -9,7 +9,7 @@ namespace KavrosClueHelper
     {
         public OpaquePanel()
         {
-            BackColor=Color.FromArgb(18,23,32);ForeColor=Color.White;
+            BackColor=KavrosTheme.Bg;ForeColor=KavrosTheme.Text;
             SetStyle(ControlStyles.UserPaint|ControlStyles.Opaque|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);
         }
         protected override void OnPaintBackground(PaintEventArgs e)
@@ -23,6 +23,9 @@ namespace KavrosClueHelper
     public sealed class OpaqueButton : Button
     {
         private bool hover,pressed;
+        internal ButtonTone Tone = ButtonTone.Secondary;
+        // Colour behind the rounded corners; empty means the parent surface.
+        internal Color Surface = Color.Empty;
         public OpaqueButton()
         {
             SetStyle(ControlStyles.UserPaint|ControlStyles.Opaque|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);
@@ -35,10 +38,7 @@ namespace KavrosClueHelper
         protected override void OnPaintBackground(PaintEventArgs e){using(Brush fill=new SolidBrush(BackColor))e.Graphics.FillRectangle(fill,ClientRectangle);}
         protected override void OnPaint(PaintEventArgs e)
         {
-            Color background=!Enabled?Color.FromArgb(27,36,48):pressed?Color.FromArgb(24,42,57):hover?Color.FromArgb(48,67,86):BackColor;
-            using(Brush fill=new SolidBrush(background))e.Graphics.FillRectangle(fill,ClientRectangle);
-            using(Pen border=new Pen(FlatAppearance.BorderColor))e.Graphics.DrawRectangle(border,0,0,Width-1,Height-1);
-            TextRenderer.DrawText(e.Graphics,Text,Font,ClientRectangle,Enabled?ForeColor:Color.FromArgb(150,162,175),TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.SingleLine|TextFormatFlags.EndEllipsis);
+            KavrosTheme.DrawButton(e.Graphics, ClientRectangle, Text, Font, Tone, Enabled, hover, pressed, Surface.IsEmpty ? KavrosTheme.SurfaceOf(this) : Surface);
             if(Focused&&ShowFocusCues)ControlPaint.DrawFocusRectangle(e.Graphics,Rectangle.Inflate(ClientRectangle,-4,-4));
         }
     }

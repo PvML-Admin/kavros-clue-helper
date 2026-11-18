@@ -51,7 +51,7 @@ namespace KavrosClueHelper
                     }
                     var scans=new ScanVision(assets).Regions;
                     var master=new DetectedPuzzle{Kind=PuzzleKind.EmoteClue,Master=MasterClues.ById(246)};
-                    Color background=Color.FromArgb(18,23,32);
+                    Color background=KavrosTheme.Bg;
                     for(int cycle=0;cycle<24;cycle++)
                     {
                         panel.SetPuzzle(master,"");Application.DoEvents();

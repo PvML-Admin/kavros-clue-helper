@@ -56,6 +56,8 @@ namespace KavrosClueHelper
             {
                 initialized=true;
                 engine=OcrEngine.TryCreateFromLanguage(new Language("en-US"));
+                if(engine==null)engine=OcrEngine.TryCreateFromLanguage(new Language("en-GB"));
+                if(engine==null)try{engine=OcrEngine.TryCreateFromUserProfileLanguages();}catch(Exception){engine=null;}
                 if(engine==null){Unavailable="Enable English OCR in Windows Settings to read text clues.";return null;}
             }
             if(engine==null)return null;

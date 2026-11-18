@@ -99,7 +99,7 @@ namespace KavrosClueHelper
             text=Regex.Replace(text,@"\b([0-9il])\s+([0-9il]) paces\b",m=>m.Groups[1].Value+m.Groups[2].Value+" paces");
             text=Regex.Replace(text,@"\b[0-9il]{1,2} paces\b",m=>m.Value.Replace('i','1').Replace('l','1'));
             if(!text.Contains("scan")||!text.Contains("range")||!text.Contains("orb")||!text.Contains("paces"))return null;
-            var matches=Regions.Where(r=>r.Tier=="elite"&&Regex.IsMatch(text,@"\b"+r.BaseRange+@" paces\b")&&(r.Aliases.Any(a=>ContainsRegion(text,a))||r.Id==367&&ContainsRegion(text,"wilderness volcano")||r.Id==349&&ContainsRegion(text,"east of the elid and north of nardah"))).ToArray();
+            var matches=Regions.Where(r=>r.Tier=="elite"&&(Regex.IsMatch(text,@"\b"+r.BaseRange+@" paces\b")||Regex.IsMatch(text,@"\b"+(r.BaseRange+5)+@" paces\b"))&&(r.Aliases.Any(a=>ContainsRegion(text,a))||r.Id==367&&ContainsRegion(text,"wilderness volcano")||r.Id==349&&ContainsRegion(text,"east of the elid and north of nardah"))).ToArray();
             return matches.Length==1?matches[0]:null;
         }
         private ScanRegion MatchScrollTranscript(string raw)
@@ -107,10 +107,24 @@ namespace KavrosClueHelper
             ScanRegion exact=MatchEliteText(raw);if(exact!=null)return exact;
             string text=ReferenceClueReader.Normalize(raw);
             Match range=Regex.Match(text,@"\b([0-9il]{1,2})\s+pace[a-z]?\b");
-            if(!range.Success)return null;
+            if(!range.Success)return MatchRegionOnly(text);
             int value;if(!Int32.TryParse(range.Groups[1].Value.Replace('i','1').Replace('l','1'),out value))return null;
-            var matches=Regions.Where(r=>r.Tier=="elite"&&r.BaseRange==value&&(r.Aliases.Any(a=>ContainsRegion(text,a))||r.Id==367&&ContainsRegion(text,"wilderness volcano")||r.Id==349&&ContainsRegion(text,"east of the elid and north of nardah"))).ToArray();
+            var matches=Regions.Where(r=>r.Tier=="elite"&&(r.BaseRange==value||r.BaseRange+5==value)&&(r.Aliases.Any(a=>ContainsRegion(text,a))||r.Id==367&&ContainsRegion(text,"wilderness volcano")||r.Id==349&&ContainsRegion(text,"east of the elid and north of nardah"))).ToArray();
+            if(matches.Length==0)return MatchRegionOnly(text);
             return matches.Length==1?matches[0]:null;
+        }
+        private static readonly string[] ScanStates={"orb glows","try scanning","right coordinate","in range of the coordinate","paces away"};
+        private ScanRegion MatchRegionOnly(string text)
+        {
+            if(text.Contains("nothing scans")||text.Contains("range of this orb")||!ScanStates.Any(s=>text.Contains(s)))return null;
+            int best=0;ScanRegion winner=null;bool tie=false;
+            foreach(ScanRegion r in Regions.Where(r=>r.Tier=="elite"))
+            {
+                var names=r.Aliases.Concat(r.Id==367?new[]{"wilderness volcano"}:new string[0]).Concat(r.Id==349?new[]{"east of the elid and north of nardah"}:new string[0]);
+                int length=names.Where(a=>ContainsRegion(text,a)).Select(a=>ReferenceClueReader.Normalize(a).Length).DefaultIfEmpty(0).Max();
+                if(length>best){best=length;winner=r;tie=false;}else if(length>0&&length==best)tie=true;
+            }
+            return tie?null:winner;
         }
         public DetectedPuzzle Find(Bitmap image,Pixels p)
         {

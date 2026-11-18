@@ -93,6 +93,14 @@ namespace KavrosClueHelper
         [DllImport("user32.dll", SetLastError = true)] public static extern bool SetWindowDisplayAffinity(IntPtr window, uint affinity);
         [DllImport("dwmapi.dll")] public static extern int DwmFlush();
 
+        [DllImport("user32.dll", EntryPoint = "SetWindowLong")] static extern int SetWindowLong32(IntPtr window, int index, int value);
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")] static extern IntPtr SetWindowLongPtr64(IntPtr window, int index, IntPtr value);
+        public static void SetOwner(IntPtr child, IntPtr owner)
+        {
+            if (child == IntPtr.Zero) return;
+            if (IntPtr.Size == 8) SetWindowLongPtr64(child, -8, owner);
+            else SetWindowLong32(child, -8, owner.ToInt32());
+        }
         public static Rectangle ClientBounds(IntPtr window)
         {
             Rect r;
