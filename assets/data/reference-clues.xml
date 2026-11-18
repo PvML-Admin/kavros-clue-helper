@@ -574,7 +574,8 @@ Tile 2764, 3273 | level 0</details>
   </clue>
   <clue id="189" tier="medium" type="cryptic" heading="Zanaris furnace" action="Search Crate" x="2399" y="4471" width="1" height="1" level="0">
     <text>After a hard day of spraying back the vegetation, you mite want to pop to the nearby forge and search the crates.</text>
-    <details>Fastest: reach Zanaris by fairy ring or the Lumbridge Swamp shed. Walk to the furnace in the north-west of the city and search the crates.
+    <details>Fastest: Ctrl+T or ;;t &gt; Locations &gt; Zanaris. Walk to the furnace in the north-west of the city and search the crates.
+Alternatively: a fairy ring to Zanaris, or the Lumbridge Swamp shed.
 
 Tile 2399, 4471 | level 0</details>
   </clue>
@@ -1411,7 +1412,9 @@ Tile 2439, 3164 | level 1</details>
   </clue>
   <clue id="250" tier="medium" type="emote" heading="Twirl on the bridge by Barbarian Village" action="Twirl / Salute" x="3102" y="3420" width="7" height="2" level="0">
     <text>Twirl on the bridge by Barbarian Village. Salute before you talk to me. Equip an iron hatchet, steel kiteshield and a mithril full helmet.</text>
-    <details>Fastest: from the Edgeville lodestone, the destination lies south.
+    <text>Twirl on the bridge by Gunnarsgrunn (or Barbarian Village). Salute before you talk to me. Equip an iron hatchet, steel kiteshield and mithril full helm.</text>
+    <details>Fastest: Ctrl+T or ;;t &gt; Locations &gt; Barbarian Village, then walk east to the river bridge.
+Alternatively: Edgeville lodestone, head south.
 Do: Twirl / Salute
 Wear: Iron Hatchet
 Wear: Steel Kiteshield
@@ -1800,7 +1803,8 @@ Tile 2935, 3152 | level 0</details>
   <clue id="338" tier="medium" type="anagram" heading="Talk to Recruiter in West Ardougne" action="Talk to Recruiter" x="2539" y="3302" width="6" height="7" level="0">
     <text>This anagram reveals who to speak to next: Err Cure It</text>
     <anagram>Err Cure It</anagram>
-    <details>Fastest: from the Ardougne lodestone, the destination lies south-west.
+    <details>Fastest: Dave's spellbook &gt; Ardougne, then walk east to the Recruiter. He stands just east of the West Ardougne plaza.
+Alternatively: Ardougne lodestone, then run south-west into West Ardougne.
 Talk to Recruiter in West Ardougne.
 
 Challenge: How many houses have a cross on the door?
@@ -2004,7 +2008,8 @@ Tile 3358, 3502 | level 0</details>
   <clue id="302" tier="hard" type="anagram" heading="Fairy Nuff, Zanaris" action="Talk to Fairy Nuff" x="2384" y="4466" width="6" height="6" level="0">
     <text>This anagram reveals who to speak to next: I Faffy Run</text>
     <anagram>I Faffy Run</anagram>
-    <details>Fastest: reach Zanaris by fairy ring or the Lumbridge Swamp shed. Find Fairy Nuff north of the bank.
+    <details>Fastest: Ctrl+T or ;;t &gt; Locations &gt; Zanaris. Fairy Nuff is north of the bank.
+Alternatively: a fairy ring to Zanaris, or the Lumbridge Swamp shed.
 An NPC may give you a puzzle box. Open it for the puzzle helper.
 
 Tile 2384, 4466 | level 0</details>
@@ -2089,7 +2094,8 @@ Tile 2667, 3562 | level 0</details>
   </clue>
   <clue id="58" tier="medium" type="map" heading="Hobgoblin Peninsula" action="Dig" x="2906" y="3296" width="1" height="1" level="0">
     <text>X marks the spot near a rock on a peninsula.</text>
-    <details>Fastest: go west from the Crafting Guild onto the peninsula. At its tip, dig just west of the snape grass.
+    <details>Fastest: Ctrl+T or ;;t &gt; Skilling &gt; Crafting &gt; Crafting Guild, then go west onto the Hobgoblin Peninsula and dig at its tip (marked on the map).
+Alternatively: Falador lodestone, then run south-west through Falador and west from the Crafting Guild onto the peninsula tip.
 
 Tile 2906, 3296 | level 0</details>
   </clue>
@@ -2269,7 +2275,8 @@ Tile 2920, 3403 | level 0</details>
   </clue>
   <clue id="440" tier="medium" type="coordinates" heading="Terrorbird enclosure, Tree Gnome Stronghold" action="Dig" x="2387" y="3435" width="1" height="1" level="0">
     <text>08 degrees 33 minutes north,01 degrees 39 minutes west</text>
-    <details>Fastest: go to the south-west part of the stronghold and cross the bridge into the terrorbird pen. Leave by its eastern gate and dig near the water.
+    <details>Fastest: Ctrl+T or ;;t &gt; Skilling &gt; Agility &gt; Gnome Course, then walk west along the south side of the stronghold to the terrorbird pen. Dig near the water by its eastern gate.
+Alternatively: Amulet of farming &gt; Trees &gt; Gnome Stronghold patches, then go north-west to the same gate.
 
 Tile 2387, 3435 | level 0</details>
   </clue>
