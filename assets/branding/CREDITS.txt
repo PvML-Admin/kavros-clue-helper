@@ -1,0 +1,7 @@
+RuneScape master clue scroll game artwork: Jagex Ltd.
+Inventory sprite and detail render sourced from the RuneScape Wiki.
+https://runescape.wiki/w/Clue_scroll_(master)
+https://runescape.wiki/images/Clue_scroll_(master).png
+https://runescape.wiki/images/Clue_scroll_(master)_detail.png
+
+Kavros crest: supplied by the user.
