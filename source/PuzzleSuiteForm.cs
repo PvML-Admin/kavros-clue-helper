@@ -742,12 +742,21 @@ namespace KavrosClueHelper
         private void FollowSlider(DetectedPuzzle puzzle,List<int> preparedRoute=null)
         {
             List<int> remaining;
-            if(slidingTheme==puzzle.Theme&&SlidingRoute.Advance(slidingBoard,slidingMoves,puzzle.Board,out remaining)&&(preparedRoute==null||remaining.SequenceEqual(preparedRoute)))
+            if(slidingTheme==puzzle.Theme&&slidingBoard!=null&&slidingMoves!=null)
             {
-                int consumed=slidingMoves.Count-remaining.Count;
-                slidingBatchNumber+=wholeRowClicks.Checked?SlidingRoute.CompletedClicks(slidingBoard,slidingMoves,consumed):consumed;slidingMoves=remaining;
+                if(slidingBoard.SequenceEqual(puzzle.Board))return;
+                int oldBlank=Array.IndexOf(slidingBoard,24),nextBlank=Array.IndexOf(puzzle.Board,24);
+                bool adjacent=oldBlank>=0&&SlidingSolver.Neighbours(oldBlank).Contains(nextBlank);
+                if(!adjacent)return;
+                if(SlidingRoute.Advance(slidingBoard,slidingMoves,puzzle.Board,out remaining))
+                {
+                    int consumed=slidingMoves.Count-remaining.Count;
+                    slidingBatchNumber+=wholeRowClicks.Checked?SlidingRoute.CompletedClicks(slidingBoard,slidingMoves,consumed):consumed;slidingMoves=remaining;
+                    slidingBoard=(int[])puzzle.Board.Clone();return;
+                }
             }
-            else{slidingMoves=preparedRoute==null?(wholeRowClicks.Checked?SlidingClickOptimizer.Solve(puzzle.Board).Moves:SlidingOptimizer.Solve(puzzle.Board,SliderBudget.Milliseconds).Moves):new List<int>(preparedRoute);slidingBatchNumber=1;}
+            if(!SlidingSolver.IsSolvable(puzzle.Board))return;
+            slidingMoves=preparedRoute==null?(wholeRowClicks.Checked?SlidingClickOptimizer.Solve(puzzle.Board).Moves:SlidingOptimizer.Solve(puzzle.Board,SliderBudget.Milliseconds).Moves):new List<int>(preparedRoute);slidingBatchNumber=1;
             slidingBoard=(int[])puzzle.Board.Clone();slidingTheme=puzzle.Theme;
         }
         private void ShowGuidance()

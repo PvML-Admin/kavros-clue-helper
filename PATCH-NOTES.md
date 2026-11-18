@@ -1,8 +1,8 @@
-# Kavros Clue Helper v0.6.8
+# Kavros Clue Helper v0.6.9
 
-v0.6.8: faster puzzle reading, world-map zoom, scan follow, lodestone icons.
+v0.6.9: steadier scan follow, no false found cards, slider progress, and the Dig Site Exam Centre route.
 
-Settings shows **Made by Zenity · v0.6.8**. The full notes are in CHANGELOG.md.
+Settings shows **Made by Zenity · v0.6.9**. The full notes are in CHANGELOG.md.
 
 # Kavros Clue Helper v0.6.5
 

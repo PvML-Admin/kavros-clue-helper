@@ -266,11 +266,25 @@ namespace KavrosClueHelper
             }
             if(match==null)
             {
+                if(PositionTracked&&LastKnown.HasValue&&(now-lastMatch).TotalSeconds<12)
+                {Position=LastKnown;TrackingStatus="Following your minimap automatically.";return;}
                 confirmations=0;
                 PositionTracked=false;
                 if((now-lastMatch).TotalMilliseconds>650)Position=null;
                 misses++;
                 TrackingStatus=LastKnown.HasValue&&misses<3?"Grey marker shows your last position. "+ManualHint:ManualHint;
+                return;
+            }
+            if(PositionTracked&&LastKnown.HasValue)
+            {
+                double gap=Math.Max(0.05,(now-lastMatch).TotalSeconds);
+                double allowed=14+gap*24;
+                if(CompassMath.Distance(match.Position,LastKnown.Value)>allowed)
+                {Position=LastKnown;TrackingStatus="Following your minimap automatically.";return;}
+                PointF held=LastKnown.Value;
+                var smoothed=new PointF(held.X+(match.Position.X-held.X)*0.7F,held.Y+(match.Position.Y-held.Y)*0.7F);
+                pending=match;lastMatch=now;misses=0;Position=smoothed;LastKnown=smoothed;PositionTracked=true;lastConfirmed=now;
+                TrackingStatus="Following your minimap automatically.";
                 return;
             }
             misses=0;
@@ -282,7 +296,7 @@ namespace KavrosClueHelper
             TrackingStatus=consistent?"Following your minimap automatically.":"Position found. Confirming the next frame...";
         }
         public void Expire(DateTime now)
-        {if(AutoTracking&&Position.HasValue&&(now-lastMatch).TotalMilliseconds>1500){Position=null;PositionTracked=false;pending=null;TrackingStatus="Position lost. "+ManualHint;}}
+        {if(AutoTracking&&Position.HasValue&&(now-lastMatch).TotalSeconds>12){Position=null;PositionTracked=false;pending=null;TrackingStatus="Position lost. "+ManualHint;}}
 
         public string Summary {get{return Region==null?"":Region.Name+" | "+Range+" paces"+(Meerkat?" (meerkat)":"")+" | Dig locations: level "+Region.Level+"\n"+(AutoTracking?TrackingStatus:Position.HasValue?"Manual position set. Right-click the map to move it.":ManualHint)+(AutoTracking&&!PositionTracked&&LastKnown.HasValue?"\nGrey marker: last confirmed "+Math.Max(0,(int)(DateTime.UtcNow-lastConfirmed).TotalSeconds)+"s ago.":"");}}
 

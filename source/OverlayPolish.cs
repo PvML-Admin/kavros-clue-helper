@@ -17,7 +17,7 @@ namespace KavrosClueHelper
             {
                 OpaqueButton b = c as OpaqueButton;
                 if (b == null) continue;
-                b.Tone = b.Text == "Rescan" ? ButtonTone.Primary : b.Text == "Exit" ? ButtonTone.Ghost : ButtonTone.Secondary;
+                b.Tone = b.Text == "Rescan" ? ButtonTone.Primary : ButtonTone.Secondary;
             }
             foreach (Control c in Controls)
             {
@@ -41,9 +41,20 @@ namespace KavrosClueHelper
             string text = label.Text ?? "";
             bool searching = mode == PuzzleKind.None || !String.IsNullOrEmpty(ReadingStage);
             bool notFound = searching && summary.Text.StartsWith("Waiting for Kavros", StringComparison.OrdinalIgnoreCase);
-            string pill = notFound ? "Not found" : searching ? "Searching" : mode == PuzzleKind.EmoteClue ? "Clue found" : "Found";
-            PillTone tone = notFound ? PillTone.Bad : searching ? PillTone.Warn : PillTone.Ok;
-            int width = KavrosTheme.DrawPill(g, 10, 17, pill, tone, surface);
+            int width;
+            if (searching && !notFound)
+            {
+                string dots = searchDots <= 0 ? "" : new string('.', searchDots);
+                Font searchFont = KavrosTheme.Ui(9F, false);
+                TextRenderer.DrawText(g, "Searching" + dots, searchFont, new Point(12, 8), KavrosTheme.TextSoft, surface, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+                width = TextRenderer.MeasureText(g, "Searching...", searchFont, Size.Empty, TextFormatFlags.NoPadding).Width;
+            }
+            else
+            {
+                string pill = notFound ? "Not found" : mode == PuzzleKind.EmoteClue ? "Clue found" : "Found";
+                PillTone tone = notFound ? PillTone.Bad : PillTone.Ok;
+                width = KavrosTheme.DrawPill(g, 10, 17, pill, tone, surface);
+            }
             // Existing status/title remains visible alongside the pill. The
             // unchanged Text value remains the accessibility / test source.
             Font font = KavrosTheme.Display(8F);

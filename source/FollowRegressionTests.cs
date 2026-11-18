@@ -36,7 +36,7 @@ namespace KavrosClueHelper
                         File.AppendAllText(report,"Actual cropped follow: "+watch.ElapsedMilliseconds+" ms; "+reader.Diagnostics+"\r\n");
                         Check(follow!=null&&CompassMath.Distance(follow.Position,first.Position)<2,"fresh cropped follow preserves world position");Check(follow.PlayerPixel==first.PlayerPixel,"cropped follow preserves client coordinates");
                         var session=new ScanSession();session.Observe(new ScanReading{Region=prif});session.PrepareRecheck();Check(!session.Position.HasValue,"slow acquisition never displays an old box");
-                        DateTime now=DateTime.UtcNow;session.ApplyMatch(follow,now);Check(!session.Position.HasValue,"first fresh reading waits for confirmation");session.ApplyMatch(follow,now.AddMilliseconds(150));Check(session.PositionTracked&&session.Position.HasValue,"two fresh readings display the automatic box");session.Expire(now.AddSeconds(2));Check(!session.Position.HasValue,"stale tracking removes the box");
+                        DateTime now=DateTime.UtcNow;session.ApplyMatch(follow,now);Check(!session.Position.HasValue,"first fresh reading waits for confirmation");session.ApplyMatch(follow,now.AddMilliseconds(150));Check(session.PositionTracked&&session.Position.HasValue,"two fresh readings display the automatic box");session.Expire(now.AddSeconds(2));Check(session.Position.HasValue,"a short gap keeps the automatic box");
                         using(Bitmap mini=original.Clone(new Rectangle(1624,0,424,384),System.Drawing.Imaging.PixelFormat.Format24bppRgb))
                         using(Bitmap terrain=(Bitmap)mini.Clone())
                         {

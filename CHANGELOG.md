@@ -1,5 +1,24 @@
 # Kavros Clue Helper
 
+## 0.6.9
+
+**Scans**
+- Once the minimap lock is on, a missed frame no longer drops you. The marker stays on the last good tile, the next search looks ahead of your movement, and a bad jump is ignored.
+- A saved scan or clue no longer comes back as Found after you close the scroll. Found only appears while that scroll, scan, or puzzle is actually on screen.
+
+**Puzzles**
+- The slider count follows the moves you make. A frame in the middle of a slide is ignored, so the highlight and the "left" number stay put until the tile lands, then the count goes down.
+- Right-clicking a tower or lockbox still keeps the last reading while the menu covers the board.
+
+**Panel**
+- Searching is plain text with moving dots, not a badge. Found stays a badge.
+- Settings is the same height as the minimise button.
+- Exit matches Pause and Clear. Rescan stays gold.
+
+**Clues**
+- Dig Site Exam Centre: get the key from a male barbarian in Barbarian Village, then the Archaeology Guild teleport and walk to the chest under the dragon head. A Digsite pendant or the Varrock lodestone is the other way.
+- Luthas is an amulet of glory to Karamja, then a short walk south-east. The Karamja lodestone is the backup. No boat.
+
 ## 0.6.8
 
 **Puzzles**
