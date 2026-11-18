@@ -3,6 +3,7 @@
 ## 0.6.7
 
 - Fixed the update banner covering the floating panel's buttons; banners now clear after 5 seconds.
+- What's new now has a Close button (Esc also closes it).
 
 ## 0.6.6
 
