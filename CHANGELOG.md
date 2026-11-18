@@ -1,5 +1,9 @@
 # Kavros Clue Helper
 
+## 0.6.7
+
+- Fixed the update banner covering the floating panel's buttons; banners now clear after 5 seconds.
+
 ## 0.6.6
 
 - Navy and gold restyle of Settings and the floating panel.

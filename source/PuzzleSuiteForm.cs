@@ -253,7 +253,8 @@ namespace KavrosClueHelper
             toastAction.ForeColor = KavrosTheme.GoldInk;
             toastBar.Visible = true; toastBar.BringToFront();
             toastTimer.Stop();
-            if (click == null) toastTimer.Start();
+            // Everything fades after 5 seconds except the update offer, which waits for a click.
+            if (click == null || action != "Update now") toastTimer.Start();
             if (floatingPanel != null && !floatingPanel.IsDisposed) floatingPanel.ShowBanner(message, error);
         }
         internal void ShowWhatsNew()
