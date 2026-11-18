@@ -16,6 +16,7 @@ namespace KavrosClueHelper
         {
             try
             {
+                AppUpdates.Start();
                 if(args.Length>1&&args[0]=="--catalogue-test")return ReferenceRegressionTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--slider-optimiser-test")return SlidingOptimizerTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--slider-click-test")return SlidingClickOptimizerTests.Run(args[1]);
@@ -79,7 +80,9 @@ namespace KavrosClueHelper
                     }
                     return 0;
                 }
-                Application.Run(new PuzzleSuiteForm());
+                PuzzleSuiteForm form = new PuzzleSuiteForm();
+                form.Shown += delegate { form.CheckForUpdatesOnStartup(); };
+                Application.Run(form);
                 return 0;
             }
             catch (Exception exception)

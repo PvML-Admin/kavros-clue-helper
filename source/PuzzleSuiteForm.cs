@@ -63,6 +63,7 @@ namespace KavrosClueHelper
         private readonly CaptureSearch captureSearch = new CaptureSearch();
         private readonly OverlayPreferences preferences=new OverlayPreferences();
         private readonly CheckBox floatingEnabled=new CheckBox();
+        private readonly CheckBox checkUpdates=new CheckBox();
         private FloatingCluePanel floatingPanel;
         private CompassSession compassSession;
         private NotifyIcon tray;
@@ -117,7 +118,7 @@ namespace KavrosClueHelper
         {
             Text = "Kavros Clue Helper | " + AppBranding.DisplayVersion;
             Icon = AppBranding.LoadScroll();
-            ClientSize = new Size(500, 886); FormBorderStyle = FormBorderStyle.FixedSingle; MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen; AutoScaleMode = AutoScaleMode.None;
+            ClientSize = new Size(500, 926); FormBorderStyle = FormBorderStyle.FixedSingle; MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen; AutoScaleMode = AutoScaleMode.None;
             BackColor = Color.FromArgb(18, 23, 32); ForeColor = Color.FromArgb(225, 233, 243); Font = new Font("Segoe UI", 9F);
             Label title = LabelAt("KAVROS / CLUE HELPER", 96, 10, 390, 29); title.Font = new Font("Segoe UI", 15F, FontStyle.Bold);
             LabelAt("Easy / Medium / Hard / Elite / Master / Puzzle helpers", 96, 42, 390, 23).ForeColor = Color.FromArgb(151, 174, 199);
@@ -207,6 +208,10 @@ namespace KavrosClueHelper
             floatingEnabled.CheckedChanged+=delegate{preferences.Enabled=floatingEnabled.Checked;preferences.Save();UpdateFloatingPanel();};
             ButtonAt("Open panel",220,845,125,OpenPanel);
             ButtonAt("Exit helper",355,845,125,ExitHelper);
+            checkUpdates.Text="Check for updates at startup";checkUpdates.SetBounds(20,884,255,24);checkUpdates.Checked=preferences.CheckForUpdates;Controls.Add(checkUpdates);
+            sliderTips.SetToolTip(checkUpdates,"When this is on, startup asks GitHub whether a newer release exists.");
+            checkUpdates.CheckedChanged+=delegate{preferences.CheckForUpdates=checkUpdates.Checked;preferences.Save();};
+            ButtonAt("Check for updates",285,880,195,delegate{AppUpdates.Check(this,true);});
             var trayMenu=new ContextMenuStrip();trayMenu.Items.Add("Open panel",null,delegate{OpenPanel();});trayMenu.Items.Add("Settings",null,delegate{ShowSettings();});trayMenu.Items.Add("Exit helper",null,delegate{ExitHelper();});
             AppBranding.ArrangeSettings(this);
             tray=new NotifyIcon{Icon=this.Icon,Text="Kavros Clue Helper",ContextMenuStrip=trayMenu,Visible=true};tray.DoubleClick+=delegate{ShowSettings();};
@@ -221,6 +226,9 @@ namespace KavrosClueHelper
             FormClosed += delegate { closing=true; CancelAnalysis(); StopTracking(); timer.Stop(); timer.Dispose(); overlay.Dispose();floatingPanel.Dispose();tray.Visible=false;tray.Dispose();trayMenu.Dispose();if (Icon != null) Icon.Dispose(); if (preview.Image != null) preview.Image.Dispose(); if(diagnosticCapture!=null) diagnosticCapture.Dispose(); if(offlineSource!=null) offlineSource.Dispose(); Native.UnregisterHotKey(Handle, 11); Native.UnregisterHotKey(Handle, 12); };
         }
         private void ShowSettings(){if(WindowState==FormWindowState.Minimized)WindowState=FormWindowState.Normal;Show();Activate();}
+        internal void CheckForUpdatesOnStartup(){if(preferences.CheckForUpdates)AppUpdates.Check(this,false);}
+        internal void PrepareForUpdate(){closing=true;}
+        internal void SetUpdateStatus(string message){status.Text=message;}
         private void OpenPanel(){draw.Checked=true;floatingEnabled.Checked=true;UpdateFloatingPanel();if(SelectedWindow==IntPtr.Zero||!Native.IsIconic(SelectedWindow)){floatingPanel.Show();floatingPanel.Activate();}}
         private void ExitHelper(){closing=true;Close();}
         private void UpdateFloatingPanel()

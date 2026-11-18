@@ -176,8 +176,17 @@ idle/live search stage was 794 ms. Initial asset preparation took 1,082 ms.
 Tests show no app windows, capture no desktop and send no game input.
 Live focus, dragging, minimisation and click-through still require normal
 in-game validation. The helper processes pixels locally, reads no game
-process memory, sends no game mouse/keyboard input and makes no runtime
-network requests. Maps and clue references are bundled offline.
+process memory, and sends no game mouse/keyboard input. Maps and clue
+references are bundled offline. The only runtime network request is to
+GitHub, for update checks and update downloads, and only when Check for
+updates at startup is enabled or you press Check for updates.
+
+UPDATES
+Settings has "Check for updates at startup" (on by default) and a Check
+for updates button. Both contact only this project's GitHub Releases.
+Turn the startup check off and the helper makes no network requests. A
+folder copy that was not installed with Setup.exe, and is not the portable
+release package, cannot apply an update by itself.
 
 REBUILD / TEST
 Run source/build.ps1 on Windows.

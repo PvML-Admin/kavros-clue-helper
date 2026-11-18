@@ -180,3 +180,9 @@ Travel directions were written for this helper using the clue catalogue,
 RuneHQ Treasure Trails guide, RuneScape Wiki and Kavros screenshots.
 https://www.runehq.com/minigame/treasure-trails
 https://runescape.wiki/w/Treasure_Trails/Guide
+
+APPLICATION UPDATES
+Setup.exe and the portable package check GitHub Releases with Velopack 1.2.161
+(MIT, https://github.com/velopack/velopack). Release feeds are read with
+Newtonsoft.Json 13.0.4 (MIT, https://www.newtonsoft.com/json).
+Neither library is used for clue solving.

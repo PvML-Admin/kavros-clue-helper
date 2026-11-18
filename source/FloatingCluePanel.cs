@@ -14,6 +14,7 @@ namespace KavrosClueHelper
         public bool Enabled=true,Collapsed;
         public bool ShortestSlider = true;
         public bool WholeRowClicks;
+        public bool CheckForUpdates = true;
         public Point Offset=new Point(12,72);
         public readonly List<CompassPosition> SavedPositions=new List<CompassPosition>();
         private readonly string path;
@@ -30,6 +31,7 @@ namespace KavrosClueHelper
                     if(p.Length==2&&p[0]=="collapsed"&&Boolean.TryParse(p[1],out b))Collapsed=b;
                     if(p.Length==2&&p[0]=="shortest-slider"&&Boolean.TryParse(p[1],out b))ShortestSlider=b;
                     if(p.Length==2&&p[0]=="whole-row-clicks"&&Boolean.TryParse(p[1],out b))WholeRowClicks=b;
+                    if(p.Length==2&&p[0]=="check-updates"&&Boolean.TryParse(p[1],out b))CheckForUpdates=b;
                     if(p.Length==3&&p[0]=="offset"&&Int32.TryParse(p[1],out x)&&Int32.TryParse(p[2],out y))Offset=new Point(x,y);
                     if(p.Length==5&&p[0]=="spot"&&Int32.TryParse(p[2],out x)&&Int32.TryParse(p[3],out y))
                     {
@@ -49,6 +51,7 @@ namespace KavrosClueHelper
                 var lines=new List<string>{"enabled\t"+Enabled,"collapsed\t"+Collapsed,"offset\t"+Offset.X+"\t"+Offset.Y};
                 lines.Add("shortest-slider\t"+ShortestSlider);
                 lines.Add("whole-row-clicks\t"+WholeRowClicks);
+                lines.Add("check-updates\t"+CheckForUpdates);
                 lines.AddRange(SavedPositions.Select(p=>"spot\t"+Uri.EscapeDataString(p.Name)+"\t"+p.X+"\t"+p.Y+"\t"+p.Radius.ToString(CultureInfo.InvariantCulture)));
                 File.WriteAllLines(path,lines);
             }
