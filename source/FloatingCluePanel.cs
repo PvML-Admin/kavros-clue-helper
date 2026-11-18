@@ -71,6 +71,7 @@ namespace KavrosClueHelper
     }
     public sealed class CompassMap : Control
     {
+        private readonly string assets;
         private readonly Bitmap map;
         private CompassSession session;
         private PointF centre=new PointF(3030,3310);
@@ -88,7 +89,7 @@ namespace KavrosClueHelper
         public CompassMap(string assets)
         {
             DoubleBuffered=true;TabStop=true;SetStyle(ControlStyles.Selectable,true);
-            map=WorldMap.Get(assets);
+            this.assets=assets;map=WorldMap.Get(assets);
             MouseDown+=delegate(object sender,MouseEventArgs e){Focus();if(e.Button==MouseButtons.Left){mouseDown=e.Location;drag=e.Location;Capture=true;}if(e.Button==MouseButtons.Right&&PositionPicked!=null)PositionPicked(ToWorld(e.Location));};
             MouseMove+=delegate(object sender,MouseEventArgs e){if(!drag.HasValue){CompassPosition over=HitLodestone(e.Location);string label=over==null?"":over.Name;if(label!=hoverName){hoverName=label;locationTip.SetToolTip(this,label);}Cursor=over==null?Cursors.Default:Cursors.Hand;return;}if(Math.Abs(e.X-mouseDown.X)+Math.Abs(e.Y-mouseDown.Y)<5)return;centre.X-=(float)((e.X-drag.Value.X)*span/Width);centre.Y+=(float)((e.Y-drag.Value.Y)*span/Width);drag=e.Location;Invalidate();};
             MouseUp+=delegate(object sender,MouseEventArgs e){bool click=drag.HasValue&&Math.Abs(e.X-mouseDown.X)+Math.Abs(e.Y-mouseDown.Y)<5;drag=null;Capture=false;if(!click)return;if(e.Y<26&&e.X<102){Overview();return;}CompassPosition p=HitLodestone(e.Location);if(p!=null&&LodestonePicked!=null)LodestonePicked(p);};
@@ -100,22 +101,14 @@ namespace KavrosClueHelper
         private PointF IconPoint(CompassPosition position){return ToScreen(position.Point);}
         public CompassPosition HitLodestone(Point point)
         {
-            if(session==null||point.Y>=Height-19||point.Y<26&&point.X<102)return null;
+            if(session==null||point.Y<26&&point.X<102)return null;
             return session.Positions.Where(HasMapIcon).OrderByDescending(p=>p.Name.EndsWith(" (Kavros)"))
                 .Select(p=>new{Position=p,Screen=IconPoint(p)})
                 .Where(p=>Math.Abs(p.Screen.X-point.X)<=12&&Math.Abs(p.Screen.Y-point.Y)<=13)
                 .OrderBy(p=>Math.Abs(p.Screen.X-point.X)+Math.Abs(p.Screen.Y-point.Y)).Select(p=>p.Position).FirstOrDefault();
         }
-        private static void DrawLodestone(Graphics g,PointF p,bool selected)
-        {
-            g.SmoothingMode=SmoothingMode.AntiAlias;
-            using(Brush dark=new SolidBrush(Color.FromArgb(230,10,20,28)))g.FillEllipse(dark,p.X-11,p.Y-12,22,24);
-            using(Pen ring=new Pen(selected?Color.Lime:Color.Gold,selected?3:1.5F))g.DrawEllipse(ring,p.X-10,p.Y-11,20,22);
-            PointF[] stone={new PointF(p.X,p.Y-8),new PointF(p.X+5,p.Y-3),new PointF(p.X+4,p.Y+6),new PointF(p.X-4,p.Y+6),new PointF(p.X-5,p.Y-3)};
-            g.FillPolygon(Brushes.SteelBlue,stone);g.DrawPolygon(Pens.LightCyan,stone);
-            g.FillEllipse(Brushes.Cyan,p.X-2,p.Y-4,4,5);g.FillRectangle(Brushes.Gold,p.X-6,p.Y+7,12,2);
-            g.SmoothingMode=SmoothingMode.None;
-        }
+        private void DrawLodestone(Graphics g,PointF p,CompassPosition position)
+        {LodestoneIcons.Draw(g,p,position.Name,position==SelectedOrigin,assets);}
         public void SetSession(CompassSession value,bool fit)
         {
             if (!fit && session == value && paintedCandidates == value.Candidates && paintedOrigin == SelectedOrigin && paintedPositionCount == value.Positions.Count) return;
@@ -178,14 +171,12 @@ namespace KavrosClueHelper
             }
             if(session!=null)foreach(CompassPosition position in session.Positions.Where(HasMapIcon))
             {
-                PointF p=IconPoint(position);if(p.X<0||p.Y<13||p.X>Width||p.Y>Height-32)continue;
-                DrawLodestone(g,p,position==SelectedOrigin);
+                PointF p=IconPoint(position);if(p.X<0||p.Y<13||p.X>Width||p.Y>Height-4)continue;
+                DrawLodestone(g,p,position);
                 if(position==SelectedOrigin)TextRenderer.DrawText(g,position.Name.Replace(" lodestone",""),Font,new Point((int)p.X+13,(int)p.Y-8),Color.Lime,Color.FromArgb(18,30,38));
             }
             g.FillRectangle(Brushes.DarkSlateGray,2,2,99,23);
             TextRenderer.DrawText(g,"Lodestones",Font,new Rectangle(4,3,96,21),Color.White,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter);
-            using(Brush b=new SolidBrush(Color.FromArgb(210,12,20,28)))g.FillRectangle(b,0,Height-18,Width,18);
-            TextRenderer.DrawText(g,"Click lodestone | Drag: pan | Wheel: zoom | Right: position",Font,new Rectangle(5,Height-17,Width-10,17),Color.White,TextFormatFlags.NoPadding|TextFormatFlags.SingleLine);
             TextRenderer.DrawText(g,"N",Font,new Rectangle(Width-22,4,20,20),Color.White,TextFormatFlags.NoPadding);
         }
         protected override void Dispose(bool disposing){if(disposing){locationTip.Dispose();}base.Dispose(disposing);}
@@ -239,7 +230,7 @@ namespace KavrosClueHelper
         private readonly Panel scanControls=new OpaquePanel();
         private readonly CheckBox meerkat=new KavrosCheckBox(),autoFollow=new KavrosCheckBox();
         private readonly ComboBox scanFloor=new ComboBox();
-        private int floorRegion=-1;private bool changingFloor;
+        private int floorRegion=-1;private bool changingFloor,changingMeerkat;
         private readonly string assets;
         private readonly OverlayPreferences prefs;
         private Point dragStart,windowStart;private bool dragging;
@@ -277,7 +268,7 @@ namespace KavrosClueHelper
             scanControls.SetBounds(10,424,380,88);Controls.Add(scanControls);
             autoFollow.BackColor=BackColor;meerkat.BackColor=BackColor;
             autoFollow.Text="Auto follow minimap";autoFollow.SetBounds(0,0,380,24);autoFollow.Checked=true;autoFollow.CheckedChanged+=delegate{if(scanSession.AutoTracking!=autoFollow.Checked)scanSession.SetAutomatic(autoFollow.Checked);RefreshScan();};scanControls.Controls.Add(autoFollow);
-            meerkat.Text="Meerkat (+5 paces)";meerkat.SetBounds(0,25,380,24);meerkat.CheckedChanged+=delegate{scanSession.Meerkat=meerkat.Checked;RefreshScan();};scanControls.Controls.Add(meerkat);
+            meerkat.Text="Meerkat (+5 paces)";meerkat.SetBounds(0,25,380,24);meerkat.CheckedChanged+=delegate{if(changingMeerkat)return;scanSession.Meerkat=meerkat.Checked;scanSession.MeerkatLocked=true;RefreshScan();};scanControls.Controls.Add(meerkat);
             meerkat.Width=210;scanFloor.SetBounds(220,25,155,24);scanFloor.DropDownStyle=ComboBoxStyle.DropDownList;scanFloor.BackColor=KavrosTheme.Input;scanFloor.ForeColor=KavrosTheme.Text;scanFloor.FlatStyle=FlatStyle.Flat;scanFloor.Visible=false;scanControls.Controls.Add(scanFloor);scanFloor.BringToFront();
             scanFloor.SelectedIndexChanged+=delegate{if(changingFloor||scanSession.Region==null||scanFloor.SelectedIndex<0)return;scanSession.Region.Level=scanSession.Region.Levels[scanFloor.SelectedIndex];scanSession.SetAutomatic(autoFollow.Checked);RefreshScan();};
             LabelAt(scanControls,"Green box: scan range | Dashed: double range",0,54,380,30);
@@ -372,6 +363,7 @@ namespace KavrosClueHelper
             {
                 changingFloor=true;scanFloor.Items.Clear();foreach(int level in scanSession.Region.Levels)scanFloor.Items.Add("Map level "+level);scanFloor.SelectedIndex=Array.IndexOf(scanSession.Region.Levels,scanSession.Region.Level);scanFloor.Visible=scanFloor.Items.Count>1;floorRegion=scanSession.Region.Id;changingFloor=false;
             }
+            if(meerkat.Checked!=scanSession.Meerkat){changingMeerkat=true;meerkat.Checked=scanSession.Meerkat;changingMeerkat=false;}
             heading.Text=scanSession.Region.Name+" | "+scanSession.Range+" paces";
             heading.ForeColor=scanSession.DifferentLevel?KavrosTheme.Gold:KavrosTheme.Ice;
             string status=scanSession.AutoTracking?scanSession.TrackingStatus:scanSession.Position.HasValue?"Manual position set. Right-click the map to move it.":"Right-click your position on the map.";

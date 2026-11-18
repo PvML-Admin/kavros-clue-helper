@@ -293,7 +293,7 @@ The user has now authorised implementation after catalogue compilation: Easy, th
 | CT:62 | Map | X marks the spot at the end of a path starting from a rock and near a fishing spot. | Dig between the southern most willow tree and the small obelisk | x=3092, y=3225, plane=0 |  |
 | CT:48 | Map | X marks the spot between lava lakes. | Dig behind the chaos altar at Ourania | x=2454, y=3230, plane=0 |  |
 | CT:52 | Map | X marks the spot between some trees at the end of a path. | Dig between the signpost and the evergreen | x=2536, y=3865, plane=0 |  |
-| CT:58 | Map | X marks the spot near a rock on a peninsula. | Dig west of the snape grass at the tip of the hobgoblin peninsula. | x=2906, y=3296, plane=0 |  |
+| CT:58 | Map | X marks the spot near a rock on a peninsula. | Dig at the tip of the Hobgoblin Peninsula, west of the Crafting Guild. | x=2906, y=3296, plane=0 |  |
 | CT:61 | Map | X marks the spot near some weird looking grass | Dig four tiles west of the mushroom | x=3434, y=3265, plane=0 |  |
 | CT:51 | Map | X marks the spot next to a building at the coast. | Dig west of the Chemist's House | x=2923, y=3210, plane=0 |  |
 | CT:57 | Map | X marks the spot on a narrow landstrip near a road and a lot of trees. | Dig next to the bush | x=2667, y=3562, plane=0 |  |

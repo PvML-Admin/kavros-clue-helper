@@ -451,7 +451,7 @@ namespace KavrosClueHelper
         private readonly Dictionary<float, ImagePattern[]> lockboxPatterns = new Dictionary<float, ImagePattern[]>();
         private readonly Dictionary<float, OldFrame[]> oldFrames = new Dictionary<float, OldFrame[]>();
         private readonly Dictionary<float, ImagePattern[]> oldSliderAnchors = new Dictionary<float, ImagePattern[]>();
-        private readonly float[] scales = { 1F, 0.8F, 8F/9F, 1.25F, 1.5F, 2F };
+        private readonly float[] scales = { 1F, 0.8F, 8F/9F, 2F/3F, 0.5F, 1.25F, 1.5F, 2F };
         public int LastTowerCluesRead;
         private string towerSolveKey;
         private List<int[]> towerSolutions;
@@ -493,19 +493,18 @@ namespace KavrosClueHelper
         }
         internal DetectedPuzzle Detect(Bitmap screenshot, Pixels pixels, bool allowBroadSearch, bool progressive)
         {
-            DetectedPuzzle scanTitle=scans.FindNativeTitle(pixels);if(scanTitle!=null)return scanTitle;
-            DetectedPuzzle emote=masterClues.Detect(screenshot,pixels); if(emote!=null) return emote;
-            DetectedPuzzle reference=referenceClues.Detect(screenshot,pixels);if(reference!=null)return reference;
-            DetectedPuzzle direction=compass.Find(screenshot,pixels);
-            if(direction!=null) return direction;
+            DetectedPuzzle board=DetectBoards(screenshot,pixels,allowBroadSearch,progressive);
+            if(board!=null) return board;
+            return DetectClues(screenshot,pixels);
+        }
+        internal DetectedPuzzle DetectBoards(Bitmap screenshot, Pixels pixels, bool allowBroadSearch, bool progressive)
+        {
             DetectedPuzzle fastTower = FindTowerGrid(screenshot, pixels);
             if (fastTower != null) return fastTower;
-            if(!allowBroadSearch) return scans.Find(screenshot,pixels);
-            BroadSearches++;
-            // Check supported symbol grids on every discovery pass. A new
-            // Lockbox must not wait for a sweep through unrelated frame scales.
             DetectedPuzzle lockbox=FindLockboxGrid(screenshot,pixels);
             if(lockbox!=null) return lockbox;
+            if(!allowBroadSearch) return null;
+            BroadSearches++;
             if(progressive)
             {
                 var timer=System.Diagnostics.Stopwatch.StartNew();
@@ -516,13 +515,22 @@ namespace KavrosClueHelper
                     DetectedPuzzle match=FindAtScale(screenshot,pixels,scale);
                     if(match!=null) return match;
                 } while(timer.ElapsedMilliseconds<180 && searched<scales.Length);
-                return scans.Find(screenshot,pixels);
+                return null;
             }
             foreach(float scale in scales)
             {
                 DetectedPuzzle match=FindAtScale(screenshot,pixels,scale);
                 if(match!=null) return match;
             }
+            return null;
+        }
+        internal DetectedPuzzle DetectClues(Bitmap screenshot, Pixels pixels)
+        {
+            DetectedPuzzle scanTitle=scans.FindNativeTitle(pixels);if(scanTitle!=null)return scanTitle;
+            DetectedPuzzle emote=masterClues.Detect(screenshot,pixels); if(emote!=null) return emote;
+            DetectedPuzzle reference=referenceClues.Detect(screenshot,pixels);if(reference!=null)return reference;
+            DetectedPuzzle direction=compass.Find(screenshot,pixels);
+            if(direction!=null) return direction;
             return scans.Find(screenshot,pixels);
         }
         private int nextSearchScale;
@@ -608,8 +616,18 @@ namespace KavrosClueHelper
             if(previous.Kind==PuzzleKind.Compass) return compass.Read(screenshot,previous.Bounds,previous.Scale);
             if(previous.Kind==PuzzleKind.Scan)return scans.Find(screenshot,pixels);
             if (previous.Kind == PuzzleKind.Sliding) return sliders.Read(screenshot, previous.Grid, previous.Scale);
-            if (previous.Kind == PuzzleKind.Towers) return ReadTowers(screenshot, previous.Grid, previous.Scale);
-            if (previous.Kind == PuzzleKind.Lockbox) return ReadLockboxGrid(screenshot,previous.Grid,previous.Scale,previous.Bounds,0.82);
+            if (previous.Kind == PuzzleKind.Towers)
+            {
+                DetectedPuzzle towers=ReadTowers(screenshot, previous.Grid, previous.Scale);
+                return towers!=null?towers:HoldTowers(screenshot, previous);
+            }
+            if (previous.Kind == PuzzleKind.Lockbox)
+            {
+                DetectedPuzzle box=ReadLockboxGrid(screenshot,previous.Grid,previous.Scale,previous.Bounds,0.82);
+                if(box!=null)return box;
+                Pixels ink=pixels??new Pixels(screenshot);
+                return LockboxSurface(ink, previous.Grid.Location, previous.Scale)?previous:null;
+            }
             return ReadModal(screenshot, previous.Bounds, previous.Scale);
         }
         public bool KnotFrameVisible(Bitmap image,DetectedPuzzle previous)
@@ -742,6 +760,28 @@ namespace KavrosClueHelper
                 if (towerSolutions.Count == 0) return null;
                 for (int i = 0; i < 25; i++) puzzle.Cells[i] = digits.Read(p, new Point(35 + i % 5 * 44 + 21, 35 + i / 5 * 44 + 21), false);
                 return new DetectedPuzzle { Kind = PuzzleKind.Towers, Bounds = area, Grid = grid, Scale = scale, Towers = puzzle, TowerSolutions = towerSolutions, Confidence = 1 };
+            }
+        }
+        // A right-click menu covers some cells. Keep the last complete board
+        // while the dark grid is still there, and return null once it is gone.
+        private DetectedPuzzle HoldTowers(Bitmap image, DetectedPuzzle previous)
+        {
+            if(previous==null||previous.Towers==null||previous.TowerSolutions==null)return null;
+            int pad=(int)Math.Round(35*previous.Scale);
+            Rectangle area=Rectangle.Inflate(previous.Grid, pad, pad);
+            if(!new Rectangle(Point.Empty, image.Size).Contains(area))return null;
+            using(Bitmap normalised=Pixels.Crop(image, area, new Size(288, 288)))
+            {
+                if(normalised==null)return null;
+                Pixels p=new Pixels(normalised);
+                int dark=0;
+                for(int cell=0;cell<25;cell++)
+                {
+                    Color colour=p.Get(35+cell%5*44+21, 35+cell/5*44+21);
+                    if(colour.R<80&&colour.G<100&&colour.B<110&&colour.G>=colour.R&&colour.B>=colour.R)dark++;
+                }
+                if(dark<8)return null;
+                return new DetectedPuzzle{Kind=PuzzleKind.Towers,Bounds=area,Grid=previous.Grid,Scale=previous.Scale,Towers=previous.Towers,TowerSolutions=previous.TowerSolutions,Confidence=previous.Confidence};
             }
         }
         private DetectedPuzzle FindTowerGrid(Bitmap image, Pixels pixels)

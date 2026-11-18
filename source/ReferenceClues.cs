@@ -73,7 +73,60 @@ namespace KavrosClueHelper
                 while(right>left+70&&!PaperColumn(p,r,right-1))right--;
                 if(right-left>r.Width*.68&&(left!=r.Left||right!=r.Right))candidates.Add(Rectangle.FromLTRB(left,r.Top,right,r.Bottom));
             }
-            return candidates;
+            var framed=new List<Rectangle>();
+            var plain=new List<Rectangle>();
+            foreach(Rectangle r in candidates)
+            {
+                if(!HasMysteriousFrame(p,r)){plain.Add(r);continue;}
+                framed.Add(TrimToPaper(p,r));
+            }
+            framed.AddRange(plain);
+            return framed;
+        }
+        // The current clue window is a dark "MYSTERIOUS CLUE SCROLL" frame
+        // around parchment. Scene roofs are the same colour, so a framed
+        // sheet is read before any other beige region.
+        private static bool HasMysteriousFrame(Pixels p,Rectangle r)
+        {
+            if(r.Width<220||r.Height<140||r.Top<8)return false;
+            int band=0,bandN=0;
+            int y0=Math.Max(0,r.Top-22);
+            for(int x=r.Left+r.Width/6;x<r.Right-r.Width/6;x+=6)
+            {
+                bandN++;
+                for(int y=y0;y<Math.Min(p.Height,r.Top+10);y++)
+                {
+                    Color c=p.Get(x,y);if((c.R+c.G+c.B)/3<48){band++;break;}
+                }
+            }
+            int sides=0,sideN=0;
+            for(int y=r.Top+r.Height/5;y<r.Bottom-r.Height/5;y+=8)
+            {
+                sideN++;
+                int lx=Math.Max(0,r.Left-8),rx=Math.Min(p.Width-1,r.Right+7);
+                Color left=p.Get(lx,y),right=p.Get(rx,y);
+                if((left.R+left.G+left.B)/3<80&&(right.R+right.G+right.B)/3<80)sides++;
+            }
+            return bandN>0&&band*1.0/bandN>=0.55&&sideN>0&&sides*1.0/sideN>=0.45;
+        }
+        private static Rectangle TrimToPaper(Pixels p,Rectangle r)
+        {
+            int top=r.Top;
+            while(top<r.Bottom-90&&!PaperRow(p,r,top))top++;
+            return top==r.Top?r:Rectangle.FromLTRB(r.Left,top,r.Right,r.Bottom);
+        }
+        private static bool PaperRow(Pixels p,Rectangle r,int y)
+        {
+            int good=0,n=0;
+            for(int x=r.Left+r.Width/8;x<r.Right-r.Width/8;x+=8)
+            {n++;Color c=p.Get(x,y);if(c.R>155&&c.G>115&&c.B>65&&c.R-c.G>5&&c.R-c.G<90&&c.G-c.B>12&&c.G-c.B<100)good++;}
+            return n>0&&good*1.0/n>=0.7;
+        }
+        public Rectangle? PrimaryPaper(Pixels p)
+        {
+            List<Rectangle> papers=Papers(p);
+            if(papers.Count==0)return null;
+            return papers[0];
         }
         private static bool PaperColumn(Pixels p,Rectangle r,int x)
         {

@@ -66,6 +66,10 @@ namespace KavrosClueHelper
             // A framed, traced knot may need a ring rotation to reveal hidden runes.
             return p.Kind==PuzzleKind.Knot && p.Knot!=null;
         }
+        public static bool IsBoardPuzzle(PuzzleKind kind)
+        {
+            return kind==PuzzleKind.Sliding||kind==PuzzleKind.Lockbox||kind==PuzzleKind.Towers||kind==PuzzleKind.Knot;
+        }
         public static bool NeedsConfirmation(PuzzlePlan plan)
         {
             if(plan==null || plan.Puzzle==null) return true;

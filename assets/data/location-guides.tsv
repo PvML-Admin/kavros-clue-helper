@@ -20,7 +20,7 @@
 420	Gu'Tanoth, ogre city	Fastest: from Yanille take the route south into Gu'Tanoth. Follow the bridges through the city and dig near the tree beyond the last bridge.
 421	Ogre island south of Yanille	Fastest: enter the cave south of Gu'Tanoth's south-west corner. It takes you onto the island. Dig at the break in the stakes on the eastern edge.
 422	North-east Crandor	Fastest: reach Crandor and follow the island to the runite rocks in the north-east. Dig five tiles east of the eastern rock.
-423	Karamja Shipyard	Fastest: use the Port Sarim lodestone and charter a ship to the Shipyard. Walk west to G.L.O. Caranock's building and dig outside its east window.
+423	Karamja Shipyard	Fastest: Amulet of glory > Karamja, then walk south down the east coast to the shipyard. Dig outside the east window of G.L.O. Caranock's building. Alternatively: Karamja lodestone, then walk south-east to the same building.
 424	Arandar Pass	Fastest: follow Arandar Pass to the red spiders' eggs. Dig one square north of the southernmost egg spawn.
 425	Feldip Hills rockslide	Fastest: head to the plain rock mine in the Feldip Hills. Dig at the northernmost rockslide.
 426	Nature Grotto, Mort Myre	Fastest: go south through Mort Myre Swamp to the Nature Spirit's grotto. Dig behind the grotto tree.
@@ -37,7 +37,7 @@
 437	Third pond in Mort Myre Swamp	Fastest: enter through the swamp gate near Canifis. Follow the ponds south to the third and dig on the indicated bank.
 438	Herblore Habitat, south-east Karamja	Fastest: enter the Herblore Habitat and go to the south-west tree. Dig on its east side.
 439	South-west peninsula, Kharazi Jungle	Fastest: from Shilo Village enter the jungle and go to its south-western coast. Dig beside the corpse on the small peninsula.
-440	Terrorbird enclosure, Tree Gnome Stronghold	Fastest: go to the south-west part of the stronghold and cross the bridge into the terrorbird pen. Leave by its eastern gate and dig near the water.
+440	Terrorbird enclosure, Tree Gnome Stronghold	Fastest: Ctrl+T or ;;t > Skilling > Agility > Gnome Course, then walk west along the south side of the stronghold to the terrorbird pen. Dig near the water by its eastern gate. Alternatively: Amulet of farming > Trees > Gnome Stronghold patches, then go north-west to the same gate.
 441	Foot of Eagles' Peak	Fastest: use the Eagles' Peak lodestone. Go south-west to the path that climbs the mountain and dig at the bottom.
 442	Second island at Baxtorian Falls	Fastest: bring a rope and reach the second waterfall island. Dig at the dead tree near the edge.
 443	Ice Mountain, south of the Oracle	Fastest: from Edgeville travel west to Ice Mountain. Find the pair of trees south of the Oracle and dig between them.
@@ -76,7 +76,7 @@
 140	Port Sarim fishing shop	Fastest: use the Port Sarim lodestone and enter Gerrant's fishing shop. Speak to Gerrant.
 141	Exam Centre, south of the Dig Site	Fastest: head south from the Dig Site to the Exam Centre and speak to an examiner.
 142	House by Baxtorian Falls	Fastest: from the Barbarian Outpost head south to the house beside the falls. Climb upstairs and search the boxes.
-143	Braindeath Island summit	Fastest: take Pirate Pete's boat to Braindeath Island. Follow the bridges and climb to the stagnant pool. Dig on its west side.
+143	Braindeath Island summit	Fastest: there is no lodestone on Braindeath Island, and Pirate Pete's boat from Port Sarim is not used. Use a Braindeath teleport if your ;;t menu or spellbook has one, then follow the bridges to the stagnant pool and dig on its west side.
 144	Menaphos Worker district	Fastest: go to the waterfront on the west side of the Worker district and speak to Hamid.
 145	Nardah carpet stop	Fastest: find the rug merchant at Nardah. Go west to the large cactus and dig on its west side.
 146	Gnome Stronghold agility course	Fastest: go to the agility course inside the Tree Gnome Stronghold and speak to the trainer.
@@ -109,7 +109,7 @@
 174	Varrock Square	Fastest: find the fur stall in central Varrock and speak to Wilough nearby.
 175	Oziach's shop, Edgeville	Fastest: use the Edgeville lodestone. Walk north to Oziach's armour shop and speak to him.
 176	Edgeville yew trees	Fastest: find the two yews near the ruined building. Dig one tile east of the southern yew.
-178	Glassblower's house, Entrana	Fastest: take the monks' boat from Port Sarim to Entrana. Find the house with the glassblowing pipe and search the drawers on the south wall.
+178	Glassblower's house, Entrana	Fastest: hot air balloon to Entrana. The monks' boat from Port Sarim is not used. Find the house with the glassblowing pipe and search the drawers on the south wall.
 179	East Ardougne church tower	Fastest: go to the church east of the furnace. Climb its south-west ladder and search the crate in the tower.
 180	Port Sarim docks	Fastest: walk to the Port Sarim waterfront and speak to Captain Tobias.
 181	Chapel north of Varrock Museum	Fastest: get the chest key from a monk at the monastery south of Ardougne. Search the chest in the chapel north of Varrock Museum.
@@ -119,12 +119,12 @@
 185	Tai Bwo Wannai village	Fastest: head south from Brimhaven to Tai Bwo Wannai. Search the crates beneath the raised hut shown on the map.
 186	Lubufu's fishing beach, Karamja	Fastest: from the Karamja lodestone head north to Lubufu on the shore. Search the crate by his fishing spot.
 187	West-bank tavern, East Ardougne	Fastest: get the key from a guard dog outside Handelmort Mansion. Cross to the tavern west of the river, go upstairs and search the drawers.
-188	Fishing Platform off Witchaven	Fastest: from Witchaven take Holgart's or Jeb's boat to the fishing platform. Search the crate inside the shack.
-189	Zanaris furnace	Fastest: reach Zanaris by fairy ring or the Lumbridge Swamp shed. Walk to the furnace in the north-west of the city and search the crates.
+188	Fishing Platform off Witchaven	Fastest: Ardougne lodestone, then south to Witchaven. The fishing platform has no lodestone; use a platform teleport if you have one, then search the crate in the shack. Holgart's boat is not used.
+189	Zanaris furnace	Fastest: Ctrl+T or ;;t > Locations > Zanaris. Walk to the furnace in the north-west of the city and search the crates. Alternatively: a fairy ring to Zanaris, or the Lumbridge Swamp shed.
 190	Mage Training Arena library	Fastest: head north from Het's Oasis to the arena. Go upstairs and search the bookcase in the north-east corner.
 191	Canifis clothes shop	Fastest: use the Canifis lodestone. Enter the clothing shop and search its crates.
 192	Round building by Baxtorian Falls	Fastest: look west of the Fishing Guild and south of the falls for Hadley's round building. Search the bales of hay inside.
-193	Musa Point docks	Fastest: reach Karamja's banana plantation and follow the shore north to the dock with three rowboats. Search the middle crate.
+193	Musa Point docks	Fastest: Amulet of glory > Karamja, then walk north-west along the shore to the dock with three rowboats. Search the middle crate. Alternatively: Karamja lodestone, then walk east to Musa Point and north to that dock.
 194	Northern Burthorpe houses	Fastest: use the Burthorpe lodestone and go north to the houses. Enter the house at the pin and search its drawers.
 195	Seers' Village house south of the anvil	Fastest: find the smithy in Seers' Village. Go to the house immediately south of it and check the drawers for the key clue.
 196	Khazard Battlefield, north-east outpost	Fastest: go south from West Ardougne to the battlefield. Search the crates outside its north-eastern building near the small obelisk.
@@ -154,13 +154,13 @@
 220	Jerico's house, East Ardougne	Fastest: get a key from an Ardougne guard. Go upstairs in Jerico's house east of the river and search the drawers.
 221	Graveyard of Shadows	Fastest: go to the Wilderness graveyard and look for the ground spawn of a crossbow. Pick it up and dig there.
 222	Church south of Port Sarim	Fastest: head south of the port towards the church near the ice dungeon. Dig just outside its west wall.
-223	Etceteria crossroads	Fastest: take the boat to Miscellania and go east onto Etceteria. Dig at the crossroads.
+223	Etceteria crossroads	Fastest: Ring of wealth > Miscellania, then go east onto Etceteria. Dig at the crossroads.
 224	Shilo Village antiques shop	Fastest: enter Shilo Village and go to the antiques shop. Search the bookcase on its west wall.
 277	Burthorpe Games Room	Fastest: enter Burthorpe Castle and go downstairs to the games room. Stand in the centre and perform the requested emote.
 288	Dwarven tunnel under White Wolf Mountain	Fastest: take the underground passage between Taverley and Catherby. Find Captain Ninto in the dwarven bar.
 291	Keldagrim sculptor's studio	Fastest: enter Keldagrim and cross to the eastern side. Find the sculptor's model Riki and speak to him.
 296	Yanille Wizards' Guild cellar	Fastest: enter the Wizards' Guild in Yanille and go down to the cellar. Speak to Wizard Frumscone.
-302	Fairy Nuff, Zanaris	Fastest: reach Zanaris by fairy ring or the Lumbridge Swamp shed. Find Fairy Nuff north of the bank.
+302	Fairy Nuff, Zanaris	Fastest: Ctrl+T or ;;t > Locations > Zanaris. Fairy Nuff is north of the bank. Alternatively: a fairy ring to Zanaris, or the Lumbridge Swamp shed.
 322	Rantz's cave, Feldip Hills	Fastest: go to Rantz in the eastern Feldip Hills. Enter his cave and speak to Fycie.
 326	Brimstail's cave	Fastest: reach the Tree Gnome Stronghold and enter the cave in the south-west corner. Talk to Brimstail.
 40	Goblins near the Observatory	Fastest: go to the goblin buildings just north-east of the Observatory. Search the crate in the group of three buildings.
@@ -175,13 +175,13 @@
 49	South side of the Wizards' Tower	Fastest: fairy ring DIS, or Ctrl+T (or ;;t) > Locations > Wizards' Tower, then run south around the tower and dig east of the rock.
 50	Brother Galahad's house	Fastest: use the Seers' Village lodestone. Follow the coal tracks west to the river crossing. Dig just outside the door of Galahad's house.
 51	Rimmington chemist	Fastest: walk west through Rimmington towards the coast. Go to the west side of the chemist's house and dig.
-52	Miscellania path	Fastest: travel by boat to Miscellania and find the sign at the end of the path. Dig between the sign and the evergreen.
+52	Miscellania path	Fastest: Ring of wealth > Miscellania, then find the sign at the end of the path. Dig between the sign and the evergreen.
 53	Tower of Life area	Fastest: go south from East Ardougne towards the Tower of Life. Find the large head by the road and dig to its south.
 54	Standing stones north of Falador	Fastest: go north of Falador's Party Room, outside the city wall. Dig west of the tree in the enclosure of standing stones.
 55	Crossroads north of Falador	Fastest: use the Falador lodestone and run north to the statue at the crossroads. Dig one tile south and three east of the statue.
 56	South-east Varrock mine	Fastest: head south-east from Varrock to the mine. At the end of the path dig two tiles south-east of the dead tree.
 57	Road from Seers' Village to Rellekka	Fastest: head north from the Seers' Village lodestone along the road towards Rellekka. Dig beside the bush at the bend.
-58	Hobgoblin Peninsula	Fastest: go west from the Crafting Guild onto the peninsula. At its tip, dig just west of the snape grass.
+58	Hobgoblin Peninsula	Fastest: Ctrl+T or ;;t > Skilling > Crafting > Crafting Guild, then go west onto the Hobgoblin Peninsula and dig at its tip (marked on the map). Alternatively: Falador lodestone, then run south-west through Falador and west from the Crafting Guild onto the peninsula tip.
 59	Lava craters in deep Wilderness	Fastest: go east of the Wilderness Agility Course to the craters. Find the large geyser and dig two tiles west.
 60	Crystal tree island west of Rellekka	Fastest: look for the small island on the map west of Rellekka. Follow the branching path to the crystal tree and dig.
 61	Mort Myre swamp mushroom	Fastest: enter the swamp south of Canifis. Find the mushroom shown on the map and dig four tiles west of it.

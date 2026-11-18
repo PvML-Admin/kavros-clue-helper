@@ -1,8 +1,8 @@
-# Kavros Clue Helper v0.6.6
+# Kavros Clue Helper v0.6.8
 
-v0.6.6: redesign, clue fixes, slider overhaul, update toast.
+v0.6.8: faster puzzle reading, world-map zoom, scan follow, lodestone icons.
 
-Settings shows **Made by Zenity · v0.6.6**.
+Settings shows **Made by Zenity · v0.6.8**. The full notes are in CHANGELOG.md.
 
 # Kavros Clue Helper v0.6.5
 

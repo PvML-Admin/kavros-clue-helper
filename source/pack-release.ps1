@@ -3,8 +3,8 @@ $ErrorActionPreference = 'Stop'
 $vpkVersion = '1.2.161'
 $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $tag = $env:RELEASE_TAG
-if ([string]::IsNullOrWhiteSpace($tag)) { throw 'Set RELEASE_TAG to the release tag, for example v0.6.6.' }
-if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Tag '$tag' must look like v0.6.6." }
+if ([string]::IsNullOrWhiteSpace($tag)) { throw 'Set RELEASE_TAG to the release tag, for example v0.6.8.' }
+if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Tag '$tag' must look like v0.6.8." }
 $version = $Matches[1]
 $identity = [string]([xml](Get-Content -LiteralPath (Join-Path $PSScriptRoot 'app.manifest') -Raw)).assembly.assemblyIdentity.version
 $manifestVersion = ([Version]$identity).ToString(3)
@@ -39,6 +39,8 @@ $out = Join-Path $root 'release-out'
 if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Recurse -Force }
 $vpk = Join-Path $env:USERPROFILE ".dotnet\tools\vpk.exe"
 if (-not (Test-Path -LiteralPath $vpk)) { $vpk = 'vpk' }
+$splash = if ($env:VPK_SPLASH) { Join-Path $root $env:VPK_SPLASH } else { Join-Path $root 'assets\branding\kavros-splash.png' }
+if (-not (Test-Path -LiteralPath $splash)) { throw "Missing splash image $splash." }
 & $vpk pack `
     --packId KavrosClueHelper `
     --packVersion $version `
@@ -47,6 +49,7 @@ if (-not (Test-Path -LiteralPath $vpk)) { $vpk = 'vpk' }
     --packTitle 'Kavros Clue Helper' `
     --packAuthors Zenity `
     --icon (Join-Path $root 'assets\branding\clue-scroll.ico') `
+    --splashImage $splash `
     --framework net48 `
     --releaseNotes $notesPath `
     --outputDir $out

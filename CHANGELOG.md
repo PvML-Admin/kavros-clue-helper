@@ -1,5 +1,37 @@
 # Kavros Clue Helper
 
+## 0.6.8
+
+**Puzzles**
+- Puzzle boards are looked for before a clue scroll is read. A slider, lockbox, towers or knot on screen takes over even if a clue was already open, and the capture is no longer cropped down to that old clue.
+- Knot puzzles are also checked at the smaller interface sizes.
+- Right-clicking a tower or lockbox no longer makes the guidance vanish. The last reading stays while the menu covers the board, and it drops only after the board itself is gone.
+
+**Maps**
+- Location maps and the compass zoom out across the whole surface map. Scan maps show the world around the region when you zoom out.
+- The hint bars are gone from the compass, the scan map and clue maps. Tile numbers are no longer shown on the clue card. The pin on the map is unchanged.
+- Every surface lodestone has its own icon, on the compass and on scan maps. Click a lodestone on either map to set your position there.
+
+**Scans**
+- If the scroll says you are too far away, or the minimap cannot be locked, the panel tells you to right-click your location on the map. It no longer sits on "Looking for your minimap".
+- A position is only published once the minimap compass anchor agrees, so a guess is not drawn as your tile.
+- Meerkat range is turned on when the scroll text or the pace count includes the extra five paces. The checkbox still overrides it.
+- Zanaris clues and the Zanaris scan use Ctrl+T or ;;t, then Locations, then Zanaris.
+
+**Clues**
+- The new Mysterious Clue Scroll window is read ahead of other parchment in the scene. "Yawn in the rogues' general store" matches the Wilderness Bandit Camp clue.
+- Hobgoblin Peninsula now routes through the Crafting Guild menu and no longer mentions snape grass. Falador lodestone remains the alternative.
+- Terrorbird enclosure is a walk west from the Gnome Course. The farming-patch teleport stays as the alternative.
+- The West Ardougne Recruiter is a few steps east of Dave's spellbook Ardougne teleport. The Ardougne lodestone stays as the other way there.
+- Twirl on the Barbarian Village bridge is a short walk east from the Barbarian Village teleport. Edgeville lodestone, then south, stays as the alternative.
+- A faster teleport does not replace the lodestone (or other) backup. Both stay on the card.
+- Luthas is reached with an amulet of glory to Karamja, then a short walk south-east into the banana plantation. The Karamja lodestone, then east, is the backup. Charter ships and the Port Sarim crossing are not used.
+- The Karamja shipyard, Musa Point docks, Entrana, and the Miscellania clues no longer send you onto a boat. Braindeath Island and the Witchaven fishing platform have no verified island teleport, so those cards say so instead of sending you to Pirate Pete or Holgart.
+- Wendlewick still has no verified tile, so its marker was left unset.
+
+**Install**
+- The Windows installer shows a navy and gold Kavros splash while it unpacks.
+
 ## 0.6.7
 
 A small hotfix for two things that slipped through in 0.6.6.
