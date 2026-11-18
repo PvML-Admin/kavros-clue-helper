@@ -35,7 +35,7 @@ namespace KavrosClueHelper
         {
             var crest = new PictureBox {
                 Name = "KavrosCrest", AccessibleName = "Kavros", TabStop = false,
-                Bounds = new Rectangle(18, 3, 65, 65), SizeMode = PictureBoxSizeMode.Zoom
+                Bounds = new Rectangle(16, 9, 65, 65), SizeMode = PictureBoxSizeMode.Zoom
             };
             Bitmap crestBitmap;
             using (Stream stream = Resource("kavros-crest.png"))
@@ -47,13 +47,13 @@ namespace KavrosClueHelper
             var footer = new Label {
                 Name = "BuildCredit", Text = "Made by Zenity  ·  " + DisplayVersion,
                 Dock = DockStyle.Bottom, Height = FooterHeight, TextAlign = ContentAlignment.MiddleCenter,
-                ForeColor = Color.FromArgb(182, 196, 210), BackColor = Color.FromArgb(25, 34, 47)
+                ForeColor = KavrosTheme.TextFaint, BackColor = KavrosTheme.Bg
             };
 
             // The original controls keep their coordinates and stacking order.
             // On a short screen only the settings body scrolls.
             Size originalSize = form.ClientSize;
-            var body = new Panel {
+            var body = new MainSurface {
                 Name = "SettingsBody", Dock = DockStyle.Fill, TabStop = false,
                 AutoScroll = true, AutoScrollMinSize = new Size(0, originalSize.Height)
             };

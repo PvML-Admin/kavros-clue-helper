@@ -50,20 +50,20 @@ namespace KavrosClueHelper
     public sealed partial class PuzzleSuiteForm : Form
     {
         private readonly ComboBox windows = new ComboBox();
-        private readonly CheckBox automatic = new CheckBox(), draw = new CheckBox(), reverse = new CheckBox();
-        private readonly CheckBox towerCountdown = new CheckBox { Checked = true }, towerSkipBlank = new CheckBox();
-        private readonly CheckBox wholeRowClicks=new CheckBox();
+        private readonly CheckBox automatic = new KavrosCheckBox(), draw = new KavrosCheckBox(), reverse = new KavrosCheckBox();
+        private readonly CheckBox towerCountdown = new KavrosCheckBox { Checked = true }, towerSkipBlank = new KavrosCheckBox();
+        private readonly CheckBox wholeRowClicks=new KavrosCheckBox();
         private readonly ToolTip sliderTips=new ToolTip();
-        private readonly Label detected = new Label(), summary = new Label(), status = new Label(), connection = new Label();
-        private readonly PictureBox preview = new PictureBox();
+        private readonly Label detected = new PaintedLabel { Renderer = StatusText.DrawDetection }, summary = new Label(), status = new Label(), connection = new PaintedLabel { Renderer = StatusText.DrawConnection };
+        private readonly PictureBox preview = new PreviewBox();
         private readonly SuiteCanvas canvas = new SuiteCanvas();
         private readonly MasterClueView masterView = new MasterClueView();
         private Label instructions;
         private readonly GuidanceOverlay overlay = new GuidanceOverlay();
         private readonly CaptureSearch captureSearch = new CaptureSearch();
         private readonly OverlayPreferences preferences=new OverlayPreferences();
-        private readonly CheckBox floatingEnabled=new CheckBox();
-        private readonly CheckBox checkUpdates=new CheckBox();
+        private readonly CheckBox floatingEnabled=new KavrosCheckBox();
+        private readonly CheckBox checkUpdates=new KavrosCheckBox();
         private FloatingCluePanel floatingPanel;
         private CompassSession compassSession;
         private NotifyIcon tray;
@@ -75,7 +75,7 @@ namespace KavrosClueHelper
         private DetectedPuzzle current, lastLocated;
         private readonly ClueRetention retainedClue=new ClueRetention();
         private volatile string analysisStage;
-        private readonly ProgressBar scanProgress=new ProgressBar();
+        private readonly ProgressBar scanProgress=new KavrosProgressBar();
         private string pendingKey;
         private List<GuidanceMark> marks = new List<GuidanceMark>();
         private bool busy, offline;
@@ -116,17 +116,17 @@ namespace KavrosClueHelper
 
         public PuzzleSuiteForm(bool startWithPanel=true)
         {
-            Text = "Kavros Clue Helper | " + AppBranding.DisplayVersion;
+            Text = "Kavros Clue Helper · " + AppBranding.DisplayVersion;
             Icon = AppBranding.LoadScroll();
-            ClientSize = new Size(500, 926); FormBorderStyle = FormBorderStyle.FixedSingle; MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen; AutoScaleMode = AutoScaleMode.None;
-            BackColor = Color.FromArgb(18, 23, 32); ForeColor = Color.FromArgb(225, 233, 243); Font = new Font("Segoe UI", 9F);
-            Label title = LabelAt("KAVROS / CLUE HELPER", 96, 10, 390, 29); title.Font = new Font("Segoe UI", 15F, FontStyle.Bold);
-            LabelAt("Easy / Medium / Hard / Elite / Master / Puzzle helpers", 96, 42, 390, 23).ForeColor = Color.FromArgb(151, 174, 199);
-            connection.SetBounds(20, 70, 460, 16); connection.Font = new Font("Segoe UI", 8F); connection.ForeColor = Color.Gold; connection.Text = "Looking for the Kavros game window..."; Controls.Add(connection);
-            windows.SetBounds(20, 87, 355, 27); windows.DropDownStyle = ComboBoxStyle.DropDownList; Controls.Add(windows);
-            ButtonAt("Refresh", 385, 85, 95, RefreshWindows);
-            ButtonAt("Scan now", 20, 127, 80, RequestScan);
-            ButtonAt("Open image", 108, 127, 110, OpenScreenshot);
+            ClientSize = new Size(516, 1004); FormBorderStyle = FormBorderStyle.FixedSingle; MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen; AutoScaleMode = AutoScaleMode.None;
+            BackColor = KavrosTheme.Bg; ForeColor = KavrosTheme.Text; Font = KavrosTheme.Ui(9F, false);
+            Label title = LabelAt("CLUE HELPER", 90, 27, 400, 30); title.Font = KavrosTheme.Display(16F); title.UseMnemonic = false;
+            Label subtitle = LabelAt("Easy / Medium / Hard / Elite / Master / Puzzle helpers", 92, 58, 400, 18); subtitle.ForeColor = KavrosTheme.TextFaint; subtitle.Font = KavrosTheme.Ui(8.5F, false);
+            connection.SetBounds(16, 84, 484, 22); connection.Font = new Font("Segoe UI", 8F); connection.ForeColor = Color.Gold; connection.Text = "Looking for the Kavros game window..."; Controls.Add(connection);
+            windows.SetBounds(28, 134, 355, 28); windows.DropDownStyle = ComboBoxStyle.DropDownList; KavrosTheme.StyleCombo(windows); Controls.Add(windows);
+            ButtonAt("Refresh", 393, 134, 95, RefreshWindows);
+            ButtonAt("Scan now", 28, 168, 80, RequestScan, ButtonTone.Primary);
+            ButtonAt("Open image", 116, 168, 110, OpenScreenshot);
             AllowDrop = true;
             DragEnter += delegate(object sender, DragEventArgs e) { e.Effect = DroppedImage(e.Data) == null ? DragDropEffects.None : DragDropEffects.Copy; };
             DragDrop += delegate(object sender, DragEventArgs e)
@@ -135,12 +135,12 @@ namespace KavrosClueHelper
                 if (path != null) OpenImageFile(path);
             };
             sliderTips.SetToolTip(preview, "Drop a PNG, JPEG or BMP here, or press Ctrl+V to paste a screenshot.");
-            ButtonAt("Examples", 226, 127, 78, ShowExamples);
-            ButtonAt("Save image", 312, 127, 84, SaveCapture);
-            ButtonAt("Details", 404, 127, 76, CopyDetails);
-            automatic.Text = "Auto detect & follow"; automatic.SetBounds(20, 171, 190, 24); Controls.Add(automatic);
-            draw.Text = "Show overlay"; draw.Checked = true; draw.SetBounds(220, 171, 140, 24); Controls.Add(draw);
-            CheckBox pin = new CheckBox { Text = "Pin panel", Left = 380, Top = 171, Width = 100, Height = 24 }; pin.CheckedChanged += delegate { TopMost = pin.Checked; }; Controls.Add(pin);
+            ButtonAt("Examples", 234, 168, 78, ShowExamples);
+            ButtonAt("Save image", 320, 168, 84, SaveCapture);
+            ButtonAt("Details", 412, 168, 76, CopyDetails);
+            automatic.Text = "Auto detect & follow"; automatic.SetBounds(28, 238, 220, 24); Controls.Add(automatic);
+            draw.Text = "Show overlay"; draw.Checked = true; draw.SetBounds(264, 238, 224, 24); Controls.Add(draw);
+            CheckBox pin = new KavrosCheckBox { Text = "Pin panel", Left = 28, Top = 262, Width = 220, Height = 24 }; pin.CheckedChanged += delegate { TopMost = pin.Checked; }; Controls.Add(pin);
             automatic.CheckedChanged += delegate
             {
                 if(offline){retainedClue.Reset();if(automatic.Checked&&offlineSource!=null){offlineSource.Dispose();offlineSource=null;}}
@@ -164,22 +164,22 @@ namespace KavrosClueHelper
                 }
             };
 
-            detected.SetBounds(20, 212, 460, 28); detected.Font = new Font("Segoe UI", 12F, FontStyle.Bold); detected.ForeColor = Color.FromArgb(87, 220, 181); detected.Text = "Waiting for a puzzle"; Controls.Add(detected);
-            preview.SetBounds(20, 251, 460, 222); preview.SizeMode = PictureBoxSizeMode.Zoom; preview.BackColor = Color.FromArgb(25, 34, 47); Controls.Add(preview);
-            canvas.SetBounds(20, 487, 260, 235); Controls.Add(canvas);
-            instructions = LabelAt(InstructionsText(), 299, 490, 185, 151); instructions.ForeColor = Color.FromArgb(158, 181, 205);
-            masterView.SetBounds(20,251,460,471); masterView.Visible=false; Controls.Add(masterView);
-            summary.SetBounds(20, 758, 460, 38); summary.Font = new Font("Segoe UI", 9F, FontStyle.Bold); summary.ForeColor = Color.FromArgb(87, 220, 181); summary.Text = "Open a clue or puzzle and keep it visible in Kavros."; Controls.Add(summary);
-            status.SetBounds(20, 801, 460, 36); status.ForeColor = Color.FromArgb(151, 174, 199); status.Text = "Ctrl+Shift+L: scan  /  Ctrl+Shift+H: hide overlay"; Controls.Add(status);
-            scanProgress.SetBounds(20,837,460,3);scanProgress.Style=ProgressBarStyle.Marquee;scanProgress.MarqueeAnimationSpeed=25;scanProgress.Visible=false;Controls.Add(scanProgress);
-            reverse.Text = "Reverse lockbox cycle"; reverse.SetBounds(297, 698, 188, 24); Controls.Add(reverse);
+            detected.SetBounds(16, 304, 484, 34); detected.Font = new Font("Segoe UI", 12F, FontStyle.Bold); detected.ForeColor = KavrosTheme.Ok; detected.Text = "Waiting for a puzzle"; Controls.Add(detected);
+            preview.SetBounds(28, 366, 460, 222); preview.SizeMode = PictureBoxSizeMode.Zoom; preview.BackColor = KavrosTheme.BgDeep; Controls.Add(preview);
+            canvas.SetBounds(28, 602, 260, 235); Controls.Add(canvas);
+            instructions = new PaintedLabel { Text = InstructionsText(), Left = 300, Top = 602, Width = 188, Height = 120, Renderer = StatusText.DrawLegend }; Controls.Add(instructions);
+            masterView.SetBounds(28,366,460,471); masterView.Visible=false; Controls.Add(masterView);
+            summary.SetBounds(16, 857, 484, 36); summary.Font = KavrosTheme.Ui(9F, true); summary.ForeColor = KavrosTheme.Ok; summary.Text = "Open a clue or puzzle and keep it visible in Kavros."; Controls.Add(summary);
+            status.SetBounds(16, 893, 484, 32); status.ForeColor = KavrosTheme.TextSoft; status.Text = "Ctrl+Shift+L: scan  /  Ctrl+Shift+H: hide overlay"; Controls.Add(status);
+            scanProgress.SetBounds(16,927,484,3);scanProgress.Style=ProgressBarStyle.Marquee;scanProgress.MarqueeAnimationSpeed=25;scanProgress.Visible=false;Controls.Add(scanProgress);
+            reverse.Text = "Reverse lockbox cycle"; reverse.SetBounds(300, 772, 188, 24); Controls.Add(reverse);
             reverse.CheckedChanged += delegate { if (current != null && current.Kind == PuzzleKind.Lockbox) SolveAndShow(current); };
-            towerCountdown.Text = "Tower countdown"; towerCountdown.SetBounds(297, 646, 188, 24); Controls.Add(towerCountdown);
-            towerSkipBlank.Text = "5 wraps straight to 1"; towerSkipBlank.SetBounds(297, 672, 188, 24); Controls.Add(towerSkipBlank);
+            towerCountdown.Text = "Tower countdown"; towerCountdown.SetBounds(300, 724, 188, 24); Controls.Add(towerCountdown);
+            towerSkipBlank.Text = "5 wraps straight to 1"; towerSkipBlank.SetBounds(300, 748, 188, 24); Controls.Add(towerSkipBlank);
             towerCountdown.CheckedChanged += delegate { instructions.Text = InstructionsText(); towerSkipBlank.Enabled = towerCountdown.Checked; if (current != null && current.Kind == PuzzleKind.Towers) SolveAndShow(current); };
             towerSkipBlank.CheckedChanged += delegate { if (current != null && current.Kind == PuzzleKind.Towers) SolveAndShow(current); };
             SetupShortestSlider();
-            wholeRowClicks.Text="Whole-row slider clicks";wholeRowClicks.SetBounds(297,724,188,24);wholeRowClicks.Checked=preferences.WholeRowClicks;Controls.Add(wholeRowClicks);
+            wholeRowClicks.Text="Whole-row slider clicks";wholeRowClicks.SetBounds(300,796,188,24);wholeRowClicks.Checked=preferences.WholeRowClicks;Controls.Add(wholeRowClicks);
             sliderTips.SetToolTip(wholeRowClicks,"Enable only if clicking farther along the empty tile's row or column slides the whole line in Kavros.");
             wholeRowClicks.CheckedChanged+=delegate
             {
@@ -204,16 +204,17 @@ namespace KavrosClueHelper
             floatingPanel.QuickSliderRequested += UseQuickRoute;
             floatingPanel.ClearRequested+=delegate{CancelAnalysis();retainedClue.Clear(current);compassSession.NewClue();ShowMasterView(false);masterView.SetClue(null,assetPath);captureSearch.ForceFullWindow();nextRead=DateTime.MinValue;UpdateFloatingPanel();};
             floatingPanel.UserMoved+=delegate{Rectangle game=SelectedWindow==IntPtr.Zero?Rectangle.Empty:Native.ClientBounds(SelectedWindow);preferences.Offset=new Point(floatingPanel.Left-game.Left,floatingPanel.Top-game.Top);preferences.Save();};
-            floatingEnabled.Text="Floating clue panel";floatingEnabled.SetBounds(20,847,190,24);floatingEnabled.Checked=preferences.Enabled;Controls.Add(floatingEnabled);
+            floatingEnabled.Text="Floating clue panel";floatingEnabled.SetBounds(16,939,190,26);floatingEnabled.Checked=preferences.Enabled;Controls.Add(floatingEnabled);
             floatingEnabled.CheckedChanged+=delegate{preferences.Enabled=floatingEnabled.Checked;preferences.Save();UpdateFloatingPanel();};
-            ButtonAt("Open panel",220,845,125,OpenPanel);
-            ButtonAt("Exit helper",355,845,125,ExitHelper);
-            checkUpdates.Text="Check for updates at startup";checkUpdates.SetBounds(20,884,255,24);checkUpdates.Checked=preferences.CheckForUpdates;Controls.Add(checkUpdates);
+            ButtonAt("Open panel",232,938,128,OpenPanel);
+            ButtonAt("Exit helper",372,938,128,ExitHelper);
+            checkUpdates.Text="Check for updates at startup";checkUpdates.SetBounds(16,972,255,26);checkUpdates.Checked=preferences.CheckForUpdates;Controls.Add(checkUpdates);
             sliderTips.SetToolTip(checkUpdates,"When this is on, startup asks GitHub whether a newer release exists.");
             checkUpdates.CheckedChanged+=delegate{preferences.CheckForUpdates=checkUpdates.Checked;preferences.Save();};
-            ButtonAt("Check for updates",285,880,195,delegate{AppUpdates.Check(this,true);});
+            ButtonAt("Check for updates",305,971,195,delegate{AppUpdates.Check(this,true);});
             var trayMenu=new ContextMenuStrip();trayMenu.Items.Add("Open panel",null,delegate{OpenPanel();});trayMenu.Items.Add("Settings",null,delegate{ShowSettings();});trayMenu.Items.Add("Exit helper",null,delegate{ExitHelper();});
             AppBranding.ArrangeSettings(this);
+            KavrosTheme.AddMainCards(this);
             tray=new NotifyIcon{Icon=this.Icon,Text="Kavros Clue Helper",ContextMenuStrip=trayMenu,Visible=true};tray.DoubleClick+=delegate{ShowSettings();};
             Shown+=delegate{if(startWithPanel&&preferences.Enabled){Hide();UpdateFloatingPanel();}};
             FormClosing+=delegate(object sender,FormClosingEventArgs e){if(!closing&&e.CloseReason==CloseReason.UserClosing){e.Cancel=true;Hide();OpenPanel();}};
@@ -269,13 +270,13 @@ namespace KavrosClueHelper
             return "Automatic detection\n\nKeep the full puzzle visible.\n\nGreen = next action\nGold = other actions\n" + (towerCountdown.Checked ? "Towers = clicks left\nGreen 0 = square complete" : "Towers = target heights");
         }
         private Label LabelAt(string text, int x, int y, int w, int h) { Label l = new Label { Text = text, Left = x, Top = y, Width = w, Height = h }; Controls.Add(l); return l; }
-        private void ButtonAt(string text, int x, int y, int w, Action action)
+        private void ButtonAt(string text, int x, int y, int w, Action action, ButtonTone tone = ButtonTone.Secondary)
         {
-            Button b = new Button { Text = text, Left = x, Top = y, Width = w, Height = 31, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(35, 48, 64), ForeColor = ForeColor }; b.FlatAppearance.BorderColor = Color.FromArgb(62, 81, 104);
+            Button b = new OpaqueButton { Text = text, Left = x, Top = y, Width = w, Height = 28, FlatStyle = FlatStyle.Flat, BackColor = KavrosTheme.Button, ForeColor = ForeColor, Tone = tone }; b.FlatAppearance.BorderColor = KavrosTheme.ButtonLine;
             b.Click += delegate { try { action(); } catch (Exception ex) { overlay.Hide(); status.Text = ex.Message; } }; Controls.Add(b);
         }
         private IntPtr SelectedWindow { get { return attachedWindow == null ? IntPtr.Zero : attachedWindow.Handle; } }
-        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Native.RegisterHotKey(Handle, 11, 0x4006, (uint)Keys.L); Native.RegisterHotKey(Handle, 12, 0x4006, (uint)Keys.H); }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); KavrosTheme.ApplyWindowChrome(Handle); Native.RegisterHotKey(Handle, 11, 0x4006, (uint)Keys.L); Native.RegisterHotKey(Handle, 12, 0x4006, (uint)Keys.H); }
         protected override void WndProc(ref Message m)
         {
             if (m.Msg == 0x312) { if (m.WParam.ToInt32() == 11) RequestScan(); if (m.WParam.ToInt32() == 12) draw.Checked = !draw.Checked; }
@@ -767,8 +768,8 @@ namespace KavrosClueHelper
         public SuiteCanvas() { DoubleBuffered = true; }
         protected override void OnPaint(PaintEventArgs e)
         {
-            e.Graphics.Clear(Color.FromArgb(25, 34, 47));
-            if (Puzzle == null) { TextRenderer.DrawText(e.Graphics, "Open a puzzle in Kavros\nto see its solution here.", Font, ClientRectangle, Color.SlateGray, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter); return; }
+            e.Graphics.Clear(KavrosTheme.Input);
+            if (Puzzle == null) { TextRenderer.DrawText(e.Graphics, "Open a puzzle in Kavros\nto see its solution here.", Font, ClientRectangle, KavrosTheme.TextSoft, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter); return; }
             if (Lines != null)
             {
                 using (Font f = new Font("Segoe UI", 10F, FontStyle.Bold))

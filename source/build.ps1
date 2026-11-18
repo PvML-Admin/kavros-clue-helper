@@ -51,6 +51,11 @@ try {
     $scroll = Join-Path $art 'clue-scroll.ico'
     $crest = Join-Path $art 'kavros-crest.png'
     $resources = @("/win32icon:$scroll", "/resource:$scroll,Kavros.Branding.clue-scroll.ico", "/resource:$crest,Kavros.Branding.kavros-crest.png")
+    # Static Cinzel and Outfit instances (SIL OFL 1.1): embedded, so nothing
+    # needs installing. See assets\branding\FONTS.txt.
+    foreach ($fontFile in @('CinzelKavros-Regular.ttf','OutfitKavros-Regular.ttf','OutfitKavros-Semibold.ttf')) {
+        $resources += "/resource:$(Join-Path $art $fontFile),Kavros.Branding.$fontFile"
+    }
     try {
         [IO.File]::WriteAllText($metadata, ('[assembly:System.Reflection.AssemblyVersion("{0}")] [assembly:System.Reflection.AssemblyFileVersion("{0}")]' -f $version))
         & $compiler /nologo /noconfig /nostdlib+ /langversion:5 /codepage:65001 /target:winexe /platform:anycpu /optimize+ "/out:$outputFile" /win32manifest:app.manifest $references $resources $metadata *.cs

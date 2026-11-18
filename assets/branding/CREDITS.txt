@@ -5,3 +5,5 @@ https://runescape.wiki/images/Clue_scroll_(master).png
 https://runescape.wiki/images/Clue_scroll_(master)_detail.png
 
 Kavros crest: supplied by the user.
+
+Cinzel and Outfit fonts: SIL Open Font License 1.1. See FONTS.txt.

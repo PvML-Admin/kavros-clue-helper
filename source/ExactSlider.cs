@@ -125,7 +125,7 @@ namespace KavrosClueHelper
 
     public sealed partial class PuzzleSuiteForm
     {
-        private readonly System.Windows.Forms.CheckBox shortestSlider = new System.Windows.Forms.CheckBox();
+        private readonly System.Windows.Forms.CheckBox shortestSlider = new KavrosCheckBox();
         private PuzzlePlan waitingSlider;
         private bool quickForThisSlider;
 
@@ -141,7 +141,7 @@ namespace KavrosClueHelper
         private void SetupShortestSlider()
         {
             shortestSlider.Text = "Wait for shortest slider route";
-            shortestSlider.SetBounds(20, 194, 260, 18);
+            shortestSlider.SetBounds(264, 262, 224, 24);
             shortestSlider.Checked = preferences.ShortestSlider;
             Controls.Add(shortestSlider);
             sliderTips.SetToolTip(shortestSlider, "Prove the minimum number of clicks. Untick to use the current quick route.");
