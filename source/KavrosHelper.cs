@@ -80,9 +80,9 @@ namespace KavrosClueHelper
                     }
                     return 0;
                 }
-                PuzzleSuiteForm form = new PuzzleSuiteForm();
-                form.Shown += delegate { form.CheckForUpdatesOnStartup(); };
-                Application.Run(form);
+                PuzzleSuiteForm helper = new PuzzleSuiteForm();
+                helper.Shown += delegate { helper.CheckForUpdatesOnStartup(); };
+                Application.Run(helper);
                 return 0;
             }
             catch (Exception exception)
