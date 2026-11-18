@@ -204,19 +204,26 @@ namespace KavrosClueHelper
         private bool originSelected;
         private Button undoOrContinue, quickSlider;
         public event Action QuickSliderRequested;
-        private Label banner;
+        private Label banner; private Timer bannerTimer; private bool bannerShown, layoutBanner;
+        private const int BannerHeight = 28;
         public void ShowBanner(string message, bool error)
         {
             if (banner == null)
             {
-                banner = new Label { Height = 28, Dock = DockStyle.Bottom, TextAlign = ContentAlignment.MiddleLeft };
+                // Not docked: the panel grows by the banner's height so the
+                // footer buttons stay fully visible underneath nothing.
+                banner = new Label { Height = BannerHeight, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0), Visible = false };
                 Controls.Add(banner);
+                bannerTimer = new Timer { Interval = 5000 };
+                bannerTimer.Tick += delegate { bannerTimer.Stop(); bannerShown = false; LayoutMode(); };
+                Disposed += delegate { bannerTimer.Dispose(); };
             }
             banner.BackColor = error ? KavrosTheme.Danger : KavrosTheme.Panel;
             banner.ForeColor = error ? KavrosTheme.GoldInk : KavrosTheme.Gold;
             banner.Text = message;
-            banner.Visible = true;
-            banner.BringToFront();
+            bannerShown = true;
+            LayoutMode();
+            bannerTimer.Stop(); bannerTimer.Start();
         }
         public void SetQuickOption(bool available)
         {
@@ -399,8 +406,9 @@ namespace KavrosClueHelper
         {
             bool compass=mode==PuzzleKind.Compass,scan=mode==PuzzleKind.Scan,emote=mode==PuzzleKind.EmoteClue,sliding=mode==PuzzleKind.Sliding,expanded=!prefs.Collapsed;
             int bottom=compass?518:scan?514:emote?442:sliding?292:102;
-            Size wanted=new Size(400,prefs.Collapsed?32:bottom+38);
-            bool changed=layoutKind!=mode||layoutCollapsed!=prefs.Collapsed||ClientSize!=wanted;
+            int bannerSpace=bannerShown?BannerHeight:0;
+            Size wanted=new Size(400,(prefs.Collapsed?32:bottom+38)+bannerSpace);
+            bool changed=layoutKind!=mode||layoutCollapsed!=prefs.Collapsed||layoutBanner!=bannerShown||ClientSize!=wanted;
             if(!changed)return;
             SuspendLayout();
             try
@@ -413,7 +421,8 @@ namespace KavrosClueHelper
                 scanMap.Visible=scanControls.Visible=expanded&&scan;heading.Visible=expanded&&(compass||scan);
                 summary.Visible=expanded&&!emote;footer.Visible=expanded;
                 summary.Top=compass||scan?330:38;summary.Height=scan?90:56;footer.Top=bottom;footer.BringToFront();
-                layoutKind=mode;layoutCollapsed=prefs.Collapsed;
+                if(banner!=null){banner.SetBounds(1,wanted.Height-BannerHeight-1,wanted.Width-2,BannerHeight);banner.Visible=bannerShown;if(bannerShown)banner.BringToFront();}
+                layoutKind=mode;layoutCollapsed=prefs.Collapsed;layoutBanner=bannerShown;
             }
             finally{ResumeLayout(true);}
             Invalidate(true);

@@ -212,7 +212,7 @@ namespace KavrosClueHelper
             sliderTips.SetToolTip(checkUpdates,"When this is on, startup asks GitHub whether a newer release exists.");
             checkUpdates.CheckedChanged+=delegate{preferences.CheckForUpdates=checkUpdates.Checked;preferences.Save();};
             ButtonAt("Check for updates",305,971,195,delegate{AppUpdates.Check(this,true);});
-            ButtonAt("What's new",16,1012,160,ShowWhatsNew);
+            ButtonAt("What's new",16,1012,160,ToggleWhatsNew);
             ClientSize=new Size(ClientSize.Width,1048);
             AppUpdates.Present=ShowToast;
             var trayMenu=new ContextMenuStrip();trayMenu.Items.Add("Open panel",null,delegate{OpenPanel();});trayMenu.Items.Add("Settings",null,delegate{ShowSettings();});trayMenu.Items.Add("Exit helper",null,delegate{ExitHelper();});
@@ -229,7 +229,7 @@ namespace KavrosClueHelper
             timer.Interval = 50; timer.Tick += delegate { TickReader(); }; timer.Start();
             FormClosed += delegate { closing=true; CancelAnalysis(); StopTracking(); timer.Stop(); timer.Dispose(); overlay.Dispose();floatingPanel.Dispose();tray.Visible=false;tray.Dispose();trayMenu.Dispose();if (Icon != null) Icon.Dispose(); if (preview.Image != null) preview.Image.Dispose(); if(diagnosticCapture!=null) diagnosticCapture.Dispose(); if(offlineSource!=null) offlineSource.Dispose(); Native.UnregisterHotKey(Handle, 11); Native.UnregisterHotKey(Handle, 12); };
         }
-        private Panel toastBar; private Label toastText; private Button toastAction; private Timer toastTimer; private TextBox whatsNew; private Action toastClick;
+        private Panel toastBar; private Label toastText; private Button toastAction; private Timer toastTimer; private TextBox whatsNew; private Panel whatsNewPanel; private Action toastClick;
         internal void ShowToast(string message, bool error, string action, Action click)
         {
             if (toastBar == null)
@@ -253,22 +253,35 @@ namespace KavrosClueHelper
             toastAction.ForeColor = KavrosTheme.GoldInk;
             toastBar.Visible = true; toastBar.BringToFront();
             toastTimer.Stop();
-            if (click == null) toastTimer.Start();
+            // Everything fades after 5 seconds except the update offer, which waits for a click.
+            if (click == null || action != "Update now") toastTimer.Start();
             if (floatingPanel != null && !floatingPanel.IsDisposed) floatingPanel.ShowBanner(message, error);
         }
         internal void ShowWhatsNew()
         {
             ShowSettings();
-            if (whatsNew == null)
+            if (whatsNewPanel == null)
             {
-                whatsNew = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Font = KavrosTheme.Ui(9F, false), BackColor = KavrosTheme.Bg, ForeColor = KavrosTheme.Text };
+                whatsNewPanel = new Panel { BackColor = KavrosTheme.Bg, Visible = false };
+                Panel header = new Panel { Dock = DockStyle.Top, Height = 36, BackColor = KavrosTheme.BgRaise };
+                Label title = new Label { Text = "What's new", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0), ForeColor = KavrosTheme.Gold, Font = KavrosTheme.Ui(10F, true) };
+                Button close = new OpaqueButton { Text = "Close  X", Dock = DockStyle.Right, Width = 96, FlatStyle = FlatStyle.Flat, BackColor = KavrosTheme.Button, ForeColor = ForeColor, Tone = ButtonTone.Secondary };
+                close.FlatAppearance.BorderColor = KavrosTheme.ButtonLine;
+                close.Click += delegate { HideWhatsNew(); };
+                header.Controls.Add(title); header.Controls.Add(close);
+                whatsNew = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BorderStyle = BorderStyle.None, Font = KavrosTheme.Ui(9F, false), BackColor = KavrosTheme.Bg, ForeColor = KavrosTheme.Text };
                 string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CHANGELOG.md");
                 whatsNew.Text = File.Exists(path) ? File.ReadAllText(path) : "What's new is listed in CHANGELOG.md next to the program.";
-                Controls.Add(whatsNew);
+                // Fill first, then the header, so docking keeps the header on top.
+                whatsNewPanel.Controls.Add(whatsNew); whatsNewPanel.Controls.Add(header);
+                Controls.Add(whatsNewPanel);
             }
-            whatsNew.Bounds = new Rectangle(16, 88, Math.Max(40, ClientSize.Width - 32), Math.Max(40, ClientSize.Height - 140));
-            whatsNew.Visible = true; whatsNew.BringToFront();
+            whatsNewPanel.Bounds = new Rectangle(16, 88, Math.Max(40, ClientSize.Width - 32), Math.Max(40, ClientSize.Height - 140));
+            whatsNewPanel.Visible = true; whatsNewPanel.BringToFront();
+            whatsNew.SelectionStart = 0; whatsNew.SelectionLength = 0;
         }
+        private void HideWhatsNew() { if (whatsNewPanel != null) whatsNewPanel.Visible = false; }
+        private void ToggleWhatsNew() { if (whatsNewPanel != null && whatsNewPanel.Visible) HideWhatsNew(); else ShowWhatsNew(); }
         private void ShowSettings(){if(WindowState==FormWindowState.Minimized)WindowState=FormWindowState.Normal;Show();Activate();}
         internal void CheckForUpdatesOnStartup(){if(preferences.CheckForUpdates)AppUpdates.Check(this,false);}
         internal void PrepareForUpdate(){closing=true;}
@@ -760,6 +773,7 @@ namespace KavrosClueHelper
         }
         protected override bool ProcessCmdKey(ref Message message, Keys keys)
         {
+            if (keys == Keys.Escape && whatsNewPanel != null && whatsNewPanel.Visible) { HideWhatsNew(); return true; }
             if (keys == (Keys.Control | Keys.V))
             {
                 try
