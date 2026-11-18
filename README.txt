@@ -1,5 +1,5 @@
-﻿KAVROS CLUE HELPER v0.6.4
-========================
+﻿KAVROS CLUE HELPER v0.6.5
+=========================
 
 Close the previous helper with Exit. Extract the WHOLE ZIP into a new folder,
 then run KavrosClueHelper.exe beside its assets folder.
@@ -7,6 +7,9 @@ then run KavrosClueHelper.exe beside its assets folder.
 Requires Windows 10/11 and .NET Framework 4.8. The new text clue reader uses
 Windows English OCR. If English OCR is missing, add the English language OCR
 component in Windows Settings and restart the helper.
+
+NEW IN v0.6.5
+- v0.6.5: fix update check (TLS 1.2), ship exe.config.
 
 NEW IN v0.6.4
 - Travel directions and zoomable offline maps for location clues. The wheel

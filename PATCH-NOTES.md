@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.6.5
+
+v0.6.5: fix update check (TLS 1.2), ship exe.config.
+
+Settings shows **Made by Zenity · v0.6.5**. Install this build by downloading Setup.exe. Copies of 0.6.4 cannot download it themselves, because their update check fails before TLS 1.2 is offered.
+
 # Kavros Clue Helper v0.6.4
 
 18 November 2026 · Portable Windows release
