@@ -37,5 +37,6 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: release-notes.md
           fail_on_unmatched_files: true
           files: release-out/*
