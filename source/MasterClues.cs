@@ -1,0 +1,190 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
+
+namespace KavrosClueHelper
+{
+    public sealed class MasterClue
+    {
+        public int Id, Floor;
+        public bool Reference;
+        public string Tier="master";
+        public string Location, Emote, Travel;
+        public string[] Equipment;
+        public Rectangle Area;
+        public string MapFile { get { return Id + ".png"; } }
+    }
+    public static class MasterClues
+    {
+        public static readonly MasterClue[] All = {
+            new MasterClue { Id=236, Location="Green Ghost inn, Port Phasmatys", Emote="Laugh", Equipment=new[]{"Iban's staff", "Ghostly cloak", "Black cavalier"}, Area=new Rectangle(3671,3489,11,11), Travel="Enter the inn in Port Phasmatys. From Canifis, travel east towards the port." },
+            new MasterClue { Id=240, Location="Charm sprite hunter area", Emote="Bow or curtsy", Equipment=new[]{"Enhanced yaktwee stick", "Dagon'hai hat", "Amulet of ranging"}, Area=new Rectangle(2391,3362,26,22), Travel="South of the Tree Gnome Stronghold, near Yaktwee. From Eagles' Peak, travel south-east." },
+            new MasterClue { Id=234, Location="Inside the Slayer Tower", Emote="Headbang", Equipment=new[]{"Imp-hide hood", "Prifddinian musician's robe top", "Amulet of magic"}, Area=new Rectangle(3400,3541,47,34), Travel="Enter the Slayer Tower north-west of Canifis. Use the ground floor." },
+            new MasterClue { Id=233, Location="Sulphur pit, TzHaar City", Emote="Cheer", Equipment=new[]{"Fire cape", "Toktz-ket-xil", "Spork"}, Area=new Rectangle(4630,5104,14,14), Travel="Inside TzHaar City beneath Karamja. Go to the highlighted sulphur pit area." },
+            new MasterClue { Id=242, Location="Lumbridge Fishing Supplies shop", Emote="Shrug", Equipment=new[]{"Demon slayer gloves", "A boater", "Cape of legends"}, Area=new Rectangle(3194,3251,5,8), Travel="Enter the fishing shop in north-east Lumbridge, near the River Lum." },
+            new MasterClue { Id=246, Location="Max Guild Garden, Prifddinas", Emote="Salute", Equipment=new[]{"Nothing equipped - remove every worn item"}, Area=new Rectangle(2268,3318,17,18), Floor=1, Travel="Go to the Max Guild garden in south-east Prifddinas. The garden is outside the guild building." },
+            new MasterClue { Id=239, Location="Edgeville Monastery garden", Emote="Jig", Equipment=new[]{"Holy cithara", "Saradomin's murmur", "Ring of devotion"}, Area=new Rectangle(3046,3501,12,8), Travel="Go to the monastery west of Edgeville and enter its ground-floor garden." },
+            new MasterClue { Id=244, Location="Inside the Invention Guild", Emote="Have an idea", Equipment=new[]{"Lab coat top", "Lab coat legs", "Staff of light"}, Area=new Rectangle(6160,1039,18,36), Travel="Enter the Invention Guild north of the Falador lodestone. The map shows the interior." }
+        };
+        public static MasterClue ById(int id) { return All.First(c => c.Id == id); }
+    }
+
+    public static class MasterClueDrawing
+    {
+        public static void Draw(Graphics g, Rectangle bounds, MasterClue clue, Image map)
+        {Draw(g,bounds,clue,map,1,PointF.Empty);}
+        public static void Draw(Graphics g, Rectangle bounds, MasterClue clue, Image map,float zoom,PointF pan)
+        {
+            g.Clear(Color.FromArgb(25,34,47));
+            float sx=bounds.Width/460F, sy=bounds.Height/471F;
+            System.Drawing.Drawing2D.GraphicsState state=g.Save();
+            g.TranslateTransform(bounds.X,bounds.Y); g.ScaleTransform(sx,sy);
+            using(Font heading=new Font("Segoe UI",14F,FontStyle.Bold,GraphicsUnit.Pixel))
+            using(Font body=new Font("Segoe UI",13F,FontStyle.Regular,GraphicsUnit.Pixel))
+            using(Font small=new Font("Segoe UI",11F,FontStyle.Regular,GraphicsUnit.Pixel))
+            {
+                TextRenderer.DrawText(g,clue.Location,heading,new Rectangle(10,2,440,27),Color.White,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis|TextFormatFlags.NoPadding);
+                Rectangle viewport=new Rectangle(10,34,440,234);
+                if(map!=null)
+                {
+                    float sourceWidth=map.Width/zoom,sourceHeight=sourceWidth*viewport.Height/viewport.Width;
+                    RectangleF source=new RectangleF((map.Width-sourceWidth)/2+pan.X*4,(map.Height-sourceHeight)/2-pan.Y*4,sourceWidth,sourceHeight);
+                    var mapState=g.Save();g.SetClip(viewport);
+                    g.InterpolationMode=InterpolationMode.HighQualityBicubic;
+                    g.DrawImage(map,viewport,source,GraphicsUnit.Pixel);
+                    float factor=viewport.Width/source.Width;
+                    RectangleF area=new RectangleF(viewport.Left+(256-clue.Area.Width*2-source.Left)*factor,viewport.Top+(256-clue.Area.Height*2-source.Top)*factor,clue.Area.Width*4*factor,clue.Area.Height*4*factor);
+                    using(Brush fill=new SolidBrush(Color.FromArgb(65,70,255,150))) g.FillRectangle(fill,area);
+                    using(Pen border=new Pen(Color.FromArgb(100,255,169),2)) g.DrawRectangle(border,area.X,area.Y,area.Width,area.Height);
+                    float cx=viewport.Left+(256-source.Left)*factor, cy=viewport.Top+(256-source.Top)*factor;
+                    g.FillEllipse(Brushes.Black,cx-7,cy-7,14,14); g.FillEllipse(Brushes.Gold,cx-4,cy-4,8,8);
+                    g.FillRectangle(Brushes.Black,viewport.Right-29,viewport.Top+4,25,21);
+                    TextRenderer.DrawText(g,"N",heading,new Rectangle(viewport.Right-26,viewport.Top+5,19,19),Color.White,TextFormatFlags.HorizontalCenter|TextFormatFlags.NoPadding);
+                    g.FillRectangle(Brushes.Black,viewport.Left+3,viewport.Bottom-19,145,17);
+                    TextRenderer.DrawText(g,"Map: RuneApps / Jagex",small,new Rectangle(viewport.Left+6,viewport.Bottom-18,140,16),Color.Silver,TextFormatFlags.NoPadding);
+                    g.Restore(mapState);
+                }
+                TextRenderer.DrawText(g,"Perform the emote in green. Wheel to zoom, drag to pan.",small,new Rectangle(10,272,440,18),Color.FromArgb(110,227,170),TextFormatFlags.NoPadding);
+                TextRenderer.DrawText(g,"DO: "+clue.Emote,heading,new Rectangle(10,296,440,25),Color.FromArgb(110,227,190),TextFormatFlags.NoPadding);
+                for(int i=0;i<clue.Equipment.Length;i++) TextRenderer.DrawText(g,"Wear: "+clue.Equipment[i],body,new Rectangle(10,327+i*21,440,21),Color.White,TextFormatFlags.NoPadding|TextFormatFlags.EndEllipsis);
+                TextRenderer.DrawText(g,"Double agent: defeat it, then repeat the emote for Uri.",small,new Rectangle(10,395,440,21),Color.Gold,TextFormatFlags.NoPadding|TextFormatFlags.WordBreak);
+                TextRenderer.DrawText(g,clue.Travel,body,new Rectangle(10,424,440,44),Color.FromArgb(172,191,212),TextFormatFlags.NoPadding|TextFormatFlags.WordBreak);
+            }
+            g.Restore(state);
+        }
+    }
+
+    public sealed class ReferenceDetailsView : ScrollableControl
+    {
+        private bool measuring;
+        public ReferenceDetailsView(){AutoScroll=true;DoubleBuffered=true;TabStop=true;MouseDown+=delegate{Focus();};}
+        private void MeasureContent()
+        {
+            if(measuring)return;measuring=true;
+            try{Size size=TextRenderer.MeasureText(Text,Font,new Size(Math.Max(1,ClientSize.Width-24),Int32.MaxValue),TextFormatFlags.WordBreak|TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix);AutoScrollMinSize=new Size(0,size.Height+8);}
+            finally{measuring=false;}
+            Invalidate();
+        }
+        protected override void OnTextChanged(EventArgs e){base.OnTextChanged(e);AutoScrollPosition=Point.Empty;MeasureContent();}
+        protected override void OnResize(EventArgs e){base.OnResize(e);MeasureContent();}
+        protected override void OnPaint(PaintEventArgs e)
+        {e.Graphics.Clear(BackColor);TextRenderer.DrawText(e.Graphics,Text,Font,new Rectangle(4,4+AutoScrollPosition.Y,Math.Max(1,ClientSize.Width-24),Math.Max(Height,AutoScrollMinSize.Height)),ForeColor,TextFormatFlags.WordBreak|TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix);}
+    }
+    public sealed class MasterClueView : Control
+    {
+        private MasterClue clue;
+        private Bitmap map;
+        private bool detailed;
+        private Bitmap overview;
+        private bool regionalOverview;
+        private float zoom=1;
+        private PointF pan;
+        private Point? drag;
+        private float Span {get{return (clue.Reference?Math.Max(72,Math.Max(clue.Area.Width,clue.Area.Height)*3):128)/zoom;}}
+        private Rectangle MapBox {get{return clue!=null&&!clue.Reference?new Rectangle(Width*10/460,Height*34/471,Math.Max(1,Width*440/460),Math.Max(1,Height*234/471)):new Rectangle(8,43,Math.Max(1,Width-16),139);}}
+        private readonly ReferenceDetailsView details=new ReferenceDetailsView();
+        public MasterClueView()
+        {
+            DoubleBuffered=true;
+            TabStop=true;
+            MouseDown+=delegate(object sender,MouseEventArgs e){if(clue==null||!MapBox.Contains(e.Location))return;Focus();if(e.Button==MouseButtons.Left){drag=e.Location;Capture=true;}if(e.Button==MouseButtons.Right){pan=PointF.Empty;zoom=1;Invalidate();}};
+            MouseMove+=delegate(object sender,MouseEventArgs e){if(!drag.HasValue||clue==null)return;float units=Span/MapBox.Width;pan.X-=(e.X-drag.Value.X)*units;pan.Y+=(e.Y-drag.Value.Y)*units;drag=e.Location;Invalidate();};
+            MouseUp+=delegate{drag=null;Capture=false;};
+            MouseCaptureChanged+=delegate{if(!Capture)drag=null;};
+            details.BackColor=Color.FromArgb(25,34,47);details.ForeColor=Color.White;details.Font=new Font("Segoe UI",9F);details.Visible=false;Controls.Add(details);
+            Resize+=delegate{details.SetBounds(8,202,Math.Max(1,Width-16),Math.Max(1,Height-208));};
+        }
+        public void SetClue(MasterClue value,string assets)
+        {
+            if(clue==value) return;
+            if(map!=null) { map.Dispose(); map=null; }
+            if(overview!=null){overview.Dispose();overview=null;}regionalOverview=false;
+            clue=value;zoom=1;pan=PointF.Empty;drag=null;detailed=false;
+            if(value!=null)
+            {
+                string detail=Path.Combine(assets,"location-maps",value.Id+".jpg");
+                detailed=value.Reference&&File.Exists(detail);
+                string file=detailed?detail:value.Reference?Path.Combine(assets,"compass","world.png"):Path.Combine(assets,"master-maps",value.MapFile);
+                using(Bitmap loaded=new Bitmap(file))map=(Bitmap)loaded.Clone();
+                if(detailed)
+                {
+                    string regional=Path.Combine(assets,"location-maps",value.Id+"-wide.jpg");
+                    regionalOverview=File.Exists(regional);
+                    if(regionalOverview||value.Floor==0&&value.Area.X>=2032&&value.Area.X<4080&&value.Area.Y>=2544&&value.Area.Y<4080)
+                        overview=new Bitmap(regionalOverview?regional:Path.Combine(assets,"compass","world.png"));
+                }
+            }
+            details.Visible=value!=null&&value.Reference;
+            details.Text=value==null?"":value.Travel;
+            details.SetBounds(8,202,Math.Max(1,Width-16),Math.Max(1,Height-208));
+            Invalidate();
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            if(clue==null){base.OnPaint(e);return;}
+            if(!clue.Reference){
+                float horizontal=Math.Max(0,(128-Span)/2),vertical=Math.Max(0,(128-Span*234/440)/2);
+                pan.X=Math.Max(-horizontal,Math.Min(horizontal,pan.X));pan.Y=Math.Max(-vertical,Math.Min(vertical,pan.Y));
+                MasterClueDrawing.Draw(e.Graphics,ClientRectangle,clue,map,zoom,pan);return;
+            }
+            Graphics g=e.Graphics;g.Clear(Color.FromArgb(25,34,47));
+            TextRenderer.DrawText(g,clue.Location,Font,new Rectangle(8,2,Width-16,38),Color.White,TextFormatFlags.WordBreak|TextFormatFlags.EndEllipsis);
+            Rectangle box=MapBox;
+            float cx=clue.Area.X+clue.Area.Width/2F,cy=clue.Area.Y+clue.Area.Height/2F;
+            if(map!=null&&(detailed||cx>=2032&&cx<=4079&&cy>=2544&&cy<=4079))
+            {
+                float span=Span,height=span*box.Height/box.Width;
+                float resolution=detailed?map.Width/80F:2;
+                if(detailed&&overview==null){pan.X=Math.Max(-Math.Max(0,(80-span)/2),Math.Min(Math.Max(0,(80-span)/2),pan.X));pan.Y=Math.Max(-Math.Max(0,(80-height)/2),Math.Min(Math.Max(0,(80-height)/2),pan.Y));}
+                RectangleF source=detailed?new RectangleF((40+pan.X-span/2)*resolution,(40-pan.Y-height/2)*resolution,span*resolution,height*resolution):new RectangleF((cx+pan.X-span/2-2031.5F)*2,(4079.5F-cy-pan.Y-height/2)*2,span*2,height*2);
+                g.InterpolationMode=InterpolationMode.HighQualityBicubic;
+                if(overview!=null){
+                    float k=overview.Width/320F;
+                    RectangleF wide=regionalOverview?new RectangleF((160+pan.X-span/2)*k,(160-pan.Y-height/2)*k,span*k,height*k):new RectangleF((cx+pan.X-span/2-2031.5F)*2,(4079.5F-cy-pan.Y-height/2)*2,span*2,height*2);
+                    g.DrawImage(overview,box,wide,GraphicsUnit.Pixel);
+                }
+                RectangleF visible=RectangleF.Intersect(source,new RectangleF(0,0,map.Width,map.Height));
+                if(visible.Width>0&&visible.Height>0){RectangleF dest=new RectangleF(box.Left+(visible.Left-source.Left)*box.Width/source.Width,box.Top+(visible.Top-source.Top)*box.Height/source.Height,visible.Width*box.Width/source.Width,visible.Height*box.Height/source.Height);g.DrawImage(map,dest,visible,GraphicsUnit.Pixel);}
+                float unit=box.Width/span;
+                float mx=box.Left+box.Width/2F-pan.X*unit,my=box.Top+box.Height/2F+pan.Y*unit;
+                var clip=g.Save();g.SetClip(box);
+                using(Pen green=new Pen(Color.Lime,2))g.DrawRectangle(green,mx-clue.Area.Width*unit/2,my-clue.Area.Height*unit/2,Math.Max(3,clue.Area.Width*unit),Math.Max(3,clue.Area.Height*unit));
+                g.FillEllipse(Brushes.Black,mx-5,my-5,10,10);g.FillEllipse(Brushes.Gold,mx-3,my-3,6,6);
+                g.Restore(clip);
+            }
+            else TextRenderer.DrawText(g,clue.Area.IsEmpty?"Exact map tile is not verified.":"Interior / dungeon location\nUse the directions and coordinates below.",Font,box,Color.Cyan,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.WordBreak);
+            TextRenderer.DrawText(g,"RuneApps / Jagex  |  Wheel: zoom  |  Drag: pan  |  Right: reset",Font,new Rectangle(8,184,Width-16,18),Color.Silver,TextFormatFlags.NoPadding);
+        }
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            if(clue!=null&&MapBox.Contains(e.Location)&&e.Delta!=0)
+            {zoom=(float)Math.Max(!clue.Reference?1:detailed&&overview==null?.90:.24,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));Invalidate();}
+            base.OnMouseWheel(e);
+        }
+        protected override void Dispose(bool disposing) { if(disposing && map!=null) { map.Dispose(); map=null; } if(disposing && overview!=null){overview.Dispose();overview=null;} base.Dispose(disposing); }
+    }
+}

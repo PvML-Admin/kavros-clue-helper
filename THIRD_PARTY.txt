@@ -1,0 +1,188 @@
+SOURCE ATTRIBUTION
+==================
+Compatibility geometry, Celtic-knot lane interpretation, rotation-button
+layouts, digit pixel definitions, and colour fingerprint conventions are
+adapted from the MIT-licensed portions of Clue Trainer:
+https://github.com/Leridon/cluetrainer
+
+Selected upstream files were retrieved from master on 16 November 2026.
+No source from src/oldlib.ts or src/skillbertssolver is included.
+
+MIT License
+
+Copyright (c) 2024 Lukas Gail
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+IMAGE / GAME ASSETS
+===================
+The assets directory contains RuneScape puzzle artwork, interface fragments,
+rune images, and captured puzzle test images obtained from Clue Trainer's
+public static assets, for recognition and compatibility with game pixels.
+RuneScape and its game artwork are the property of Jagex Ltd. Other marks
+and artwork remain the property of their respective holders.
+
+Clue Trainer's MIT license does not extend to its static image assets.
+The MIT license on this helper's code does not relicense those images.
+These assets are not represented as original helper artwork.
+
+Upstream paths: static/alt1anchors/modal, static/alt1anchors/sliders,
+static/alt1anchors/lockbox_tiles, static/alt1anchors/knot_runes,
+static/data/sliders/sliders, static/test_assets/sliders.
+
+No endorsement by Jagex, RuneApps, Clue Trainer or Kavros is implied.
+
+REVISION 944 COMPATIBILITY UPDATE (v0.2.1)
+The assets/alt1anchors/rev944 directory restores pre-interface-update
+EOC and classic modal/slider anchors from Clue Trainer commit
+9fce561ca9ef98c58b67ff98b50b578e153a878f (12 January 2026).
+Offset conventions were adapted from its MIT-licensed
+src/trainer/ui/neosolving/cluereader/capture/CapturedModal.ts and
+src/trainer/ui/neosolving/cluereader/capture/CapturedSlider.ts.
+
+LEGACY TOWER FONT (v0.2.2)
+The legacy-digits.txt compatibility data contains only the 1-5 glyph
+pixel definitions from alt1 0.1.3, fonts/aa_10px_mono.js, distributed at
+https://unpkg.com/alt1@0.1.3/fonts/aa_10px_mono.js .
+It is RuneScape font reference data for recognising existing game pixels;
+no JavaScript from the font module is included or executed by the helper.
+Original font/game artwork remains the property of its respective holder.
+
+MASTER EMOTE CLUES AND MAPS (v0.3.0)
+Completion rectangles and floor data for the eight included emote clues
+were taken from the MIT-licensed src/data/clues.ts in Clue Trainer:
+https://github.com/Leridon/cluetrainer/blob/master/src/data/clues.ts
+Retrieved 16 November 2026. Equipment spelling follows the supplied
+Kavros screenshots, including the black cavalier requirement.
+The MIT notice above also applies to this adapted source data.
+
+The offline maps are cropped composites of RuneApps map4 topdown tiles:
+https://runeapps.org/s3/map4/live/topdown-{floor}/2/{x}-{y}.webp
+Map data/rendering is credited to Skillbert / RuneApps; game world artwork
+belongs to Jagex Ltd. These map images are reference game assets and are
+not relicensed by this helper's source-code license.
+The map transform follows Clue Trainer's MIT-licensed
+src/lib/gamemap/GameMap.ts (retrieved 16 November 2026).
+
+Master text masks and regression screenshots contain supplied Kavros
+game-interface pixels. Only the eight requested master emotes are
+recognised. Clue text and original game artwork belong to their owners.
+Guide references used to check location/action descriptions:
+https://runescape.wiki/w/Treasure_Trails/Guide/Emotes
+https://reforged.runehq.com/rs3/treasure-trails/emote-clues
+
+ELITE COMPASS AND FLOATING PANELS (v0.4.0)
+Compass capture geometry, arrow pixel interpretation, calibration samples
+and calibration-function conventions are adapted from the MIT-licensed
+Clue Trainer source at commit 9fce561ca9ef98c58b67ff98b50b578e153a878f:
+src/trainer/ui/neosolving/cluereader/CompassReader.ts
+src/trainer/ui/neosolving/cluereader/capture/CapturedCompass.ts
+src/trainer/ui/neosolving/cluereader/capture/CompassCalibrationFunction.ts
+Elite-only dig coordinates come from src/data/clues.ts (gielinor_compass),
+and baseline lodestone coordinates from src/data/teleport_data.ts at that
+same revision. The MIT notice above applies to the adapted code/data.
+Retrieved 17 November 2026. The full unrelated clue collection is not shipped.
+
+assets/compass/north.png is pre-update RuneScape interface reference art
+from static/alt1anchors/compassnorth.png. Its artwork belongs to Jagex.
+The offline world.png combines RuneApps map4 topdown-0 zoom-0 tiles for
+x=4..7, y=17..19, downloaded 17 November 2026. Transform:
+pixelX = worldX + 16.5; pixelY = 12783.5 - worldY; tile size 512.
+Map rendering/data: Skillbert / RuneApps. Game artwork: Jagex Ltd.
+These reference images are not relicensed by the helper's MIT license.
+No code from Clue Trainer's excluded oldlib.ts or skillbertssolver is used.
+
+SCAN MAPS AND LIVE REFERENCES (v0.5.0)
+Only scan IDs 368 (Prifddinas) and 371 (Heart of Gielinor) are added from
+src/data/clues.ts at commit 9fce561ca9ef98c58b67ff98b50b578e153a878f.
+Their 18 and 26 spot coordinates, base ranges and floors are standard
+reference data; Kavros custom differences remain to be verified.
+The lodestone list is refreshed from that revision's teleport_data.ts.
+The full unrelated clue database is not distributed.
+The scan maps composite RuneApps topdown-1 zoom-1 public image tiles,
+downloaded 17 November 2026. Transform: pixelX=(worldX+16.5)*2;
+pixelY=(12783.5-worldY)*2. Attribution and game artwork rights above apply.
+New title masks and regression fixtures are derived from user-supplied
+Kavros screenshots. Their game/interface artwork remains Jagex property.
+
+V0.5.1: all 28 baseline lodestone entries are imported from the same pinned
+teleport_data.ts above, with display punctuation normalized to ASCII.
+The stylized clickable lodestone icons and screenshot-only minimap
+matcher are original helper code. No additional clue collection is added.
+
+HIGHER-RESOLUTION MAPS AND NATIVE REFERENCES (v0.5.4)
+Display maps supersede the lower-resolution images described above.
+Source: https://runeapps.org/s3/map4/live/topdown-{floor}/{zoom}/{x}-{y}.webp
+Compass: floor 0, zoom 1, tile x=8..15 and y=34..39; composite 4096x3072.
+Scans: floor 1, zoom 2, cropped to the existing map transforms; 996x1032
+(Prifddinas) and 980x932 (Heart of Gielinor), four pixels per game tile.
+Separate expanded tracking references use floor 1, zoom 1 (1024x1024).
+Retrieved 17 November 2026. Map rendering/data: Skillbert / RuneApps.
+Game artwork: Jagex Ltd. These images are not relicensed by the source license.
+Native Edgeville text mask, slider close-button anchor and regression captures
+are derived from the user's supplied Kavros screenshots. Artwork remains
+the property of its owners. No unrelated clue collection is included.
+
+MINIMAP STRUCTURE REFERENCES (v0.5.5)
+Separate tracking-only ground/road references use RuneApps map4 map-1 zoom-1
+tiles: x=8..9,y=36..37 for Prifddinas; x=12..13,y=22..23 for Heart of Gielinor.
+Source: https://runeapps.org/s3/map4/live/map-1/1/{x}-{y}.webp
+The existing track-map.tsv transforms apply. Retrieved 17 November 2026.
+Map data/rendering: Skillbert / RuneApps. Game art: Jagex Ltd.
+Home Teleport and compass-ring masks, and the actual minimap regression
+capture, derive from the user's supplied Kavros screenshot. These reference
+assets remain property of their respective owners, not relicensed by MIT.
+
+REFERENCE CLUE EXPANSION (v0.6.0)
+Clue data adapted from Clue Trainer, Copyright (c) 2024 Lukas Gail, MIT.
+Pinned source: https://github.com/Leridon/cluetrainer/blob/9fce561ca9ef98c58b67ff98b50b578e153a878f/src/data/clues.ts
+Full notice: assets/data/LICENSE-ClueTrainer.txt. Structured snapshot and
+source metadata: assets/data/clue-catalogue.json. Runtime cards are generated
+by source/import_reference_clues.py.
+The 24 map clue screenshots were retrieved from https://cluetrainer.app/assets/
+on 17 November 2026. Original game/interface art remains Jagex property.
+Elite display and structure map tiles were retrieved from
+https://runeapps.org/s3/map4/live/topdown-{floor}/1/{x}-{y}.webp and
+https://runeapps.org/s3/map4/live/map-{floor}/1/{x}-{y}.webp on 17 November 2026.
+Map data/rendering: Skillbert / RuneApps. Game artwork: Jagex Ltd.
+These images are not relicensed by the MIT source-data licence.
+
+SLIDER ROUTE SEARCH (v0.6.0)
+Original helper implementation of additive disjoint pattern databases, IDA*,
+weighted A* and route shortcut search. Pattern tables are independently
+generated by source/tools/BuildSliderPatterns.cs; per-table SHA-256 files
+are checked at load time. Missing/corrupt tables fall back to the base
+heuristic. Search-method reference: Korf and Felner, Disjoint Pattern Database
+Heuristics (2002), https://web.cs.ucla.edu/~korf/publications.html
+No excluded oldlib/skillbertssolver implementation is incorporated.
+
+LOCATION MAPS AND GUIDES (v0.6.4)
+Offline location images combine public RuneApps map tiles from
+https://runeapps.org/s3/map4/live/ . Map rendering by RuneApps / Skillbert.
+RuneScape map artwork is the property of Jagex Ltd.
+Travel directions were written for this helper using the clue catalogue,
+RuneHQ Treasure Trails guide, RuneScape Wiki and Kavros screenshots.
+https://www.runehq.com/minigame/treasure-trails
+https://runescape.wiki/w/Treasure_Trails/Guide
+
+APPLICATION UPDATES
+Setup.exe and the portable package check GitHub Releases with Velopack 1.2.161
+(MIT, https://github.com/velopack/velopack). Release feeds are read with
+Newtonsoft.Json 13.0.4 (MIT, https://www.newtonsoft.com/json).
+Neither library is used for clue solving.

@@ -424,3 +424,25 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# Shipped data. Patterns above (bin/, obj/, logs/, *.cache, *.log, *.pdb,
+# *.user, and similar) also match files in these trees, including the
+# slider pattern tables (assets/data/slider-patterns/*.bin). Re-include
+# the directories, then every file under them. Build output elsewhere
+# stays ignored. Do not track these with Git LFS.
+!/assets/
+!/assets/**/
+!/assets/**/*
+!/verification/
+!/verification/**/
+!/verification/**/*
+!/assets/data/slider-patterns/*.bin
+
+# Local build output. The release workflow builds the executable; do not
+# commit it or the restored Velopack assemblies. Do not use Git LFS.
+/KavrosClueHelper.exe
+/Velopack.dll
+/Newtonsoft.Json.dll
+/source/packages/
+/publish/
+/release-out/

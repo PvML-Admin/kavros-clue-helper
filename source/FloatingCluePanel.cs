@@ -1,0 +1,418 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
+
+namespace KavrosClueHelper
+{
+    public sealed class OverlayPreferences
+    {
+        public bool Enabled=true,Collapsed;
+        public bool ShortestSlider = true;
+        public bool WholeRowClicks;
+        public bool CheckForUpdates = true;
+        public Point Offset=new Point(12,72);
+        public readonly List<CompassPosition> SavedPositions=new List<CompassPosition>();
+        private readonly string path;
+        public OverlayPreferences(string file=null)
+        {
+            path=file??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"KavrosClueHelper","overlay.txt");
+            try
+            {
+                if(!File.Exists(path))return;
+                foreach(string line in File.ReadAllLines(path))
+                {
+                    string[] p=line.Split(new[] { '\t' });int x,y;bool b;
+                    if(p.Length==2&&p[0]=="enabled"&&Boolean.TryParse(p[1],out b))Enabled=b;
+                    if(p.Length==2&&p[0]=="collapsed"&&Boolean.TryParse(p[1],out b))Collapsed=b;
+                    if(p.Length==2&&p[0]=="shortest-slider"&&Boolean.TryParse(p[1],out b))ShortestSlider=b;
+                    if(p.Length==2&&p[0]=="whole-row-clicks"&&Boolean.TryParse(p[1],out b))WholeRowClicks=b;
+                    if(p.Length==2&&p[0]=="check-updates"&&Boolean.TryParse(p[1],out b))CheckForUpdates=b;
+                    if(p.Length==3&&p[0]=="offset"&&Int32.TryParse(p[1],out x)&&Int32.TryParse(p[2],out y))Offset=new Point(x,y);
+                    if(p.Length==5&&p[0]=="spot"&&Int32.TryParse(p[2],out x)&&Int32.TryParse(p[3],out y))
+                    {
+                        double radius;
+                        if(x>=0&&x<=6400&&y>=0&&y<=12800&&Double.TryParse(p[4],NumberStyles.Float,CultureInfo.InvariantCulture,out radius)&&radius>=0&&radius<=32)
+                            SavedPositions.Add(new CompassPosition{Name=LodestoneNames.Clean(Uri.UnescapeDataString(p[1])),X=x,Y=y,Radius=radius});
+                    }
+                }
+            }
+            catch(IOException){}catch(UnauthorizedAccessException){}catch(UriFormatException){}
+        }
+        public void Save()
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
+                var lines=new List<string>{"enabled\t"+Enabled,"collapsed\t"+Collapsed,"offset\t"+Offset.X+"\t"+Offset.Y};
+                lines.Add("shortest-slider\t"+ShortestSlider);
+                lines.Add("whole-row-clicks\t"+WholeRowClicks);
+                lines.Add("check-updates\t"+CheckForUpdates);
+                lines.AddRange(SavedPositions.Select(p=>"spot\t"+Uri.EscapeDataString(p.Name)+"\t"+p.X+"\t"+p.Y+"\t"+p.Radius.ToString(CultureInfo.InvariantCulture)));
+                File.WriteAllLines(path,lines);
+            }
+            catch(IOException){}catch(UnauthorizedAccessException){}
+        }
+    }
+    public static class FloatingPanelLayout
+    {
+        public static Rectangle Place(Rectangle game,Size panel,Point offset,Rectangle desktop)
+        {
+            Rectangle area=Rectangle.Intersect(game,desktop);if(area.Width<panel.Width||area.Height<panel.Height)area=desktop;
+            int x=game.Left+offset.X,y=game.Top+offset.Y;
+            return new Rectangle(Math.Max(area.Left,Math.Min(x,area.Right-panel.Width)),Math.Max(area.Top,Math.Min(y,area.Bottom-panel.Height)),panel.Width,panel.Height);
+        }
+        public static bool Visible(bool enabled,bool offline,bool gameExists,bool minimised,bool gameForeground,bool panelFocused,bool settingsFocused)
+        {return enabled&&!offline&&!minimised&&(!gameExists||gameForeground||panelFocused||settingsFocused);}
+    }
+    public sealed class CompassMap : Control
+    {
+        private readonly Bitmap map;
+        private CompassSession session;
+        private PointF centre=new PointF(3030,3310);
+        private double span=2200;
+        private Point mouseDown;
+        private readonly ToolTip locationTip=new ToolTip();
+        private string hoverName;
+        private List<PointF> paintedCandidates;
+        private CompassPosition paintedOrigin;
+        private int paintedPositionCount;
+        public CompassPosition SelectedOrigin;
+        public event Action<CompassPosition> LodestonePicked;
+        private Point? drag;
+        public event Action<PointF> PositionPicked;
+        public CompassMap(string assets)
+        {
+            DoubleBuffered=true;TabStop=true;SetStyle(ControlStyles.Selectable,true);
+            using(Bitmap loaded=new Bitmap(Path.Combine(assets,"compass","world.png")))map=Pixels.Crop(loaded,new Rectangle(Point.Empty,loaded.Size),loaded.Size);
+            MouseDown+=delegate(object sender,MouseEventArgs e){Focus();if(e.Button==MouseButtons.Left){mouseDown=e.Location;drag=e.Location;Capture=true;}if(e.Button==MouseButtons.Right&&PositionPicked!=null)PositionPicked(ToWorld(e.Location));};
+            MouseMove+=delegate(object sender,MouseEventArgs e){if(!drag.HasValue){CompassPosition over=HitLodestone(e.Location);string label=over==null?"":over.Name;if(label!=hoverName){hoverName=label;locationTip.SetToolTip(this,label);}Cursor=over==null?Cursors.Default:Cursors.Hand;return;}if(Math.Abs(e.X-mouseDown.X)+Math.Abs(e.Y-mouseDown.Y)<5)return;centre.X-=(float)((e.X-drag.Value.X)*span/Width);centre.Y+=(float)((e.Y-drag.Value.Y)*span/Width);drag=e.Location;Invalidate();};
+            MouseUp+=delegate(object sender,MouseEventArgs e){bool click=drag.HasValue&&Math.Abs(e.X-mouseDown.X)+Math.Abs(e.Y-mouseDown.Y)<5;drag=null;Capture=false;if(!click)return;if(e.Y<26&&e.X<102){Overview();return;}CompassPosition p=HitLodestone(e.Location);if(p!=null&&LodestonePicked!=null)LodestonePicked(p);};
+            MouseWheel+=delegate(object sender,MouseEventArgs e){PointF before=ToWorld(e.Location);span=Math.Max(16,Math.Min(3500,span*(e.Delta>0?0.7:1/0.7)));PointF after=ToWorld(e.Location);centre.X+=before.X-after.X;centre.Y+=before.Y-after.Y;Invalidate();};
+        }
+        public void Overview(){centre=new PointF(3030,3300);span=2200;Invalidate();}
+        private static bool HasMapIcon(CompassPosition position)
+        {return position.X>=2031&&position.X<=4079&&position.Y>=2543&&position.Y<=4079;}
+        private PointF IconPoint(CompassPosition position){return ToScreen(position.Point);}
+        public CompassPosition HitLodestone(Point point)
+        {
+            if(session==null||point.Y>=Height-19||point.Y<26&&point.X<102)return null;
+            return session.Positions.Where(HasMapIcon).OrderByDescending(p=>p.Name.EndsWith(" (Kavros)"))
+                .Select(p=>new{Position=p,Screen=IconPoint(p)})
+                .Where(p=>Math.Abs(p.Screen.X-point.X)<=12&&Math.Abs(p.Screen.Y-point.Y)<=13)
+                .OrderBy(p=>Math.Abs(p.Screen.X-point.X)+Math.Abs(p.Screen.Y-point.Y)).Select(p=>p.Position).FirstOrDefault();
+        }
+        private static void DrawLodestone(Graphics g,PointF p,bool selected)
+        {
+            g.SmoothingMode=SmoothingMode.AntiAlias;
+            using(Brush dark=new SolidBrush(Color.FromArgb(230,10,20,28)))g.FillEllipse(dark,p.X-11,p.Y-12,22,24);
+            using(Pen ring=new Pen(selected?Color.Lime:Color.Gold,selected?3:1.5F))g.DrawEllipse(ring,p.X-10,p.Y-11,20,22);
+            PointF[] stone={new PointF(p.X,p.Y-8),new PointF(p.X+5,p.Y-3),new PointF(p.X+4,p.Y+6),new PointF(p.X-4,p.Y+6),new PointF(p.X-5,p.Y-3)};
+            g.FillPolygon(Brushes.SteelBlue,stone);g.DrawPolygon(Pens.LightCyan,stone);
+            g.FillEllipse(Brushes.Cyan,p.X-2,p.Y-4,4,5);g.FillRectangle(Brushes.Gold,p.X-6,p.Y+7,12,2);
+            g.SmoothingMode=SmoothingMode.None;
+        }
+        public void SetSession(CompassSession value,bool fit)
+        {
+            if (!fit && session == value && paintedCandidates == value.Candidates && paintedOrigin == SelectedOrigin && paintedPositionCount == value.Positions.Count) return;
+            session = value;
+            paintedCandidates = value.Candidates;
+            paintedOrigin = SelectedOrigin;
+            paintedPositionCount = value.Positions.Count;
+            if(fit)
+            {
+                var points=value.Candidates;
+                if(value.Intersection.HasValue&&value.Bearings.Count>=2)points=value.Candidates.Where(p=>CompassMath.Distance(p,value.Intersection.Value)<180).Concat(new[]{value.Intersection.Value}).ToList();
+                if(points.Count>0)
+                {
+                    float left=points.Min(p=>p.X),right=points.Max(p=>p.X),bottom=points.Min(p=>p.Y),top=points.Max(p=>p.Y);
+                    centre=new PointF((left+right)/2,(top+bottom)/2);
+                    span=Math.Max(60,Math.Max(right-left,(top-bottom)*Math.Max(1,Width)/(double)Math.Max(1,Height))*1.25);
+                }
+            }
+            Invalidate();
+        }
+        public PointF ToScreen(PointF p){double scale=Width/span;return new PointF((float)(Width/2.0+(p.X-centre.X)*scale),(float)(Height/2.0-(p.Y-centre.Y)*scale));}
+        public PointF ToWorld(Point p){return new PointF((float)(centre.X+(p.X-Width/2.0)*span/Width),(float)(centre.Y-(p.Y-Height/2.0)*span/Width));}
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g=e.Graphics;g.Clear(Color.FromArgb(18,30,38));if(Width==0||Height==0)return;
+            double scale=Width/span,worldHeight=Height/scale;
+            RectangleF view=new RectangleF((float)(centre.X-span/2),(float)(centre.Y-worldHeight/2),(float)span,(float)worldHeight);
+            RectangleF world=new RectangleF(2031.5F,2543.5F,2048,1536),overlap=RectangleF.Intersect(view,world);
+            if(overlap.Width>0&&overlap.Height>0)
+            {
+                PointF tl=ToScreen(new PointF(overlap.Left,overlap.Bottom));
+                RectangleF dest=new RectangleF(tl.X,tl.Y,(float)(overlap.Width*scale),(float)(overlap.Height*scale));
+                RectangleF source=new RectangleF((overlap.Left-world.Left)*map.Width/world.Width,(4079.5F-overlap.Bottom)*map.Height/world.Height,overlap.Width*map.Width/world.Width,overlap.Height*map.Height/world.Height);
+                g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.PixelOffsetMode=PixelOffsetMode.HighQuality;g.DrawImage(map,dest,source,GraphicsUnit.Pixel);
+            }
+            if(session!=null)
+            {
+                foreach(CompassBearing bearing in session.Bearings)
+                {
+                    PointF start=ToScreen(bearing.Position.Point);
+                    PointF end=ToScreen(new PointF(bearing.Position.X+(float)(Math.Cos(bearing.Angle)*10000),bearing.Position.Y+(float)(Math.Sin(bearing.Angle)*10000)));
+                    using(Pen pen=new Pen(Color.Gold,2))g.DrawLine(pen,start,end);
+                    g.FillEllipse(Brushes.Black,start.X-5,start.Y-5,10,10);g.FillEllipse(Brushes.Gold,start.X-3,start.Y-3,6,6);
+                }
+                foreach(PointF spot in session.Candidates)
+                {
+                    PointF p=ToScreen(spot);if(p.X<0||p.Y<0||p.X>Width||p.Y>Height)continue;
+                    bool single=session.Candidates.Count==1&&session.Bearings.Count>=2;int radius=single?6:session.Candidates.Count>100?2:3;
+                    g.FillEllipse(Brushes.Black,p.X-radius-1,p.Y-radius-1,radius*2+2,radius*2+2);
+                    g.FillEllipse(single?Brushes.Lime:Brushes.Cyan,p.X-radius,p.Y-radius,radius*2,radius*2);
+                    if(single){using(Pen pen=new Pen(Color.Lime,1)){g.DrawLine(pen,p.X-13,p.Y,p.X+13,p.Y);g.DrawLine(pen,p.X,p.Y-13,p.X,p.Y+13);}}
+                }
+                if(session.Intersection.HasValue)
+                {
+                    PointF p=ToScreen(session.Intersection.Value);
+                    using(Pen shadow=new Pen(Color.Black,6))using(Pen ink=new Pen(Color.Magenta,3))
+                    {g.DrawLine(shadow,p.X-9,p.Y-9,p.X+9,p.Y+9);g.DrawLine(shadow,p.X-9,p.Y+9,p.X+9,p.Y-9);g.DrawLine(ink,p.X-9,p.Y-9,p.X+9,p.Y+9);g.DrawLine(ink,p.X-9,p.Y+9,p.X+9,p.Y-9);}
+                    TextRenderer.DrawText(g,"Estimated dig spot",Font,new Point((int)p.X+12,(int)p.Y-8),Color.Magenta,Color.FromArgb(20,25,30));
+                }
+            }
+            if(session!=null)foreach(CompassPosition position in session.Positions.Where(HasMapIcon))
+            {
+                PointF p=IconPoint(position);if(p.X<0||p.Y<13||p.X>Width||p.Y>Height-32)continue;
+                DrawLodestone(g,p,position==SelectedOrigin);
+                if(position==SelectedOrigin)TextRenderer.DrawText(g,position.Name.Replace(" lodestone",""),Font,new Point((int)p.X+13,(int)p.Y-8),Color.Lime,Color.FromArgb(18,30,38));
+            }
+            g.FillRectangle(Brushes.DarkSlateGray,2,2,99,23);
+            TextRenderer.DrawText(g,"Lodestones",Font,new Rectangle(4,3,96,21),Color.White,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter);
+            using(Brush b=new SolidBrush(Color.FromArgb(210,12,20,28)))g.FillRectangle(b,0,Height-18,Width,18);
+            TextRenderer.DrawText(g,"Click lodestone | Drag: pan | Wheel: zoom | Right: position",Font,new Rectangle(5,Height-17,Width-10,17),Color.White,TextFormatFlags.NoPadding|TextFormatFlags.SingleLine);
+            TextRenderer.DrawText(g,"N",Font,new Rectangle(Width-22,4,20,20),Color.White,TextFormatFlags.NoPadding);
+        }
+        protected override void Dispose(bool disposing){if(disposing){map.Dispose();locationTip.Dispose();}base.Dispose(disposing);}
+    }
+    public sealed class FloatingCluePanel : Form
+    {
+        private readonly Label title=new Label(),summary=new Label(),heading=new Label();
+        private readonly Button collapse=new OpaqueButton(),pause=new OpaqueButton(),record=new OpaqueButton();
+        private readonly ProgressBar reading=new ProgressBar();
+        private readonly Panel compassControls=new OpaquePanel(),footer=new OpaquePanel();
+        private readonly MasterClueView master=new MasterClueView();
+        private readonly SlidingGuideView sliderGuide;
+        private readonly ComboBox positions=new ComboBox();
+        private readonly NumericUpDown x=new NumericUpDown(),y=new NumericUpDown(),radius=new NumericUpDown();
+        private bool selectingOrigin;
+        private bool originSelected;
+        private Button undoOrContinue, quickSlider;
+        public event Action QuickSliderRequested;
+        public void SetQuickOption(bool available)
+        {
+            if (quickSlider != null && quickSlider.Visible != available) quickSlider.Visible = available;
+        }
+        private int displayedCompassGeneration=-1;
+        private string scanPaintKey;
+        private readonly Label originStatus=new Label();
+        private readonly CompassSession session;
+        private readonly CompassMap map;
+        private readonly ScanSession scanSession=new ScanSession();
+        private readonly ScanMap scanMap;
+        private readonly Panel scanControls=new OpaquePanel();
+        private readonly CheckBox meerkat=new CheckBox(),autoFollow=new CheckBox();
+        private readonly ComboBox scanFloor=new ComboBox();
+        private int floorRegion=-1;private bool changingFloor;
+        private readonly string assets;
+        private readonly OverlayPreferences prefs;
+        private Point dragStart,windowStart;private bool dragging;
+        private PuzzleKind mode=PuzzleKind.None;
+        private PuzzleKind layoutKind=(PuzzleKind)(-1);
+        private bool layoutCollapsed;
+        private int displayedMasterId=-1;
+        public event Action SettingsRequested,ScanRequested,PauseRequested,ExitRequested,UserMoved,ClearRequested;
+        public bool Collapsed {get{return prefs.Collapsed;}}
+        public bool IsDragging {get{return dragging;}}
+        public string ReadingStage {get;private set;}
+        public FloatingCluePanel(string directory,CompassSession compass,OverlayPreferences preferences)
+        {
+            assets=directory;session=compass;prefs=preferences;
+            FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;
+            SetStyle(ControlStyles.UserPaint|ControlStyles.Opaque|ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
+            ClientSize=new Size(400,140);BackColor=Color.FromArgb(18,23,32);ForeColor=Color.White;Font=new Font("Segoe UI",9F);
+            title.SetBounds(0,0,294,32);title.TextAlign=ContentAlignment.MiddleLeft;title.Padding=new Padding(10,0,0,0);title.Font=new Font(Font,FontStyle.Bold);title.BackColor=Color.FromArgb(30,48,61);Controls.Add(title);
+            title.MouseDown+=delegate(object sender,MouseEventArgs e){if(e.Button!=MouseButtons.Left)return;dragging=true;dragStart=Cursor.Position;windowStart=Location;title.Capture=true;};
+            title.MouseMove+=delegate{if(dragging)Location=new Point(windowStart.X+Cursor.Position.X-dragStart.X,windowStart.Y+Cursor.Position.Y-dragStart.Y);};
+            title.MouseUp+=delegate{if(!dragging)return;dragging=false;title.Capture=false;if(UserMoved!=null)UserMoved();};
+            reading.SetBounds(0,29,400,3);reading.Style=ProgressBarStyle.Marquee;reading.MarqueeAnimationSpeed=25;reading.Visible=false;Controls.Add(reading);
+            ButtonAt(this,"Settings",298,4,65,delegate{if(SettingsRequested!=null)SettingsRequested();});
+            collapse.Text=prefs.Collapsed?"+":"-";collapse.SetBounds(369,4,25,24);Style(collapse);Controls.Add(collapse);collapse.Click+=delegate{prefs.Collapsed=!prefs.Collapsed;collapse.Text=prefs.Collapsed?"+":"-";prefs.Save();LayoutMode();};
+            summary.BackColor=BackColor;heading.BackColor=BackColor;originStatus.BackColor=BackColor;
+            summary.SetBounds(10,38,380,56);summary.ForeColor=Color.FromArgb(123,232,191);Controls.Add(summary);
+            heading.SetBounds(10,38,380,23);heading.ForeColor=Color.Cyan;Controls.Add(heading);
+            map=new CompassMap(directory);map.SetBounds(10,66,380,260);map.PositionPicked+=delegate(PointF p){selectingOrigin=true;positions.SelectedIndex=-1;positions.Text="Custom position";x.Value=Clamp((decimal)Math.Round(p.X),x);y.Value=Clamp((decimal)Math.Round(p.Y),y);selectingOrigin=false;originSelected=true;RefreshCompass(false);};map.LodestonePicked+=SelectOrigin;Controls.Add(map);
+            master.SetBounds(6,36,388,397);Controls.Add(master);
+            sliderGuide=new SlidingGuideView(directory);sliderGuide.SetBounds(10,98,380,182);Controls.Add(sliderGuide);
+            quickSlider=ButtonAt(sliderGuide,"Use quick route",174,148,178,delegate{if(QuickSliderRequested!=null)QuickSliderRequested();});
+            quickSlider.Visible=false;
+            scanMap=new ScanMap(directory,scanSession);scanMap.SetBounds(10,66,380,260);scanMap.PositionChanged+=delegate{autoFollow.Checked=false;RefreshScan();};Controls.Add(scanMap);
+            scanControls.SetBounds(10,424,380,88);Controls.Add(scanControls);
+            autoFollow.BackColor=BackColor;meerkat.BackColor=BackColor;
+            autoFollow.Text="Auto follow minimap";autoFollow.SetBounds(0,0,380,24);autoFollow.Checked=true;autoFollow.CheckedChanged+=delegate{if(scanSession.AutoTracking!=autoFollow.Checked)scanSession.SetAutomatic(autoFollow.Checked);RefreshScan();};scanControls.Controls.Add(autoFollow);
+            meerkat.Text="Meerkat (+5 paces)";meerkat.SetBounds(0,25,380,24);meerkat.CheckedChanged+=delegate{scanSession.Meerkat=meerkat.Checked;RefreshScan();};scanControls.Controls.Add(meerkat);
+            meerkat.Width=210;scanFloor.SetBounds(220,25,155,24);scanFloor.DropDownStyle=ComboBoxStyle.DropDownList;scanFloor.BackColor=Color.FromArgb(35,48,64);scanFloor.ForeColor=Color.White;scanFloor.FlatStyle=FlatStyle.Flat;scanFloor.Visible=false;scanControls.Controls.Add(scanFloor);scanFloor.BringToFront();
+            scanFloor.SelectedIndexChanged+=delegate{if(changingFloor||scanSession.Region==null||scanFloor.SelectedIndex<0)return;scanSession.Region.Level=scanSession.Region.Levels[scanFloor.SelectedIndex];scanSession.SetAutomatic(autoFollow.Checked);RefreshScan();};
+            LabelAt(scanControls,"Green box: scan range | Dashed: double range",0,54,380,30);
+            compassControls.SetBounds(10,391,380,121);Controls.Add(compassControls);
+            positions.SetBounds(0,0,304,26);positions.DropDownStyle=ComboBoxStyle.DropDown;
+            positions.AutoCompleteMode=AutoCompleteMode.SuggestAppend;positions.AutoCompleteSource=AutoCompleteSource.ListItems;
+            positions.Enter+=delegate{positions.SelectAll();};
+            positions.KeyDown+=delegate(object sender,KeyEventArgs e)
+            {
+                if(e.KeyCode!=Keys.Enter||String.IsNullOrWhiteSpace(positions.Text))return;
+                string query=positions.Text.Trim();
+                var values=positions.Items.OfType<CompassPosition>();
+                CompassPosition match=values.FirstOrDefault(v=>String.Equals(v.Name,query,StringComparison.OrdinalIgnoreCase))
+                    ??values.FirstOrDefault(v=>v.Name.StartsWith(query,StringComparison.OrdinalIgnoreCase));
+                if(match==null)return;
+                SelectOrigin(match);positions.DroppedDown=false;positions.Select(positions.Text.Length,0);e.Handled=true;e.SuppressKeyPress=true;
+            };
+            compassControls.Controls.Add(positions);
+            foreach(CompassPosition p in session.Positions)positions.Items.Add(p);
+            foreach(CompassPosition p in prefs.SavedPositions){positions.Items.Add(p);session.Positions.Add(p);}
+            ButtonAt(compassControls,"Save",310,0,70,SavePosition);
+            LabelAt(compassControls,"X",0,34,14,23);x.SetBounds(17,31,81,25);x.Maximum=6400;compassControls.Controls.Add(x);
+            LabelAt(compassControls,"Y",107,34,14,23);y.SetBounds(124,31,81,25);y.Maximum=12800;compassControls.Controls.Add(y);
+            LabelAt(compassControls,"Radius",214,34,49,23);radius.SetBounds(266,31,52,25);radius.Minimum=0;radius.Maximum=32;radius.Value=1;compassControls.Controls.Add(radius);LabelAt(compassControls,"tiles",323,34,52,23);
+            originStatus.Text="Click a lodestone on the map to choose your start.";originStatus.SetBounds(0,61,380,23);originStatus.ForeColor=Color.Gold;compassControls.Controls.Add(originStatus);
+            foreach(NumericUpDown number in new[]{x,y,radius})number.ValueChanged+=delegate{if(!selectingOrigin){originSelected=true;RefreshCompass(false);}};
+            positions.SelectedIndexChanged+=delegate{CompassPosition p=positions.SelectedItem as CompassPosition;if(p!=null&&!selectingOrigin)SelectOrigin(p);};
+            positions.TextChanged+=delegate{if(!selectingOrigin&&(positions.SelectedItem==null||!String.Equals(((CompassPosition)positions.SelectedItem).Name,positions.Text,StringComparison.OrdinalIgnoreCase))){originSelected=false;map.SelectedOrigin=null;RefreshCompass(false);}};
+            record.Text="Record direction";record.SetBounds(0,90,168,28);Style(record);compassControls.Controls.Add(record);
+            record.Click+=delegate{if(originSelected&&session.Record(SelectedPosition(),DateTime.UtcNow)){originSelected=false;map.SelectedOrigin=null;RefreshCompass(true);}};
+            undoOrContinue=ButtonAt(compassControls,"Undo",176,90,82,delegate{if(session.HasPrevious)session.ResumePrevious();else session.Undo();RefreshCompass(true);});
+            ButtonAt(compassControls,"New clue",266,90,114,delegate{session.NewClue();originSelected=false;map.SelectedOrigin=null;RefreshCompass(true);});
+            footer.SetBounds(10,102,380,28);Controls.Add(footer);
+            ButtonAt(footer,"Rescan",0,0,88,delegate{if(ScanRequested!=null)ScanRequested();});pause.Text="Pause";pause.SetBounds(98,0,88,28);Style(pause);footer.Controls.Add(pause);pause.Click+=delegate{if(PauseRequested!=null)PauseRequested();};
+            ButtonAt(footer,"Clear",196,0,88,delegate{scanSession.Clear();if(ClearRequested!=null)ClearRequested();});
+            ButtonAt(footer,"Exit",294,0,86,delegate{if(ExitRequested!=null)ExitRequested();});
+            positions.Text="";
+            SetWaiting("Open Kavros and a clue or puzzle.");
+        }
+        private void SelectOrigin(CompassPosition position)
+        {
+            selectingOrigin=true;positions.SelectedItem=position;positions.Text=position.Name;x.Value=Clamp((decimal)position.X,x);y.Value=Clamp((decimal)position.Y,y);radius.Value=Clamp((decimal)position.Radius,radius);selectingOrigin=false;originSelected=true;map.SelectedOrigin=position;RefreshCompass(false);
+        }
+        private static decimal Clamp(decimal value,NumericUpDown control){return Math.Max(control.Minimum,Math.Min(value,control.Maximum));}
+        private CompassPosition SelectedPosition(){return new CompassPosition{Name=String.IsNullOrWhiteSpace(positions.Text)?"Custom position":positions.Text,X=(float)x.Value,Y=(float)y.Value,Radius=(double)radius.Value};}
+        private void SavePosition()
+        {
+            CompassPosition p=SelectedPosition();p.Name=p.Name.Replace('\t',' ').Replace('\r',' ').Replace('\n',' ').Trim();if(p.Name.Length>80)p.Name=p.Name.Substring(0,80);
+            if(session.Positions.Any(v=>v.Name==p.Name)&&!prefs.SavedPositions.Any(v=>v.Name==p.Name))p.Name+=" (Kavros)";
+            CompassPosition old=prefs.SavedPositions.FirstOrDefault(v=>v.Name==p.Name);
+            if(old!=null){prefs.SavedPositions.Remove(old);positions.Items.Remove(old);session.Positions.Remove(old);}
+            prefs.SavedPositions.Add(p);session.Positions.Add(p);positions.Items.Add(p);positions.SelectedItem=p;prefs.Save();
+        }
+        private static void Style(Button b){b.FlatStyle=FlatStyle.Flat;b.BackColor=Color.FromArgb(35,48,64);b.ForeColor=Color.White;b.FlatAppearance.BorderColor=Color.FromArgb(62,81,104);b.Font=new Font("Segoe UI",9F);}
+        private static Button ButtonAt(Control parent,string text,int x,int y,int width,Action click){Button b=new OpaqueButton{Text=text,Left=x,Top=y,Width=width,Height=28};Style(b);parent.Controls.Add(b);b.Click+=delegate{click();};return b;}
+        private static void LabelAt(Control parent,string text,int x,int y,int w,int h){parent.Controls.Add(new Label{Text=text,Left=x,Top=y,Width=w,Height=h,BackColor=Color.FromArgb(18,23,32),ForeColor=Color.White});}
+        public void SetPaused(bool value){pause.Text=value?"Resume":"Pause";}
+        private string cardTitle="MASTER CLUE";
+        public void SetRetained(bool value){if(value)title.Text=mode==PuzzleKind.EmoteClue?cardTitle+" / SAVED":mode==PuzzleKind.Scan?scanSession.Region.Tier.ToUpperInvariant()+" SCAN / SAVED":title.Text;}
+        public void SetReading(string stage)
+        {
+            ReadingStage=stage;
+            reading.Visible=!String.IsNullOrEmpty(stage);
+            if(reading.Visible){title.Text=stage.ToUpperInvariant();reading.BringToFront();}
+        }
+        public void SetWaiting(string text)
+        {
+            if(session.HasHistory){SetCompass(false);return;}
+            mode=PuzzleKind.None;title.Text="KAVROS / CLUE HELPER";summary.Text=text;LayoutMode();
+        }
+        public void SetPuzzle(DetectedPuzzle p,string text)
+        {
+            if(p.Kind==PuzzleKind.Compass){SetCompass(false);return;}
+            if(p.Kind==PuzzleKind.Scan){scanSession.Observe(p.Scan);mode=PuzzleKind.Scan;title.Text=p.Scan.Region.Tier.ToUpperInvariant()+" SCAN";RefreshScan();LayoutMode();return;}
+            if(p.Kind==PuzzleKind.EmoteClue)cardTitle=p.Master.Tier.ToUpperInvariant()+" CLUE";
+            mode=p.Kind;title.Text=p.Kind==PuzzleKind.EmoteClue?cardTitle:p.Kind.ToString().ToUpperInvariant();summary.Text=text;
+            if(p.Kind==PuzzleKind.Sliding)sliderGuide.SetTheme(p.Theme);
+            if(p.Kind==PuzzleKind.EmoteClue){master.SetClue(p.Master,assets);if(displayedMasterId!=p.Master.Id){displayedMasterId=p.Master.Id;Invalidate(true);}}LayoutMode();
+        }
+        public void SetCompass(bool fit){mode=PuzzleKind.Compass;title.Text="ELITE COMPASS";RefreshCompass(fit);LayoutMode();}
+        public ScanRegion TrackingRegion {get{return mode==PuzzleKind.Scan&&scanSession.AutoTracking?scanSession.Region:null;}}
+        public void RestartTracking(){if(TrackingRegion!=null){scanSession.SetAutomatic(true);RefreshScan();}}
+        public void PrepareTrackingRecheck(){scanSession.PrepareRecheck();RefreshScan();}
+        public void ApplyTracking(MinimapMatch match,int region,DateTime now)
+        {if(TrackingRegion==null||TrackingRegion.Id!=region)return;scanSession.ApplyMatch(match,now);RefreshScan();}
+        public void ExpireTracking(DateTime now){if(TrackingRegion==null)return;scanSession.Expire(now);RefreshScan();}
+        private void RefreshScan()
+        {
+            if(mode!=PuzzleKind.Scan||scanSession.Region==null)return;
+            if(floorRegion!=scanSession.Region.Id)
+            {
+                changingFloor=true;scanFloor.Items.Clear();foreach(int level in scanSession.Region.Levels)scanFloor.Items.Add("Map level "+level);scanFloor.SelectedIndex=Array.IndexOf(scanSession.Region.Levels,scanSession.Region.Level);scanFloor.Visible=scanFloor.Items.Count>1;floorRegion=scanSession.Region.Id;changingFloor=false;
+            }
+            heading.Text=scanSession.Region.Name+" | "+scanSession.Range+" paces";
+            heading.ForeColor=scanSession.DifferentLevel?Color.Gold:Color.Cyan;
+            string status=scanSession.AutoTracking?scanSession.TrackingStatus:scanSession.Position.HasValue?"Manual position set. Right-click the map to move it.":"Right-click your position on the map.";
+            string guidance=scanSession.Region.Route+"\n"+(scanSession.DifferentLevel?"Different level. Check the marked floor. ":"")+"Map level "+scanSession.Region.Level+". "+status;
+            if(summary.Text!=guidance)summary.Text=guidance;
+            string key=scanSession.Region.AssetKey+":"+scanSession.Range+":"+scanSession.Position+":"+scanSession.LastKnown+":"+scanSession.PositionTracked+":"+scanSession.AutoTracking+":"+scanSession.DifferentLevel;
+            if(key!=scanPaintKey){scanPaintKey=key;scanMap.RefreshMap();}
+        }
+        public void RefreshCompass(bool fit)
+        {
+            if (mode != PuzzleKind.Compass) return;
+            if(displayedCompassGeneration!=session.Generation)
+            {
+                displayedCompassGeneration=session.Generation;selectingOrigin=true;positions.SelectedIndex=-1;positions.Text="";x.Value=0;y.Value=0;radius.Value=1;selectingOrigin=false;
+                originSelected=false;map.SelectedOrigin=null;map.Overview();
+            }
+            if(undoOrContinue!=null)undoOrContinue.Text=session.HasPrevious?"Continue":"Undo";
+            bool stable=session.Stable(DateTime.UtcNow);
+            if(mode==PuzzleKind.Compass)heading.Text=session.Current==null?"Waiting for a visible compass...":session.Current.Heading+(stable?" | stable":" | waiting for a stable reading");
+            if(mode==PuzzleKind.Compass)heading.ForeColor=Color.Cyan;
+            if(mode==PuzzleKind.Compass)summary.Text=session.Summary;
+            if(mode==PuzzleKind.Compass&&session.Candidates.Count==1&&session.Bearings.Count>=2&&!(session.Current!=null&&session.Current.Solved))
+            {
+                PointF target=session.Candidates[0];CompassPosition nearby=session.Positions.OrderBy(p=>CompassMath.Distance(p.Point,target)).FirstOrDefault();
+                if(nearby!=null)summary.Text="Matching spot: "+target.X+", "+target.Y+". Verify X before digging.\nClosest listed: "+nearby.Name+" ("+Math.Round(CompassMath.Distance(nearby.Point,target))+" tiles).";
+            }
+            if(mode==PuzzleKind.Compass)originStatus.Text=originSelected?"Start: "+positions.Text:"Type a lodestone name or click its map icon.";
+            record.Enabled=originSelected&&stable&&session.Current!=null&&!session.Current.Solved;
+            if(mode==PuzzleKind.Compass)map.SetSession(session,fit);
+        }
+        private void LayoutMode()
+        {
+            bool compass=mode==PuzzleKind.Compass,scan=mode==PuzzleKind.Scan,emote=mode==PuzzleKind.EmoteClue,sliding=mode==PuzzleKind.Sliding,expanded=!prefs.Collapsed;
+            int bottom=compass?518:scan?514:emote?442:sliding?292:102;
+            Size wanted=new Size(400,prefs.Collapsed?32:bottom+38);
+            bool changed=layoutKind!=mode||layoutCollapsed!=prefs.Collapsed||ClientSize!=wanted;
+            if(!changed)return;
+            SuspendLayout();
+            try
+            {
+                // Resize and arrange the complete card in one layout pass.
+                // Otherwise Windows can copy a footer's old pixels while the
+                // clue card grows, leaving the half-painted duplicate reported.
+                if(ClientSize!=wanted)ClientSize=wanted;
+                master.Visible=expanded&&emote;sliderGuide.Visible=expanded&&sliding;map.Visible=compassControls.Visible=expanded&&compass;
+                scanMap.Visible=scanControls.Visible=expanded&&scan;heading.Visible=expanded&&(compass||scan);
+                summary.Visible=expanded&&!emote;footer.Visible=expanded;
+                summary.Top=compass||scan?330:38;summary.Height=scan?90:56;footer.Top=bottom;footer.BringToFront();
+                layoutKind=mode;layoutCollapsed=prefs.Collapsed;
+            }
+            finally{ResumeLayout(true);}
+            Invalidate(true);
+        }
+        protected override bool ShowWithoutActivation{get{return true;}}
+        protected override CreateParams CreateParams{get{CreateParams p=base.CreateParams;p.ExStyle|=0x80;return p;}}
+        protected override void OnPaintBackground(PaintEventArgs e){using(Brush fill=new SolidBrush(BackColor))e.Graphics.FillRectangle(fill,ClientRectangle);}
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            // Paint every exposed pixel ourselves, including gaps around native
+            // child controls. Parent/child compositor buffering left these gaps
+            // showing the live game on the reported machine.
+            using(Brush fill=new SolidBrush(BackColor))e.Graphics.FillRectangle(fill,ClientRectangle);
+            base.OnPaint(e);
+            using(Pen p=new Pen(Color.FromArgb(70,104,120)))e.Graphics.DrawRectangle(p,0,0,Width-1,Height-1);
+        }
+    }
+}
