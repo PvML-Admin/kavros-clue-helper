@@ -28,6 +28,12 @@ Copy-Item -LiteralPath (Join-Path $root 'assets') -Destination (Join-Path $stage
 foreach ($doc in @('README.txt', 'LICENSE.txt', 'THIRD_PARTY.txt', 'PATCH-NOTES.md', 'CHANGELOG.md')) {
     Copy-Item -LiteralPath (Join-Path $root $doc) -Destination (Join-Path $stage $doc)
 }
+# Velopack and the GitHub release use this version's CHANGELOG section, not the whole history.
+$changelog = [IO.File]::ReadAllText((Join-Path $root 'CHANGELOG.md'))
+$match = [regex]::Match($changelog, "(?ms)^## $([regex]::Escape($version))\r?\n(.*?)(?=^## |\z)")
+if (-not $match.Success) { throw "CHANGELOG.md has no section for $version." }
+$notesPath = Join-Path $root 'release-notes.md'
+[IO.File]::WriteAllText($notesPath, ("## {0}`r`n{1}`r`n" -f $version, $match.Groups[1].Value.Trim()))
 
 $out = Join-Path $root 'release-out'
 if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Recurse -Force }
@@ -42,7 +48,7 @@ if (-not (Test-Path -LiteralPath $vpk)) { $vpk = 'vpk' }
     --packAuthors Zenity `
     --icon (Join-Path $root 'assets\branding\clue-scroll.ico') `
     --framework net48 `
-    --releaseNotes (Join-Path $root 'PATCH-NOTES.md') `
+    --releaseNotes $notesPath `
     --outputDir $out
 if ($LASTEXITCODE -ne 0) { throw "vpk $vpkVersion pack failed." }
 Get-ChildItem -LiteralPath $out | ForEach-Object { Write-Output $_.FullName }
