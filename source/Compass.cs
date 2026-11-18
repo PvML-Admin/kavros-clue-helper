@@ -1,0 +1,365 @@
+﻿// Compass geometry/calibration adapted from the MIT portions of Clue Trainer.
+// Copyright (c) 2024 Lukas Gail. See THIRD_PARTY.txt.
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+
+namespace KavrosClueHelper
+{
+    public sealed class CompassReading
+    {
+        // Mathematical radians: east=0, north=pi/2.
+        public double Angle, Error;
+        public bool Solved;
+        public int Pixels;
+        public string Heading { get { return Solved ? "X detected - dig here" : CompassMath.Bearing(Angle).ToString("0.0",CultureInfo.InvariantCulture)+" degrees"; } }
+    }
+    public static class CompassMath
+    {
+        public static double Normalize(double a) { double v=a%(2*Math.PI);return v<0?v+2*Math.PI:v; }
+        public static double Difference(double a,double b) { double d=Normalize(a-b);return d>Math.PI?d-2*Math.PI:d; }
+        public static double Bearing(double a) { return Normalize(Math.PI/2-a)*180/Math.PI; }
+        public static double Direction(PointF from,PointF to) { return Normalize(Math.Atan2(to.Y-from.Y,to.X-from.X)); }
+        public static double Distance(PointF a,PointF b) { return Math.Sqrt((a.X-b.X)*(a.X-b.X)+(a.Y-b.Y)*(a.Y-b.Y)); }
+    }
+    public sealed class CompassVision
+    {
+        public Action<string> Progress;
+        private readonly Dictionary<float,ImagePattern> anchors=new Dictionary<float,ImagePattern>();
+        private readonly Dictionary<float,Point[]> paperProbes=new Dictionary<float,Point[]>();
+        private readonly double[][] off,msaa;
+        private readonly double amplitude,phase,offset;
+        private readonly float[] scales={0.8F,1F,8F/9F,1.25F,1.5F,2F};
+        public CompassVision(string assets)
+        {
+            string dir=Path.Combine(assets,"compass");
+            foreach(float scale in scales) using(Bitmap original=new Bitmap(Path.Combine(dir,"north.png")))
+            using(Bitmap image=Pixels.Crop(original,new Rectangle(Point.Empty,original.Size),new Size((int)Math.Round(original.Width*scale),(int)Math.Round(original.Height*scale))))
+            {
+                anchors[scale]=new ImagePattern(image);var empty=new List<Point>();Pixels pixels=new Pixels(image);
+                for(int y=0;y<image.Height;y++)for(int x=0;x<image.Width;x++)if(pixels.Get(x,y).A<5)empty.Add(new Point(x,y));
+                paperProbes[scale]=empty.Where((p,i)=>i%Math.Max(1,empty.Count/8)==0).Take(8).ToArray();
+            }
+            off=ReadTable(Path.Combine(dir,"calibration-off.csv"));
+            double[][] raw=ReadTable(Path.Combine(dir,"calibration-msaa.csv"));
+            msaa=raw.Select(p=>new[]{p[0],CompassMath.Difference(Math.Atan2(-p[2],-p[1]),p[0])}).OrderBy(p=>p[0]).ToArray();
+            double max=msaa.Max(p=>p[1]),min=msaa.Min(p=>p[1]);amplitude=(max-min)/2;offset=(max+min)/2;
+            double[] hills=msaa.Where(p=>Math.Abs(max-p[1])<amplitude/10).Select(p=>p[0]%(Math.PI/2)).ToArray();
+            phase=Math.Atan2(hills.Sum(v=>Math.Sin(v)),hills.Sum(v=>Math.Cos(v)));
+            foreach(double[] p in msaa) p[1]-=Baseline(p[0]);
+        }
+        private static double[][] ReadTable(string file) { return File.ReadAllLines(file).Where(l=>l.Trim().Length>0).Select(l=>l.Split(new[] { ',' }).Select(v=>Double.Parse(v,CultureInfo.InvariantCulture)).ToArray()).ToArray(); }
+        private double Baseline(double a) { return amplitude*Math.Cos(4*(a-phase))+offset; }
+        public CompassReading Calibrate(double raw,bool antialiasing)
+        {
+            raw=CompassMath.Normalize(raw);
+            if(antialiasing)
+            {
+                int i=Array.FindLastIndex(msaa,p=>p[0]<=raw);if(i<0)i=msaa.Length-1;
+                double[] a=msaa[i],b=msaa[(i+1)%msaa.Length];
+                double t=CompassMath.Normalize(raw-a[0])/CompassMath.Normalize(b[0]-a[0]);
+                return new CompassReading{Angle=CompassMath.Normalize(raw+a[1]*(1-t)+b[1]*t+Baseline(raw)),Error=Math.PI/360};
+            }
+            int lower=Array.FindLastIndex(off,p=>p[0]<=raw);if(lower<0)lower=off.Length-1;
+            double[] below=off[lower],above=off[(lower+1)%off.Length];
+            // Include neighboring bins, as the upstream calibration does.
+            // Several reference rows can share a quantised reading. Retain all
+            // of their true angles rather than arbitrarily choosing one row.
+            int[] hits=Enumerable.Range(0,off.Length).Where(i=>raw>=off[i][0]-0.000001&&raw<=off[i][1]+0.000001).ToArray();
+            if(hits.Length>0){below=off[(hits.First()-1+off.Length)%off.Length];above=off[(hits.Last()+1)%off.Length];}
+            double from=below[3],size=CompassMath.Normalize(above[2]-from);
+            return new CompassReading{Angle=CompassMath.Normalize(from+size/2),Error=Math.Max(Math.PI/720,size/2)};
+        }
+        public DetectedPuzzle Find(Bitmap image,Pixels pixels)
+        {
+            Rectangle all=new Rectangle(Point.Empty,image.Size);
+            List<Rectangle> areas=ScrollAreas.Find(pixels);
+            foreach(float scale in scales) foreach(Rectangle area in (scale==0.8F||scale==1F?new List<Rectangle>{all}:areas)) foreach(Point anchor in anchors[scale].Find(pixels,area,12,47,q=>NorthBackground(pixels,q,scale)))
+            {
+                Rectangle body=new Rectangle(anchor.X-(int)Math.Round(78*scale),anchor.Y-(int)Math.Round(20*scale),(int)Math.Round(176*scale),(int)Math.Round(259*scale));
+                DetectedPuzzle best=null;
+                // A resampled north glyph can match one physical pixel away
+                // from the body origin. Refine that phase before reading ink.
+                for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++)
+                {
+                    Rectangle shifted=body;shifted.Offset(dx,dy);
+                    DetectedPuzzle result=Read(image,shifted,scale,pixels);
+                    if(result!=null&&(best==null||result.Compass.Solved||result.Compass.Pixels>best.Compass.Pixels))best=result;
+                }
+                if(best!=null)return best;
+            }
+            return null;
+        }
+        private bool NorthBackground(Pixels pixels,Point anchor,float scale)
+        {
+            int misses=0;
+            foreach(Point q in paperProbes[scale])
+            {Color c=pixels.Get(anchor.X+q.X,anchor.Y+q.Y);if(!(c.R>110&&c.G>80&&c.R>c.G&&c.G>c.B)&&++misses>1)return false;}
+            return true;
+        }
+        public DetectedPuzzle Read(Bitmap image,Rectangle body,float scale,Pixels supplied=null)
+        {
+            if(!anchors.ContainsKey(scale)) return null;
+            Rectangle anchor=new Rectangle(body.X+(int)Math.Round(78*scale)-1,body.Y+(int)Math.Round(20*scale)-1,anchors[scale].Size.Width+3,anchors[scale].Size.Height+3);
+            if(!new Rectangle(Point.Empty,image.Size).Contains(body))return null;
+            Pixels full=supplied??new Pixels(image);
+            if(anchors[scale].Find(full,anchor,1,47,q=>NorthBackground(full,q,scale)).Count==0) return null;
+            using(Bitmap crop=Pixels.Crop(image,body,new Size(176,259)))
+            {
+                if(crop==null)return null;
+                Pixels p=new Pixels(crop);
+                int paper=0;
+                foreach(Point q in new[]{new Point(23,67),new Point(149,67),new Point(20,210),new Point(149,210),new Point(89,45),new Point(89,230)})
+                {Color c=p.Get(q.X,q.Y);if(c.R>85 && c.G>60 && c.R>c.G && c.G>c.B)paper++;}
+                if(paper<3)return null;
+                if(Progress!=null)Progress("Reading compass...");
+                int arc=0;for(int x=34;x<146;x++)if(p.Error(x,235,Color.FromArgb(51,25,0))<38)arc++;
+                if(arc>5)return null; // The Arc/master compass is outside this release.
+                CompassReading reading=ReadArrow(p);
+                if(reading==null)return null;
+                if(!reading.Solved)reading.Error=Math.Max(reading.Error,Math.PI/180*(scale<1?1.0:0.5));
+                return new DetectedPuzzle{Kind=PuzzleKind.Compass,Bounds=body,Grid=new Rectangle(body.X+(int)Math.Round(4*scale),body.Y+(int)Math.Round(52*scale),(int)Math.Round(171*scale),(int)Math.Round(171*scale)),Scale=scale,Compass=reading,Confidence=0.97};
+            }
+        }
+        private CompassReading ReadArrow(Pixels p)
+        {
+            const int cx=89,cy=137,n=171;
+            Point[] cross={new Point(-15,-15),new Point(-14,-14),new Point(-13,-13),new Point(-12,-12),new Point(12,12),new Point(11,11),new Point(10,10),new Point(9,9),new Point(13,-16),new Point(12,-15),new Point(11,-14),new Point(10,-13),new Point(-15,10),new Point(-14,9),new Point(-13,8),new Point(-12,7)};
+            for(int oy=-9;oy<=9;oy++)for(int ox=-9;ox<=9;ox++)
+            {
+                int hits=0;
+                foreach(Point q in cross)
+                {
+                    bool grey=false;
+                    for(int sy=-1;sy<=1&&!grey;sy++)for(int sx=-1;sx<=1;sx++)
+                    {Color c=p.Get(cx+ox+q.X+sx,cy+oy+q.Y+sy);if(c.R>=65&&c.R<165&&Math.Abs(c.R-c.G)<12&&Math.Abs(c.G-c.B)<12){grey=true;break;}}
+                    if(grey)hits++;
+                }
+                if(hits>=15)
+                {
+                    int outside=0;
+                    foreach(Point q in new[]{new Point(18,0),new Point(-18,0),new Point(0,18),new Point(0,-18)})
+                    {Color c=p.Get(cx+ox+q.X,cy+oy+q.Y);if(!(c.R>=65&&c.R<165&&Math.Abs(c.R-c.G)<12&&Math.Abs(c.G-c.B)<12))outside++;}
+                    if(outside>=3)return new CompassReading{Solved=true};
+                }
+            }
+            var points=new List<Point>();var queue=new Queue<Point>();bool[] visited=new bool[n*n];bool aa=false;
+            queue.Enqueue(new Point(85,85));
+            while(queue.Count>0)
+            {
+                Point q=queue.Dequeue();if(q.X<0||q.Y<0||q.X>=n||q.Y>=n)continue;
+                int index=q.Y*n+q.X;if(visited[index])continue;visited[index]=true;
+                Color c=p.Get(cx-85+q.X,cy-85+q.Y);
+                if(c.R>=5||c.G>=5||c.B>=5)
+                {if(Math.Abs(q.X-85)<15&&Math.Abs(q.Y-85)<15&&c.R+c.G+c.B<250)aa=true;continue;}
+                points.Add(q);
+                for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++)if(x!=0||y!=0)queue.Enqueue(new Point(q.X+x,q.Y+y));
+            }
+            if(points.Count<(aa?1650:2100)||points.Count>2350)return null;
+            double mx=(points.Min(q=>q.X)+points.Max(q=>q.X))/2.0,my=(points.Min(q=>q.Y)+points.Max(q=>q.Y))/2.0;
+            double dx=points.Average(q=>q.X)-mx,dy=points.Average(q=>q.Y)-my;
+            if(dx*dx+dy*dy<0.3)return null;
+            double initial=CompassMath.Normalize(Math.Atan2(-dy,dx)),sin=0,cos=0;
+            foreach(Point q in points)
+            {
+                double x=q.X-mx,y=my-q.Y,w=x*x+y*y;if(w==0)continue;
+                double angle=CompassMath.Normalize(Math.Atan2(y,x));
+                if(Math.Abs(CompassMath.Difference(angle,initial))>Math.PI/2)angle=CompassMath.Normalize(angle-Math.PI);
+                sin+=w*Math.Sin(angle);cos+=w*Math.Cos(angle);
+            }
+            CompassReading reading=Calibrate(Math.Atan2(sin,cos),aa);reading.Pixels=points.Count;return reading;
+        }
+    }
+    public sealed class CompassPosition
+    {
+        public string Name;public float X,Y;public double Radius=1;
+        public PointF Point {get{return new PointF(X,Y);}}
+        public override string ToString(){return Name;}
+    }
+    public sealed class CompassBearing
+    {
+        public CompassPosition Position;public double Angle,Error;
+    }
+    public sealed class CompassSession
+    {
+        public readonly List<CompassBearing> Bearings=new List<CompassBearing>();
+        public readonly List<PointF> AllSpots;
+        public readonly List<CompassPosition> Positions;
+        public List<PointF> Candidates {get;private set;}
+        public CompassReading Current {get;private set;}
+        public PointF? Intersection {get;private set;}
+        private DateTime first,last;
+        private int frames;
+        private double reference;
+        private List<CompassBearing> prior;
+        private bool hidden;
+        public bool HasPrevious { get { return prior != null; } }
+        public bool HasHistory { get { return Bearings.Count != 0 || HasPrevious; } }
+
+        private void ParkBearings()
+        {
+            if (Bearings.Count == 0 || HasPrevious) return;
+            prior = new List<CompassBearing>(Bearings);
+            Bearings.Clear();
+            Recalculate();
+        }
+
+        private static bool SameBearing(CompassBearing a, CompassBearing b)
+        {
+            return CompassMath.Distance(a.Position.Point, b.Position.Point) < 0.1 &&
+                Math.Abs(CompassMath.Difference(a.Angle, b.Angle)) < Math.PI / 360;
+        }
+
+        private void RestorePrevious()
+        {
+            var fresh = new List<CompassBearing>(Bearings);
+            Bearings.Clear();
+            Bearings.AddRange(prior);
+            prior = null;
+            foreach (var b in fresh)
+                if (!Bearings.Any(old => SameBearing(old, b))) Bearings.Add(b);
+            Recalculate();
+        }
+
+        public void ResumePrevious()
+        {
+            if (HasPrevious) RestorePrevious();
+        }
+
+        // Allow some extra error before contradicting an already triangulated
+        // spot. A reading at or next to the target is directionally ambiguous.
+        private static bool ClearlyMisses(PointF spot, CompassBearing b)
+        {
+            if (CompassMath.Distance(spot, b.Position.Point) < 12 + 3 * b.Position.Radius) return false;
+            var relaxed = new CompassBearing {
+                Position = new CompassPosition { X = b.Position.X, Y = b.Position.Y, Radius = b.Position.Radius + 5 },
+                Angle = b.Angle, Error = b.Error + Math.PI / 36
+            };
+            return !Matches(spot, relaxed);
+        }
+
+        private PointF? previousTarget;
+
+        private void AddReading(CompassBearing reading)
+        {
+            PointF? target = HasPrevious ? previousTarget : ConfirmedTarget();
+            if (target.HasValue && ClearlyMisses(target.Value, reading))
+            {
+                // Even an uninterrupted capture can miss a very brief X.
+                if (!HasPrevious) Bearings.Clear();
+                prior = null;
+                previousTarget = null;
+                Generation++;
+            }
+            else if (!HasPrevious && Bearings.Any(b =>
+                CompassMath.Distance(b.Position.Point, reading.Position.Point) < 0.1 &&
+                Math.Abs(CompassMath.Difference(b.Angle, reading.Angle)) > Math.PI / 9))
+            {
+                previousTarget = target;
+                ParkBearings();
+            }
+            Bearings.Add(reading);
+            Recalculate();
+            if (!HasPrevious) return;
+
+            // A known target compatible with both sets lets normal teleport
+            // triangulation resume on the player's next Record direction.
+            bool compatible = Candidates.Any(p => prior.All(b => Matches(p, b)));
+            bool independent = Bearings.Any(b => prior.Any(old => CompassMath.Distance(old.Position.Point, b.Position.Point) > 8 &&
+                Math.Abs(Math.Sin(old.Angle - b.Angle)) > 0.12));
+            // A single ray can point through two dig spots. Once an old session
+            // had a crossing, only fresh triangulation (or Continue) restores it.
+            if (compatible && (prior.Count == 1 && independent || ConfirmedTarget().HasValue)) RestorePrevious();
+            else if (ConfirmedTarget().HasValue)
+            {
+                // Fresh independent lines now establish their own destination.
+                prior = null;
+                previousTarget = null;
+                Generation++;
+            }
+        }
+
+        private PointF? ConfirmedTarget()
+        {
+            if (Bearings.Count < 2 || Candidates.Count != 1 || !Intersection.HasValue) return null;
+            PointF candidate = Candidates[0];
+            return CompassMath.Distance(candidate, Intersection.Value) <= 12 ? (PointF?)candidate : null;
+        }
+
+        private bool wasSolved;
+        public int Generation {get;private set;}
+        public CompassSession(string assets)
+        {
+            string dir=Path.Combine(assets,"compass");
+            AllSpots=File.ReadAllLines(Path.Combine(dir,"elite-spots.csv")).Select(l=>l.Split(new[] { ',' })).Select(p=>new PointF(Int32.Parse(p[0]),Int32.Parse(p[1]))).ToList();
+            Positions=File.ReadAllLines(Path.Combine(dir,"positions.tsv")).Select(l=>l.Split(new[] { '\t' })).Select(p=>new CompassPosition{Name=LodestoneNames.Clean(p[0]),X=Int32.Parse(p[1]),Y=Int32.Parse(p[2]),Radius=Double.Parse(p[3],CultureInfo.InvariantCulture)}).ToList();
+            Candidates=new List<PointF>(AllSpots);
+        }
+        public void Observe(CompassReading reading,DateTime now)
+        {
+            if (reading == null) { hidden = true; Current = null; frames = 0; return; }
+            if (!reading.Solved && !wasSolved && hidden && (now-last).TotalMilliseconds >= 650 && Bearings.Count > 0 && !HasPrevious)
+            {
+                previousTarget = ConfirmedTarget();
+                ParkBearings();
+            }
+            hidden = false;
+            if(wasSolved&&!reading.Solved){NewClue();wasSolved=false;}
+            bool restart=Current==null||now-last>TimeSpan.FromSeconds(1.5)||reading.Solved!=wasSolved||(!reading.Solved&&Math.Abs(CompassMath.Difference(reference,reading.Angle))>Math.PI/450);
+            Current=reading;last=now;
+            if(restart){first=now;frames=0;reference=reading.Angle;wasSolved=reading.Solved;}
+            frames++;
+        }
+        public bool Stable(DateTime now){return Current!=null&&frames>=3&&(last-first).TotalMilliseconds>=180&&(now-last).TotalMilliseconds<=1500;}
+        public bool Record(CompassPosition position,DateTime now)
+        {
+            if(!Stable(now)||Current.Solved||position==null||position.X<0||position.Y<0||position.X>6400||position.Y>12800||position.Radius<0||position.Radius>32)return false;
+            if(Bearings.Any(b=>CompassMath.Distance(b.Position.Point,position.Point)<0.1&&Math.Abs(CompassMath.Difference(b.Angle,Current.Angle))<Math.PI/360))return false;
+            AddReading(new CompassBearing{Position=new CompassPosition{Name=position.Name,X=position.X,Y=position.Y,Radius=position.Radius},Angle=Current.Angle,Error=Math.Max(Math.PI/240,Current.Error+Math.PI/720)});
+            return true;
+        }
+        public static bool Matches(PointF spot,CompassBearing b)
+        {
+            double distance=CompassMath.Distance(spot,b.Position.Point);if(distance<=b.Position.Radius+0.75)return true;
+            double angle=CompassMath.Direction(b.Position.Point,spot),difference=Math.Abs(CompassMath.Difference(angle,b.Angle));
+            return difference<Math.PI/2 && distance*Math.Sin(difference)<=distance*Math.Sin(b.Error)+b.Position.Radius+0.75;
+        }
+        private void Recalculate()
+        {
+            Candidates=AllSpots.Where(p=>Bearings.All(b=>Matches(p,b))).ToList();Intersection=null;
+            if(Bearings.Count<2)return;
+            double xx=0,xy=0,yy=0,bx=0,by=0;
+            foreach(CompassBearing b in Bearings)
+            {
+                double nx=-Math.Sin(b.Angle),ny=Math.Cos(b.Angle),c=nx*b.Position.X+ny*b.Position.Y;
+                xx+=nx*nx;xy+=nx*ny;yy+=ny*ny;bx+=nx*c;by+=ny*c;
+            }
+            double determinant=xx*yy-xy*xy;
+            if(determinant<0.003*(xx+yy)*(xx+yy))return;
+            PointF target=new PointF((float)((bx*yy-by*xy)/determinant),(float)((by*xx-bx*xy)/determinant));
+            if(target.X<0||target.X>6400||target.Y<0||target.Y>12800)return;
+            if(Bearings.All(b=>Matches(target,b)))Intersection=target;
+        }
+        public void Undo(){if(Bearings.Count>0)Bearings.RemoveAt(Bearings.Count-1);Recalculate();}
+        public void NewClue(){Generation++;prior=null;previousTarget=null;hidden=false;Bearings.Clear();Current=null;frames=0;wasSolved=false;Recalculate();}
+        public string Summary
+        {
+            get
+            {
+                if(Current!=null&&Current.Solved)return "The compass shows X. Dig at your current position.";
+                if (HasPrevious) return Bearings.Count == 0
+                    ? "Compass reopened. Record a direction to check earlier lines, or select Continue if this is the same clue."
+                    : "Earlier lines are on hold. Record from another lodestone to confirm this destination.";
+                if(Bearings.Count==0)return "Select your actual location, stand still, then record the direction.";
+                if(Bearings.Count>=2&&!Intersection.HasValue)return "The lines do not cross reliably. Take a third reading from a different lodestone.";
+                if(Intersection.HasValue&&Candidates.Count!=1)return "Estimated crossing: "+Math.Round(Intersection.Value.X)+", "+Math.Round(Intersection.Value.Y)+". "+Candidates.Count+" standard spots match. Verify the compass X at the destination.";
+                if(Candidates.Count==0)return "No standard spot matches. Check the recorded positions, or start a new clue.";
+                if(Candidates.Count==1&&Bearings.Count>=2)return "One matching dig spot: "+Candidates[0].X+", "+Candidates[0].Y+". Travel there and verify X before digging.";
+                return Candidates.Count+" possible dig spots. Take a reading from another known location.";
+            }
+        }
+    }
+}
