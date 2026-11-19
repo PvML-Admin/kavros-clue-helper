@@ -2550,12 +2550,11 @@ Final step: Search the crate by the wall at the marker.
 
 Tile 3312, 3528 | level 0</details>
   </clue>
-  <clue id="59" tier="hard" type="map" heading="Lava craters in deep Wilderness" action="Dig" x="3021" y="3913" width="1" height="1" level="0">
+  <clue id="59" tier="hard" type="map" heading="Lava craters south of the Wilderness Agility Course" action="Dig" x="3021" y="3913" width="1" height="1" level="0">
     <text>X marks the spot between three small volcanoes.</text>
-    <details>Fastest: Ctrl+T &gt; Skilling &gt; Agility &gt; 52 - Wilderness Course, then run east to the craters east of the course.
-Alternatively: Ancient spellbook &gt; Ghorrock Teleport (Frozen Waste Plateau), run north-east to the craters.
-Third option: Ctrl+T &gt; Skilling &gt; Prayer &gt; Wilderness Chaos Altar, run north-east to the craters.
-Final step: Find the large geyser and dig two tiles west of it.
+    <details>Fastest: Ctrl+T &gt; Skilling &gt; Agility &gt; 52 - Wilderness Course, then walk a few steps south.
+Alternatively: Ctrl+T &gt; Slayer &gt; Level 99+ &gt; Abyssal Beasts, step into the obelisk just north of the landing &gt; 5. More &gt; 1. Level 44, then run north-east to the craters.
+Final step: Dig by the stumps, south of the Wilderness Agility Course gate.
 
 Tile 3021, 3913 | level 0</details>
   </clue>

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -17,6 +18,28 @@ namespace KavrosClueHelper
             try
             {
                 var reader=new ReferenceClueReader(assets);
+                string stump=Path.Combine(assets,"test_assets","reported","unread-treasure-map.png");
+                check(File.Exists(stump),"wilderness stump map screenshot");
+                using(Bitmap shot=new Bitmap(stump))
+                {
+                    DetectedPuzzle p=reader.Detect(shot,new Pixels(shot));
+                    check(p!=null&&p.Master.Id==59,"stump map screenshot is clue 59, scores="+reader.MapScores);
+                    string scores=reader.MapScores??"";
+                    int slash=scores.LastIndexOf(" / ",StringComparison.Ordinal);
+                    check(slash>0,"stump map is ranked against another map");
+                    string best=scores.Substring(0,slash);
+                    best=best.Substring(best.LastIndexOf(' ')+1);
+                    string other=scores.Substring(slash+3).Trim();
+                    check(best.StartsWith("59:",StringComparison.Ordinal),"winner is clue 59, not another map: "+scores);
+                    check(other.StartsWith("59:",StringComparison.Ordinal)==false,"runner-up is a different map: "+scores);
+                    double bestScore=Double.Parse(best.Substring(best.IndexOf(':')+1),CultureInfo.InvariantCulture);
+                    double otherScore=Double.Parse(other.Substring(other.IndexOf(':')+1),CultureInfo.InvariantCulture);
+                    check(bestScore>=0.83&&bestScore-otherScore>=0.07,"stump map stays clear of the other maps "+scores);
+                    log.AppendLine("Stump map screenshot "+scores);
+                }
+                ReferenceClue craters=reader.Clues.First(c=>c.Card.Id==59);
+                check(craters.Card.Travel.IndexOf("walk a few steps south",StringComparison.Ordinal)>=0,"wilderness course walk is a few steps south");
+                check(craters.Card.Travel.IndexOf("1. Level 44",StringComparison.Ordinal)>=0,"level 44 obelisk is the other way");
                 foreach(ReferenceClue c in reader.Clues.Where(c=>c.Type!="map"))foreach(string text in c.Text)
                 {ReferenceClue found=reader.MatchText(text);check(found!=null&&found.Card.Id==c.Card.Id,"Text mapping "+c.Card.Id+": "+text);}
                 foreach(string text in new[]{"","Beware of double agents!","Search","You are scanning on a different level.","Open a supported clue or puzzle.","This is an unrelated note on parchment.","This anagram reveals who to speak to next: NOT A REAL NPC"})check(reader.MatchText(text)==null,"False positive "+text);

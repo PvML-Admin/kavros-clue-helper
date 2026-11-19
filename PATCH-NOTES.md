@@ -1,3 +1,7 @@
+# Kavros Clue Helper v0.7.2
+
+Pending release. The Wilderness Agility Course stump map is recognised from the in-game treasure map. The dig is a few steps south of the course gate, by the stumps.
+
 # Kavros Clue Helper v0.7.1
 
 v0.7.1: fairy ring codes and walks were checked against the wiki list. ALP is no longer used for the Lighthouse or the Barbarian Outpost shore. A Fastest fairy ring step says "(portable fairy ring required to be the fastest)". 26 clues gained a fairy ring option.
