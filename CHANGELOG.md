@@ -1,5 +1,20 @@
 # Kavros Clue Helper
 
+## 0.7.6
+
+Thanks to PvML-Admin for this one.
+
+**Clue cards**
+- Every card, easy through master, is laid out on its own lines: Fastest, Alternatively, Third option, Final step, and Clue.
+
+**Tracking**
+- The lockbox no longer flickers off on a single misread frame. The last solution stays until the puzzle is really gone.
+- Scan tracking holds your position through missed frames, then picks you up again without a manual step.
+- The tower puzzle locks on faster while the grid is opening.
+
+**Panel**
+- The yellow search bar is removed.
+
 ## 0.7.5
 
 **Maps**

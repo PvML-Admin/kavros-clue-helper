@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.6
+
+v0.7.6: Clue cards use Fastest, Alternatively, Third option, Final step, and Clue. The lockbox no longer flickers. Scan tracking holds your position through missed frames. The tower puzzle locks on faster. The yellow search bar is removed. Thanks to PvML-Admin.
+
+Settings shows **Made by Zenity · v0.7.6**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.5
 
 v0.7.5: Master emote cards use the full-width map. Lodestone icons are drawn on every map, and the round compass replaces the letter N. Elite and master routes are filled in. Jatizso and Neitiznot use Ctrl+T > Monsters > Yaks. Mos Le'Harmless is not available on Kavros.
