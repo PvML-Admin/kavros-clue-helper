@@ -110,7 +110,7 @@ namespace KavrosClueHelper
             text=Regex.Replace(text,@"\b([0-9il])\s+([0-9il]) paces\b",m=>m.Groups[1].Value+m.Groups[2].Value+" paces");
             text=Regex.Replace(text,@"\b[0-9il]{1,2} paces\b",m=>m.Value.Replace('i','1').Replace('l','1'));
             if(!text.Contains("scan")||!text.Contains("range")||!text.Contains("orb")||!text.Contains("paces"))return null;
-            var matches=Regions.Where(r=>r.Tier=="elite"&&(Regex.IsMatch(text,@"\b"+r.BaseRange+@" paces\b")||Regex.IsMatch(text,@"\b"+(r.BaseRange+5)+@" paces\b"))&&(r.Aliases.Any(a=>ContainsRegion(text,a))||r.Id==367&&ContainsRegion(text,"wilderness volcano")||r.Id==349&&ContainsRegion(text,"east of the elid and north of nardah"))).ToArray();
+            var matches=Regions.Where(r=>r.Tier=="elite"&&r.Id!=358&&(Regex.IsMatch(text,@"\b"+r.BaseRange+@" paces\b")||Regex.IsMatch(text,@"\b"+(r.BaseRange+5)+@" paces\b"))&&(r.Aliases.Any(a=>ContainsRegion(text,a))||r.Id==367&&ContainsRegion(text,"wilderness volcano")||r.Id==349&&ContainsRegion(text,"east of the elid and north of nardah"))).ToArray();
             return matches.Length==1?matches[0]:null;
         }
         private ScanRegion MatchScrollTranscript(string raw)
@@ -120,7 +120,7 @@ namespace KavrosClueHelper
             Match range=Regex.Match(text,@"\b([0-9il]{1,2})\s+pace[a-z]?\b");
             if(!range.Success)return MatchRegionOnly(text);
             int value;if(!Int32.TryParse(range.Groups[1].Value.Replace('i','1').Replace('l','1'),out value))return null;
-            var matches=Regions.Where(r=>r.Tier=="elite"&&(r.BaseRange==value||r.BaseRange+5==value)&&(r.Aliases.Any(a=>ContainsRegion(text,a))||r.Id==367&&ContainsRegion(text,"wilderness volcano")||r.Id==349&&ContainsRegion(text,"east of the elid and north of nardah"))).ToArray();
+            var matches=Regions.Where(r=>r.Tier=="elite"&&r.Id!=358&&(r.BaseRange==value||r.BaseRange+5==value)&&(r.Aliases.Any(a=>ContainsRegion(text,a))||r.Id==367&&ContainsRegion(text,"wilderness volcano")||r.Id==349&&ContainsRegion(text,"east of the elid and north of nardah"))).ToArray();
             if(matches.Length==0)return MatchRegionOnly(text);
             return matches.Length==1?matches[0]:null;
         }
@@ -129,7 +129,7 @@ namespace KavrosClueHelper
         {
             if(text.Contains("nothing scans")||text.Contains("range of this orb")||!ScanStates.Any(s=>text.Contains(s)))return null;
             int best=0;ScanRegion winner=null;bool tie=false;
-            foreach(ScanRegion r in Regions.Where(r=>r.Tier=="elite"))
+            foreach(ScanRegion r in Regions.Where(r=>r.Tier=="elite"&&r.Id!=358))
             {
                 var names=r.Aliases.Concat(r.Id==367?new[]{"wilderness volcano"}:new string[0]).Concat(r.Id==349?new[]{"east of the elid and north of nardah"}:new string[0]);
                 int length=names.Where(a=>ContainsRegion(text,a)).Select(a=>ReferenceClueReader.Normalize(a).Length).DefaultIfEmpty(0).Max();
@@ -426,7 +426,7 @@ namespace KavrosClueHelper
                 LodestoneIcons.Draw(g,p,stone.Name,false,assets);
             }
             if(displayed.HasValue){PointF p=ScreenPoint(displayed.Value);g.FillEllipse(Brushes.Black,p.X-7,p.Y-7,14,14);g.FillEllipse(oldPosition?Brushes.Silver:Brushes.Yellow,p.X-4,p.Y-4,8,8);g.DrawEllipse(Pens.White,p.X-6,p.Y-6,12,12);}
-            TextRenderer.DrawText(g,"N",Font,new Point(Width-20,3),Color.White,Color.Black);
+            LodestoneIcons.DrawCompass(g,Font,new Rectangle(0,0,Width,Height),assets);
         }
         protected override void Dispose(bool disposing){if(disposing&&background!=null)background.Dispose();base.Dispose(disposing);}
     }
