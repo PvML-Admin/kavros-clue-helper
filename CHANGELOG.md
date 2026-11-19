@@ -1,5 +1,12 @@
 # Kavros Clue Helper
 
+## 0.7.2
+
+Pending release.
+
+**Treasure map**
+- The Wilderness Agility Course stump map is recognised from the in-game treasure map scroll. The dig is a few steps south of the Wilderness Course gate, by the stumps. The level 44 wilderness obelisk, then north-east, is the other way.
+
 ## 0.7.1
 
 **Fairy rings**
