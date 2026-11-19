@@ -2,10 +2,8 @@
 
 ## 0.7.4
 
-Pending release.
-
 **Settings and input**
-- Settings opens in front of the floating panel and can be used. The panel is no longer pushed to the front on a timer, so it does not take the mouse away from the game. It still stays above other windows, without activating, while Settings is closed.
+- Settings opens in front of the floating panel and can be used. The panel is no longer pushed to the front on a timer, so it does not take the mouse away from the game. That was the lag and the camera that would not turn. The panel still stays above other windows, without activating, while Settings is closed.
 
 ## 0.7.3
 
