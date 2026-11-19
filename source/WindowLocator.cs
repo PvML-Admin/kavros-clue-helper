@@ -33,11 +33,28 @@ namespace KavrosClueHelper
         }
         public static GameWindow Choose(IEnumerable<GameWindow> windows, IntPtr current, IntPtr foreground)
         {
+            return Choose(windows, current, 0, foreground);
+        }
+        // A chosen client stays chosen. Focus, z-order and a second Kavros window never replace it.
+        // A lost handle is reattached only to a window of the same process. A different process is ignored.
+        public static GameWindow Choose(IEnumerable<GameWindow> windows, IntPtr current, uint processId, IntPtr foreground)
+        {
             List<GameWindow> games = windows.Where(w => Score(w) >= 100).OrderByDescending(Score).ThenBy(w => w.Title).ToList();
+            GameWindow existing = games.Find(w => w.Handle == current);
+            if (existing != null) return existing;
+            if (processId != 0)
+            {
+                GameWindow sameProcess = games.Find(w => w.ProcessId == processId);
+                if (sameProcess != null) return sameProcess;
+                if (current != IntPtr.Zero) return null;
+            }
+            if (current != IntPtr.Zero)
+            {
+                if (games.Count == 1) return games[0];
+                return null;
+            }
             GameWindow focused = games.Find(w => w.Handle == foreground);
             if (focused != null && Score(focused) >= Score(games[0]) - 50) return focused;
-            GameWindow existing = games.Find(w => w.Handle == current);
-            if (existing != null && (games.Count == 0 || Score(games[0]) <= Score(existing))) return existing;
             return games.FirstOrDefault();
         }
         public static List<GameWindow> Enumerate(int excludedProcessId)

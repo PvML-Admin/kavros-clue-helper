@@ -67,7 +67,11 @@ namespace KavrosClueHelper
             return new Rectangle(Math.Max(area.Left,Math.Min(x,area.Right-panel.Width)),Math.Max(area.Top,Math.Min(y,area.Bottom-panel.Height)),panel.Width,panel.Height);
         }
         public static bool Visible(bool enabled,bool offline,bool gameExists,bool minimised,bool gameForeground,bool panelFocused,bool settingsFocused)
-        {return enabled&&!offline&&!minimised&&(!gameExists||gameForeground||panelFocused||settingsFocused);}
+        {
+            // Another application, or this helper, having focus must not hide the panel.
+            // Minimising the chosen client still does.
+            return enabled&&!offline&&!minimised;
+        }
     }
     public sealed class CompassMap : Control
     {
@@ -248,7 +252,7 @@ namespace KavrosClueHelper
         {
             assets=directory;session=compass;prefs=preferences;
             FormClosing+=delegate(object sender,FormClosingEventArgs e){if(e.CloseReason==CloseReason.UserClosing){e.Cancel=true;Hide();}};
-            FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=false;DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;
+            FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;
             SetStyle(ControlStyles.UserPaint|ControlStyles.Opaque|ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
             ClientSize=new Size(400,140);BackColor=KavrosTheme.Bg;ForeColor=KavrosTheme.Text;Font=KavrosTheme.Ui(9F,false);
             title.SetBounds(0,0,294,32);title.TextAlign=ContentAlignment.MiddleLeft;title.Padding=new Padding(10,0,0,0);title.Font=new Font(Font,FontStyle.Bold);title.BackColor=KavrosTheme.BgRaise;Controls.Add(title);

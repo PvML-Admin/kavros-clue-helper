@@ -315,6 +315,7 @@ namespace KavrosClueHelper
             Rectangle desktop=exists?Screen.FromRectangle(game).WorkingArea:Screen.PrimaryScreen.WorkingArea;
             Rectangle placement=FloatingPanelLayout.Place(game,floatingPanel.Size,preferences.Offset,desktop);
             if(!floatingPanel.IsDragging&&floatingPanel.Bounds!=placement)floatingPanel.Bounds=placement;
+            floatingPanel.TopMost=true;
             if(!floatingPanel.Visible)floatingPanel.Show();
         }
         private void ShowMasterView(bool show)
@@ -369,7 +370,8 @@ namespace KavrosClueHelper
         private void AttachWindow()
         {
             GameWindow choice = windows.SelectedItem as GameWindow;
-            GameWindow next = choice != null && !choice.Automatic && Native.IsWindow(choice.Handle) ? choice : WindowLocator.Choose(availableWindows, SelectedWindow, Native.GetForegroundWindow());
+            uint boundProcess = attachedWindow == null ? 0 : attachedWindow.ProcessId;
+            GameWindow next = choice != null && !choice.Automatic && Native.IsWindow(choice.Handle) ? choice : WindowLocator.Choose(availableWindows, SelectedWindow, boundProcess, Native.GetForegroundWindow());
             IntPtr previous = SelectedWindow;
             attachedWindow = next;
             if (SelectedWindow != previous)
