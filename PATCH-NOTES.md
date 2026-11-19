@@ -1,6 +1,8 @@
 # Kavros Clue Helper v0.7.5
 
-Not released yet. Master emote cards use the full-width map. Lodestone icons are drawn on clue maps when the stone is in view, and the round compass sits in the top-right corner. Elite and master routes are filled in. Mos Le'Harmless says it is not available on Kavros.
+v0.7.5: Master emote cards use the full-width map. Lodestone icons are drawn on every map, and the round compass replaces the letter N. Elite and master routes are filled in. Jatizso and Neitiznot use Ctrl+T > Monsters > Yaks. Mos Le'Harmless is not available on Kavros.
+
+Settings shows **Made by Zenity · v0.7.5**. The full notes are in CHANGELOG.md.
 
 # Kavros Clue Helper v0.7.4
 
