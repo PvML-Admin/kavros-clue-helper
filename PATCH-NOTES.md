@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.3
+
+v0.7.3: the helper stays on the Kavros window you chose. Another client in front does not take over. The floating panel stays visible when you click another application.
+
+Settings shows **Made by Zenity · v0.7.3**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.2
 
 v0.7.2: the Wilderness Agility Course stump treasure map is recognised. The dig is a few steps south of the course gate, by the stumps. The level 44 wilderness obelisk, then north-east, is the other way.

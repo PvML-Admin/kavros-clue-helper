@@ -1,5 +1,13 @@
 # Kavros Clue Helper
 
+## 0.7.3
+
+**Client**
+- The helper stays on the Kavros window you chose. Another client getting focus, or sitting in front, does not take over reading or tracking. If that window closes, it is found again only by the same process.
+
+**Panel**
+- The floating panel stays on screen and above other windows when you click another application or the game loses focus. Exit, Pause and the minimise button behave as before. Minimising the chosen game still hides the panel.
+
 ## 0.7.2
 
 **Treasure map**

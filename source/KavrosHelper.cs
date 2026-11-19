@@ -289,7 +289,8 @@ namespace KavrosClueHelper
             foreach (GameWindow window in found) windows.Items.Add(window);
             int selected = found.FindIndex(w => w.Handle == previous);
             if (selected >= 0) windows.SelectedIndex = selected;
-            else if (found.Count > 0) windows.SelectedIndex = 0;
+            else if (previous == IntPtr.Zero && found.Count == 1) windows.SelectedIndex = 0;
+            else windows.SelectedIndex = -1;
         }
 
         private IntPtr SelectedWindow { get { GameWindow window = windows.SelectedItem as GameWindow; return window == null ? IntPtr.Zero : window.Handle; } }
