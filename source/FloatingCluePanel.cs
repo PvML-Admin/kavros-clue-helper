@@ -335,7 +335,8 @@ namespace KavrosClueHelper
         private static void LabelAt(Control parent,string text,int x,int y,int w,int h){parent.Controls.Add(new Label{Text=text,Left=x,Top=y,Width=w,Height=h,BackColor=KavrosTheme.Bg,ForeColor=KavrosTheme.Text});}
         public void SetPaused(bool value){pause.Text=value?"Resume":"Pause";}
         private string cardTitle="MASTER CLUE";
-        public void SetRetained(bool value){if(value)title.Text=mode==PuzzleKind.EmoteClue?cardTitle+" / SAVED":mode==PuzzleKind.Scan?scanSession.Region.Tier.ToUpperInvariant()+" SCAN / SAVED":title.Text;}
+        private bool retained;
+        public void SetRetained(bool value){if(retained!=value){retained=value;title.Invalidate();}if(value)title.Text=mode==PuzzleKind.EmoteClue?cardTitle+" / SAVED":mode==PuzzleKind.Scan?scanSession.Region.Tier.ToUpperInvariant()+" SCAN / SAVED":title.Text;}
         public void SetReading(string stage)
         {
             ReadingStage=stage;

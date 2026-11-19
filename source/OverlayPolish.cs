@@ -33,6 +33,13 @@ namespace KavrosClueHelper
             // compass/scan/slider tools and footer must continue to fit.
         }
 
+        // A saved clue stays on the panel after its scroll closes, but it is
+        // marked as closed so Found only shows while the scroll is open.
+        internal static string TitlePill(bool notFound, bool retained, PuzzleKind mode)
+        {
+            return notFound ? "Not found" : retained ? "Scroll closed" : mode == PuzzleKind.EmoteClue ? "Clue found" : "Found";
+        }
+
         private void DrawOverlayTitle(Graphics g, PaintedLabel label)
         {
             Color surface = KavrosTheme.BgRaise;
@@ -51,8 +58,8 @@ namespace KavrosClueHelper
             }
             else
             {
-                string pill = notFound ? "Not found" : mode == PuzzleKind.EmoteClue ? "Clue found" : "Found";
-                PillTone tone = notFound ? PillTone.Bad : PillTone.Ok;
+                string pill = TitlePill(notFound, retained, mode);
+                PillTone tone = notFound ? PillTone.Bad : retained ? PillTone.Example : PillTone.Ok;
                 width = KavrosTheme.DrawPill(g, 10, 17, pill, tone, surface);
             }
             // Existing status/title remains visible alongside the pill. The
