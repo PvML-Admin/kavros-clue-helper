@@ -14,7 +14,7 @@ namespace KavrosClueHelper
             else if(p.Kind!=PuzzleKind.EmoteClue&&p.Kind!=PuzzleKind.Scan)Saved=null;
         }
         public DetectedPuzzle Display(DetectedPuzzle active)
-        {return active!=null&&active.Key!=dismissed?active:null;}
+        {return active!=null?(active.Key==dismissed?null:active):Saved;}
         public void Missing(){dismissed=null;}
         public void Clear(DetectedPuzzle active=null){Saved=null;dismissed=active==null?null:active.Key;}
         public void Reset(){Saved=null;dismissed=null;}
