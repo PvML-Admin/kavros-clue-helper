@@ -1,5 +1,21 @@
 # Kavros Clue Helper
 
+## 0.7.0
+
+**Routes**
+- 155 clues that had no usable teleport now have a Fastest route, an alternative, and a final step. 33 cards that already had a teleport were given a shorter walk. Hazelmere's ring and the 120 capes are never the first option.
+- Every fairy ring step includes this note: a portable fairy ring can be made in ;;ig, and an unlimited one can be bought for 5 Kavros dollars.
+- Queen Sigrid is in Etceteria castle. The banana plantation salute, Swensen, the Karamja Volcano dungeon, and the Pirates' Hideout (north-east from the Wilderness Course) use the newer routes.
+- Wendlewick and the Witchaven fishing platform are not on Kavros. Those cards say they are not available, and the reader will not offer them.
+- Entrana is the hops-patch teleport only. That is the only way onto the island here. The crystal-tree island west of Rellekka keeps the Barbarian Course route only, because the crossing is still unconfirmed. Spider island east of Yanille is walkable from Hazelmere's island over the log bridges and from the Yanille coast, so both routes stay.
+
+**Scans**
+- A dig spot you have already stood in range of turns grey. Clear, or a new scan, puts the colours back.
+- After you tab away and come back, the helper searches the whole minimap again. It does not ask you to right-click if the minimap is still on screen.
+
+**Treasure map**
+- The map by the Wilderness Agility Course stumps uses the Wilderness Course teleport, then a short walk. The picture of that scroll was not in the files for this release, so the image match is the existing map template.
+
 ## 0.6.10
 
 Thanks to PvML-Admin for this one.

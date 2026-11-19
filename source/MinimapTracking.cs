@@ -49,6 +49,8 @@ namespace KavrosClueHelper
         private int regionId;
         private int regionLevel=Int32.MinValue,misses;
         private PointF velocity;
+        private bool wideNext;
+        public void ForceWide(){wideNext=true;}
         private readonly string assets;
         private readonly MinimapAnchor anchor;
         private readonly MinimapOrientation orientation;
@@ -242,7 +244,8 @@ namespace KavrosClueHelper
                 var samples=Samples(image,dot,viewport,9);
                 Diagnostics+="; dot "+dot+" viewport "+viewport+" samples "+samples.Count;if(!Textured(samples))continue;
                 double maxError=trusted?10:22,margin=trusted?5:2.5;
-                var trials=Search(samples,token,previous!=null);
+                bool local=previous!=null&&misses<3&&!wideNext;if(wideNext)wideNext=false;
+                var trials=Search(samples,token,local);
                 Trial winner=trials.FirstOrDefault(),runner=winner==null?null:trials.Skip(1).FirstOrDefault(t=>CompassMath.Distance(new PointF((float)t.X,(float)t.Y),new PointF((float)winner.X,(float)winner.Y))>9);
                 bool valid=winner!=null&&winner.Error<=maxError&&(runner==null||runner.Error>=winner.Error+margin);
                 if(!valid&&previous!=null)

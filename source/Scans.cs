@@ -236,13 +236,20 @@ namespace KavrosClueHelper
         private DateTime lastConfirmed;
         private int confirmations;
         private int misses;
+        public readonly HashSet<int> Visited=new HashSet<int>();
+        public void NoteCoverage()
+        {
+            if(Region==null||!PositionTracked||!Position.HasValue)return;
+            for(int i=0;i<Region.Spots.Count;i++) if(InRange(Region.Spots[i])) Visited.Add(i);
+        }
         public int Range {get{return Region==null?0:Region.BaseRange+(Meerkat?5:0);}}
         public void Observe(ScanReading reading)
         {
             bool changed=Region==null||reading.Region==null||Region.Id!=reading.Region.Id;
             if(changed)
             {
-                Position=null;LastKnown=null;PositionTracked=false;pending=null;confirmations=0;misses=0;MeerkatLocked=false;
+                Position=null;LastKnown=null;PositionTracked=false;pending=null;confirmations=0;misses=0;                MeerkatLocked=false;
+                Visited.Clear();
                 Meerkat=reading.Meerkat;
                 TrackingStatus=reading.Outside?"Too far away for this scan. "+ManualHint:ManualHint;
             }
@@ -251,7 +258,7 @@ namespace KavrosClueHelper
             if(Outside){Position=null;PositionTracked=false;pending=null;TrackingStatus="Too far away for this scan. "+ManualHint;}
         }
         public bool InRange(PointF spot,int factor=1){return (!AutoTracking||PositionTracked)&&!DifferentLevel&&Position.HasValue&&Math.Max(Math.Abs(spot.X-Position.Value.X),Math.Abs(spot.Y-Position.Value.Y))<=Range*factor;}
-        public void Clear(){Region=null;Position=null;LastKnown=null;DifferentLevel=false;Outside=false;PositionTracked=false;pending=null;}
+        public void Clear(){Region=null;Position=null;LastKnown=null;DifferentLevel=false;Outside=false;PositionTracked=false;pending=null;Visited.Clear();}
         public void SetAutomatic(bool enabled){AutoTracking=enabled;Position=null;LastKnown=null;PositionTracked=false;pending=null;misses=0;TrackingStatus=enabled?ManualHint:"Right-click your spot on the map.";}
         public void SetManual(PointF position){SetAutomatic(false);Position=position;TrackingStatus="Manual position set. Right-click the map to move it.";}
         public void PrepareRecheck(){if(LastKnown.HasValue)return;Position=null;PositionTracked=false;pending=null;TrackingStatus="Minimap found. Checking your current position...";}
@@ -267,7 +274,7 @@ namespace KavrosClueHelper
             if(match==null)
             {
                 if(PositionTracked&&LastKnown.HasValue&&(now-lastMatch).TotalSeconds<12)
-                {Position=LastKnown;TrackingStatus="Following your minimap automatically.";return;}
+                {Position=LastKnown;TrackingStatus="Following your minimap automatically.";NoteCoverage();return;}
                 confirmations=0;
                 PositionTracked=false;
                 if((now-lastMatch).TotalMilliseconds>650)Position=null;
@@ -280,11 +287,12 @@ namespace KavrosClueHelper
                 double gap=Math.Max(0.05,(now-lastMatch).TotalSeconds);
                 double allowed=14+gap*24;
                 if(CompassMath.Distance(match.Position,LastKnown.Value)>allowed)
-                {Position=LastKnown;TrackingStatus="Following your minimap automatically.";return;}
+                {Position=LastKnown;TrackingStatus="Following your minimap automatically.";NoteCoverage();return;}
                 PointF held=LastKnown.Value;
                 var smoothed=new PointF(held.X+(match.Position.X-held.X)*0.7F,held.Y+(match.Position.Y-held.Y)*0.7F);
                 pending=match;lastMatch=now;misses=0;Position=smoothed;LastKnown=smoothed;PositionTracked=true;lastConfirmed=now;
                 TrackingStatus="Following your minimap automatically.";
+                NoteCoverage();
                 return;
             }
             misses=0;
@@ -294,6 +302,7 @@ namespace KavrosClueHelper
             PositionTracked=consistent;Position=consistent?(PointF?)match.Position:null;
             if(consistent){LastKnown=match.Position;lastConfirmed=now;}
             TrackingStatus=consistent?"Following your minimap automatically.":"Position found. Confirming the next frame...";
+            NoteCoverage();
         }
         public void Expire(DateTime now)
         {if(AutoTracking&&Position.HasValue&&(now-lastMatch).TotalSeconds>12){Position=null;PositionTracked=false;pending=null;TrackingStatus="Position lost. "+ManualHint;}}
@@ -408,7 +417,7 @@ namespace KavrosClueHelper
                 }
 
             }
-            for(int i=0;i<region.Spots.Count;i++){if(region.SpotLevels!=null&&region.SpotLevels[i]!=region.Level)continue;PointF spot=region.Spots[i],p=ScreenPoint(spot);g.FillEllipse(Brushes.Black,p.X-5,p.Y-5,10,10);g.FillEllipse(Session.InRange(spot)?Brushes.Lime:Session.InRange(spot,2)?Brushes.Orange:Brushes.Cyan,p.X-3,p.Y-3,6,6);}
+            for(int i=0;i<region.Spots.Count;i++){if(region.SpotLevels!=null&&region.SpotLevels[i]!=region.Level)continue;PointF spot=region.Spots[i],p=ScreenPoint(spot);bool here=Session.InRange(spot);bool seen=Session.Visited.Contains(i)&&!here;g.FillEllipse(Brushes.Black,p.X-5,p.Y-5,10,10);g.FillEllipse(seen?Brushes.Gray:here?Brushes.Lime:Session.InRange(spot,2)?Brushes.Orange:Brushes.Cyan,p.X-3,p.Y-3,6,6);}
             // Keep the player above candidate markers, including at a dig spot.
             foreach(CompassPosition stone in lodestones)
             {
