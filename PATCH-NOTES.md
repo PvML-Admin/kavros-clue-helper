@@ -1,6 +1,12 @@
+# Kavros Clue Helper v0.7.1
+
+v0.7.1: fairy ring codes and walks were checked against the wiki list. ALP is no longer used for the Lighthouse or the Barbarian Outpost shore. A Fastest fairy ring step says "(portable fairy ring required to be the fastest)". 26 clues gained a fairy ring option.
+
+Settings shows **Made by Zenity · v0.7.1**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.0
 
-v0.7.0: new routes for clues that had no teleport, faster routes for 33 existing cards, scan dots you have already checked, and a treasure-map route by the Wilderness Agility Course. Fairy ring codes match the wiki list, ALP is no longer used for the Lighthouse, and a Fastest fairy ring step says the portable ring is required for that to be the fastest.
+v0.7.0: new routes for clues that had no teleport, faster routes for 33 existing cards, scan dots you have already checked, and a treasure-map route by the Wilderness Agility Course.
 
 Settings shows **Made by Zenity · v0.7.0**. The full notes are in CHANGELOG.md.
 

@@ -1,13 +1,18 @@
 # Kavros Clue Helper
 
+## 0.7.1
+
+**Fairy rings**
+- Codes and walks were checked against the fairy ring list. A wrong direction was corrected where the ring's tile and the clue did not agree, including the Wizards' Tower ring, Tyras Camp, the Gu'Tanoth cave, and the walk from Miscellania to Etceteria.
+- ALP is the Feldip Hills ring near Gu'Tanoth, so it is no longer used for the Lighthouse or the Barbarian Outpost shore. Those cards use the Games necklace, the Barbarian Course, and Relekka.
+- When a fairy ring is the Fastest step, that step says "(portable fairy ring required to be the fastest)". The note that a portable ring can be made in ;;ig, and an unlimited one costs 5 Kavros dollars, stays on every ring step.
+- 26 clues gained a fairy ring as Alternatively or Or. Hazelmere is fairy ring CLS, with the Yanille lodestone as the other way onto the island.
+
 ## 0.7.0
 
 **Routes**
 - 155 clues that had no usable teleport now have a Fastest route, an alternative, and a final step. 33 cards that already had a teleport were given a shorter walk. Hazelmere's ring and the 120 capes are never the first option.
 - Every fairy ring step includes this note: a portable fairy ring can be made in ;;ig, and an unlimited one can be bought for 5 Kavros dollars.
-- Fairy ring codes were checked against the wiki list. ALP is the Feldip Hills ring near Gu'Tanoth, so the Lighthouse bedroom, the Barbarian Outpost shore, and the lighthouse emote use the Games necklace, the Barbarian Course, and Relekka instead. DKP is named south of Musa Point, the wiki name for that ring.
-- Walks were lined up with the ring tiles. From DIS the library is north, Professor Onglewip is north-east, the south-side dig is a few steps east, and the tower cupboard is north-east. Tyras Camp is north of DLR. The Gu'Tanoth cave is north of AKS. Queen Sigrid's ring step goes south from CIP and east across the bridge to Etceteria.
-- When a fairy ring is the Fastest step, that step says a portable fairy ring is required for it to be the fastest. Rings that help but are not first are listed as Alternatively or Or. Hazelmere is fairy ring CLS, with the Yanille lodestone as the other way onto the island.
 - Queen Sigrid is in Etceteria castle. The banana plantation salute, Swensen, the Karamja Volcano dungeon, and the Pirates' Hideout (north-east from the Wilderness Course) use the newer routes.
 - Wendlewick and the Witchaven fishing platform are not on Kavros. Those cards say they are not available, and the reader will not offer them.
 - Entrana is the hops-patch teleport only. That is the only way onto the island here. The crystal-tree island west of Rellekka keeps the Barbarian Course route only, because the crossing is still unconfirmed. Spider island east of Yanille is walkable from Hazelmere's island over the log bridges and from the Yanille coast, so both routes stay.
