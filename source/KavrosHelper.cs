@@ -25,6 +25,7 @@ namespace KavrosClueHelper
                 if(args.Length>1&&args[0]=="--expansion-test")return ExpansionRegressionTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--slider-guidance-test")return SliderGuidanceRegressionTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--follow-test")return FollowRegressionTests.Run(args[1]);
+                if(args.Length>1&&args[0]=="--steady-test")return SteadyTrackingTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--reliability-test")return ReliabilityRegressionTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--paint-test")return PaintingRegressionTests.Run(args[1]);
                 if(args.Length>0 && args[0]=="--map-test") return MapIconRegressionTests.Run(args.Length>1 ? args[1] : "map-test-results.txt");

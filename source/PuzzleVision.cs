@@ -456,6 +456,9 @@ namespace KavrosClueHelper
         private string towerSolveKey;
         private List<int[]> towerSolutions;
         public int BroadSearches { get; private set; }
+        // Set when a dark towers grid with some edge clues is visible but the
+        // clues are not all readable yet (the panel is still opening).
+        public Rectangle? TowerGridCandidate { get; private set; }
         public Action<string> Progress;
         public PuzzleDetector(string directory)
         {
@@ -499,6 +502,7 @@ namespace KavrosClueHelper
         }
         internal DetectedPuzzle DetectBoards(Bitmap screenshot, Pixels pixels, bool allowBroadSearch, bool progressive)
         {
+            TowerGridCandidate = null;
             DetectedPuzzle fastTower = FindTowerGrid(screenshot, pixels);
             if (fastTower != null) return fastTower;
             DetectedPuzzle lockbox=FindLockboxGrid(screenshot,pixels);
@@ -751,7 +755,8 @@ namespace KavrosClueHelper
                 LastTowerCluesRead=readable;
                 // A partial digit match is not evidence of a Towers puzzle.
                 // Stone floors can contain a convincing grid and several glyph-like marks.
-                if (readable != 20) return null;
+                // It is only remembered as a hint to re-read this area quickly.
+                if (readable != 20) { if (readable >= 4) TowerGridCandidate = area; return null; }
                 if (towerSolveKey != puzzle.Key)
                 {
                     towerSolutions = TowerSolver.Solve(puzzle, false);

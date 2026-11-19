@@ -189,7 +189,6 @@ namespace KavrosClueHelper
     {
         private readonly Label title=new PaintedLabel(),summary=new Label(),heading=new Label();
         private readonly Button collapse=new OpaqueButton(),pause=new OpaqueButton(),record=new OpaqueButton();
-        private readonly ProgressBar reading=new KavrosProgressBar();
         private readonly Panel compassControls=new OpaquePanel(),footer=new OpaquePanel();
         private readonly MasterClueView master=new MasterClueView();
         private readonly SlidingGuideView sliderGuide;
@@ -235,8 +234,6 @@ namespace KavrosClueHelper
         private readonly CheckBox meerkat=new KavrosCheckBox(),autoFollow=new KavrosCheckBox();
         private readonly ComboBox scanFloor=new ComboBox();
         private int floorRegion=-1;private bool changingFloor,changingMeerkat;
-        private int searchDots;
-        private Timer searchTimer;
         private readonly string assets;
         private readonly OverlayPreferences prefs;
         private Point dragStart,windowStart;private bool dragging;
@@ -264,14 +261,9 @@ namespace KavrosClueHelper
             title.MouseDown+=delegate(object sender,MouseEventArgs e){if(e.Button!=MouseButtons.Left)return;dragging=true;dragStart=Cursor.Position;windowStart=Location;title.Capture=true;};
             title.MouseMove+=delegate{if(dragging)Location=new Point(windowStart.X+Cursor.Position.X-dragStart.X,windowStart.Y+Cursor.Position.Y-dragStart.Y);};
             title.MouseUp+=delegate{if(!dragging)return;dragging=false;title.Capture=false;if(UserMoved!=null)UserMoved();};
-            reading.SetBounds(0,29,400,3);reading.Style=ProgressBarStyle.Marquee;reading.MarqueeAnimationSpeed=25;reading.Visible=false;Controls.Add(reading);
             Button settings=ButtonAt(this,"Settings",298,4,65,delegate{if(SettingsRequested!=null)SettingsRequested();});
             settings.SetBounds(298,4,65,24);
             collapse.Text=prefs.Collapsed?"+":"-";collapse.SetBounds(369,4,25,24);Style(collapse);Controls.Add(collapse);collapse.Click+=delegate{prefs.Collapsed=!prefs.Collapsed;collapse.Text=prefs.Collapsed?"+":"-";prefs.Save();LayoutMode();};
-            searchTimer=new Timer{Interval=400};
-            searchTimer.Tick+=delegate{searchDots=searchDots%3+1;if(mode==PuzzleKind.None||!String.IsNullOrEmpty(ReadingStage))title.Invalidate();};
-            searchTimer.Start();
-            Disposed+=delegate{searchTimer.Stop();searchTimer.Dispose();};
             summary.BackColor=BackColor;heading.BackColor=BackColor;originStatus.BackColor=BackColor;
             summary.SetBounds(10,38,380,56);summary.ForeColor=KavrosTheme.Ok;Controls.Add(summary);
             heading.SetBounds(10,38,380,23);heading.ForeColor=KavrosTheme.Ice;Controls.Add(heading);
@@ -348,9 +340,9 @@ namespace KavrosClueHelper
         public void SetRetained(bool value){if(retained!=value){retained=value;title.Invalidate();}if(value)title.Text=mode==PuzzleKind.EmoteClue?cardTitle+" / SAVED":mode==PuzzleKind.Scan?scanSession.Region.Tier.ToUpperInvariant()+" SCAN / SAVED":title.Text;}
         public void SetReading(string stage)
         {
+            // The stage is still tracked for diagnostics and tests, but the
+            // panel no longer shows a Searching/Reading strip for it.
             ReadingStage=stage;
-            reading.Visible=!String.IsNullOrEmpty(stage);
-            if(reading.Visible){title.Text=stage.ToUpperInvariant();reading.BringToFront();}
         }
         public void SetWaiting(string text)
         {
