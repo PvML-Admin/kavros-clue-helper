@@ -1,5 +1,16 @@
 # Kavros Clue Helper
 
+## 0.6.10
+
+Thanks to PvML-Admin for this one.
+
+**Clue panel**
+- The last clue solve stays on the panel after you close the scroll, so you can still read the text, the map, and the directions while you walk.
+- The badge says **Scroll closed** while that saved solve is showing. It does not say Found.
+- Opening the same scroll again switches the badge back to **Clue found**. Nothing else is reset.
+- Clear removes the saved solve. A new clue step replaces it.
+- Puzzles are unchanged. A slider, lockbox, towers, knot, or compass still goes away when that interface closes, because the guidance only applies while the board is open.
+
 ## 0.6.9
 
 **Scans**

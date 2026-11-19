@@ -1,8 +1,8 @@
-# Kavros Clue Helper v0.6.9
+# Kavros Clue Helper v0.6.10
 
-v0.6.9: steadier scan follow, no false found cards, slider progress, and the Dig Site Exam Centre route.
+v0.6.10: the last clue solve stays after the scroll closes (PvML-Admin).
 
-Settings shows **Made by Zenity · v0.6.9**. The full notes are in CHANGELOG.md.
+Settings shows **Made by Zenity · v0.6.10**. The full notes are in CHANGELOG.md.
 
 # Kavros Clue Helper v0.6.5
 
