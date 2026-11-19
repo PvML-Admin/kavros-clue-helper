@@ -1,8 +1,8 @@
-# Kavros Clue Helper v0.6.10
+# Kavros Clue Helper v0.7.0
 
-v0.6.10: the last clue solve stays after the scroll closes (PvML-Admin).
+v0.7.0: new routes for clues that had no teleport, faster routes for 33 existing cards, scan dots you have already checked, and a treasure-map route by the Wilderness Agility Course.
 
-Settings shows **Made by Zenity · v0.6.10**. The full notes are in CHANGELOG.md.
+Settings shows **Made by Zenity · v0.7.0**. The full notes are in CHANGELOG.md.
 
 # Kavros Clue Helper v0.6.5
 

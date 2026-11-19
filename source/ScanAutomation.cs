@@ -12,6 +12,7 @@ namespace KavrosClueHelper
         private DateTime nextTracking=DateTime.MinValue,nextFullTracking=DateTime.MinValue;
         private Rectangle trackedMinimap;
         private int trackedRegion,trackingGeneration,trackedFloor,trackingMisses;
+        private bool trackingAway;
         private IntPtr trackingWindow;
         private Size trackingClient;
         private sealed class TrackingJob
@@ -58,9 +59,11 @@ namespace KavrosClueHelper
             ScanRegion region=floatingPanel.TrackingRegion;
             if(!automatic.Checked||offline||region==null||SelectedWindow==IntPtr.Zero||!floatingPanel.Visible||!WindowLocator.IsForeground(SelectedWindow))
             {
+                if(SelectedWindow!=IntPtr.Zero&&!WindowLocator.IsForeground(SelectedWindow))trackingAway=true;
                 if(trackingWorker.IsBusy)StopTracking();
                 trackedMinimap=Rectangle.Empty;return;
             }
+            if(trackingAway){trackingAway=false;positionReader.ForceWide();trackedMinimap=Rectangle.Empty;}
             if(trackingWorker.IsBusy||now<nextTracking)return;
             if(Native.IsIconic(SelectedWindow))return;
             Rectangle client=Native.ClientBounds(SelectedWindow);
