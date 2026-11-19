@@ -1,3 +1,7 @@
+# Kavros Clue Helper v0.7.4
+
+Pending release. Settings opens in front of the floating panel. The panel no longer steals the mouse from the game.
+
 # Kavros Clue Helper v0.7.3
 
 v0.7.3: the helper stays on the Kavros window you chose. Another client in front does not take over. The floating panel stays visible when you click another application.
