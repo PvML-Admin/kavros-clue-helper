@@ -1,5 +1,19 @@
 # Kavros Clue Helper
 
+## 0.7.5
+
+Not released yet.
+
+**Maps**
+- Master emote cards use the same full-width location map as hard cards. The map is centred on the emote area and keeps the green area box.
+- A lodestone that falls inside a clue map, a scan map, or the compass map is drawn with that lodestone's own icon. The icons load from assets/map-icons/lodestones. The older badges are used only when a file there is missing.
+- Every clue, scan, and compass map draws the round compass in the top-right corner. The letter N is used only if assets/map-icons/compass.png is missing.
+
+**Routes**
+- Elite and master cards now have a Fastest route, and an alternative when one is confirmed, in the same style as the other clues. A fairy ring that is the fastest step says a portable fairy ring is required, and the ;;ig note stays on every fairy ring step.
+- Mos Le'Harmless is not on Kavros. That scan says it is not available, and the reader will not offer it, the same way as Wendlewick.
+- Jatizso and Neitiznot use the yak teleport, which lands at the yak pen on Neitiznot. Jatizso is across the rope bridge to the east. The Ctrl+T Monsters list in this repo has no yak label, so the step says Yaks.
+
 ## 0.7.4
 
 **Settings and input**

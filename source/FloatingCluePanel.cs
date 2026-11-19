@@ -181,7 +181,7 @@ namespace KavrosClueHelper
             }
             g.FillRectangle(Brushes.DarkSlateGray,2,2,99,23);
             TextRenderer.DrawText(g,"Lodestones",Font,new Rectangle(4,3,96,21),Color.White,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter);
-            TextRenderer.DrawText(g,"N",Font,new Rectangle(Width-22,4,20,20),Color.White,TextFormatFlags.NoPadding);
+            LodestoneIcons.DrawCompass(g,Font,new Rectangle(0,0,Width,Height),assets);
         }
         protected override void Dispose(bool disposing){if(disposing){locationTip.Dispose();}base.Dispose(disposing);}
     }

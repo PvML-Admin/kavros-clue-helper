@@ -21,14 +21,14 @@ namespace KavrosClueHelper
     public static class MasterClues
     {
         public static readonly MasterClue[] All = {
-            new MasterClue { Id=236, Location="Green Ghost inn, Port Phasmatys", Emote="Laugh", Equipment=new[]{"Iban's staff", "Ghostly cloak", "Black cavalier"}, Area=new Rectangle(3671,3489,11,11), Travel="Enter the inn in Port Phasmatys. From Canifis, travel east towards the port." },
-            new MasterClue { Id=240, Location="Charm sprite hunter area", Emote="Bow or curtsy", Equipment=new[]{"Enhanced yaktwee stick", "Dagon'hai hat", "Amulet of ranging"}, Area=new Rectangle(2391,3362,26,22), Travel="South of the Tree Gnome Stronghold, near Yaktwee. From Eagles' Peak, travel south-east." },
-            new MasterClue { Id=234, Location="Inside the Slayer Tower", Emote="Headbang", Equipment=new[]{"Imp-hide hood", "Prifddinian musician's robe top", "Amulet of magic"}, Area=new Rectangle(3400,3541,47,34), Travel="Enter the Slayer Tower north-west of Canifis. Use the ground floor." },
-            new MasterClue { Id=233, Location="Sulphur pit, TzHaar City", Emote="Cheer", Equipment=new[]{"Fire cape", "Toktz-ket-xil", "Spork"}, Area=new Rectangle(4630,5104,14,14), Travel="Inside TzHaar City beneath Karamja. Go to the highlighted sulphur pit area." },
-            new MasterClue { Id=242, Location="Lumbridge Fishing Supplies shop", Emote="Shrug", Equipment=new[]{"Demon slayer gloves", "A boater", "Cape of legends"}, Area=new Rectangle(3194,3251,5,8), Travel="Enter the fishing shop in north-east Lumbridge, near the River Lum." },
-            new MasterClue { Id=246, Location="Max Guild Garden, Prifddinas", Emote="Salute", Equipment=new[]{"Nothing equipped - remove every worn item"}, Area=new Rectangle(2268,3318,17,18), Floor=1, Travel="Go to the Max Guild garden in south-east Prifddinas. The garden is outside the guild building." },
-            new MasterClue { Id=239, Location="Edgeville Monastery garden", Emote="Jig", Equipment=new[]{"Holy cithara", "Saradomin's murmur", "Ring of devotion"}, Area=new Rectangle(3046,3501,12,8), Travel="Go to the monastery west of Edgeville and enter its ground-floor garden." },
-            new MasterClue { Id=244, Location="Inside the Invention Guild", Emote="Have an idea", Equipment=new[]{"Lab coat top", "Lab coat legs", "Staff of light"}, Area=new Rectangle(6160,1039,18,36), Travel="Enter the Invention Guild north of the Falador lodestone. The map shows the interior." }
+            new MasterClue { Id=236, Location="Green Ghost inn, Port Phasmatys", Emote="Laugh", Equipment=new[]{"Iban's staff", "Ghostly cloak", "Black cavalier"}, Area=new Rectangle(3671,3489,11,11), Travel="Fastest: Fairy ring ALQ (Haunted Woods) (portable fairy ring required to be the fastest), then run east to Port Phasmatys' west gate, then on to the inn. Alternatively: Ectophial (Ectofuntus, Port Phasmatys), run south-east to the Green Ghost inn. Third option: Amulet of farming > Herb Patches > 3. Haunted Woods Herb Patch, run south-east to Port Phasmatys' west gate, then on to the inn. Portable fairy ring can be made in ;;ig. An unlimited version can be bought for 5 Kavros dollars. Final step: Laugh. Wear: Iban's staff, Ghostly cloak, Black cavalier." },
+            new MasterClue { Id=240, Location="Charm sprite hunter area", Emote="Bow or curtsy", Equipment=new[]{"Enhanced yaktwee stick", "Dagon'hai hat", "Amulet of ranging"}, Area=new Rectangle(2391,3362,26,22), Travel="Fastest: Ctrl+T > Skilling > Agility > 1/85 - Gnome Course, then run south-west to the charm sprite hunter area, leaving the stronghold by its main gate. Alternatively: Traveller's necklace > The Outpost, run north-west to the charm sprite hunter area. Third option: Amulet of farming > Tree Patches > 5. Gnome Stronghold Tree Patch, run south-west to the charm sprite hunter area, leaving the stronghold by its main gate. Final step: Bow or curtsy. Wear: Enhanced yaktwee stick, Dagon'hai hat, Amulet of ranging." },
+            new MasterClue { Id=234, Location="Inside the Slayer Tower", Emote="Headbang", Equipment=new[]{"Imp-hide hood", "Prifddinian musician's robe top", "Amulet of magic"}, Area=new Rectangle(3400,3541,47,34), Travel="Fastest: Ctrl+T > Skilling > Slayer > Slayer Tower, then run north to the Slayer Tower door, then go in on the ground floor. Alternatively: Fairy ring CKS (Canifis), run north to the Slayer Tower entrance. Third option: Canifis lodestone, run west to the Slayer Tower entrance. Portable fairy ring can be made in ;;ig. An unlimited version can be bought for 5 Kavros dollars. Final step: Headbang. Wear: Imp-hide hood, Prifddinian musician's robe top, Amulet of magic." },
+            new MasterClue { Id=233, Location="Sulphur pit, TzHaar City", Emote="Cheer", Equipment=new[]{"Fire cape", "Toktz-ket-xil", "Spork"}, Area=new Rectangle(4630,5104,14,14), Travel="Fastest: Fairy ring BLP (TzHaar) (portable fairy ring required to be the fastest), then go to the sulphur pit highlighted on the card map (the ring drops you inside TzHaar City). Alternatively: Karamja lodestone, run east to Karamja Volcano, climb down into the volcano, go south through the dungeon to the TzHaar City entrance and enter, then go to the sulphur pit. Third option: 120 Dungeoneering cape > 4. Karamja Volcano lesser demon dungeon, run east to the TzHaar City entrance, enter TzHaar City, then go to the sulphur pit. Portable fairy ring can be made in ;;ig. An unlimited version can be bought for 5 Kavros dollars. Final step: Cheer. Wear: Fire cape, Toktz-ket-xil, Spork." },
+            new MasterClue { Id=242, Location="Lumbridge Fishing Supplies shop", Emote="Shrug", Equipment=new[]{"Demon slayer gloves", "A boater", "Cape of legends"}, Area=new Rectangle(3194,3251,5,8), Travel="Fastest: Ctrl+T > Skilling > Farming > Lumbridge Tree, then run north to the fishing shop by the River Lum. Alternatively: Modern spellbook > Lumbridge Teleport, run north-west to the fishing shop. Third option: Lumbridge lodestone, run north-west to the fishing shop. Final step: Shrug. Wear: Demon slayer gloves, A boater, Cape of legends." },
+            new MasterClue { Id=246, Location="Max Guild Garden, Prifddinas", Emote="Salute", Equipment=new[]{"Nothing equipped - remove every worn item"}, Area=new Rectangle(2268,3318,17,18), Floor=1, Travel="Fastest: Prifddinas lodestone, then run south-east to the Max Guild garden in south-east Prifddinas (upper level, outside the guild building). Alternatively: 120 Slayer cape > 8. Morvran, run east to the Max Guild garden (upper level). Final step: Salute. Wear: Nothing equipped - remove every worn item." },
+            new MasterClue { Id=239, Location="Edgeville Monastery garden", Emote="Jig", Equipment=new[]{"Holy cithara", "Saradomin's murmur", "Ring of devotion"}, Area=new Rectangle(3046,3501,12,8), Travel="Fastest: Ctrl+T > Locations > Edgeville Monastery, then run north to the monastery's ground-floor garden. Alternatively: Edgeville lodestone, run west to the monastery garden. Third option: Amulet of glory > Edgeville, run west to the monastery garden. Final step: Jig. Wear: Holy cithara, Saradomin's murmur, Ring of devotion." },
+            new MasterClue { Id=244, Location="Inside the Invention Guild", Emote="Have an idea", Equipment=new[]{"Lab coat top", "Lab coat legs", "Staff of light"}, Area=new Rectangle(6160,1039,18,36), Travel="Fastest: ;;ig (Invention Guild), then enter the Invention Guild; the emote spot is the interior shown on the card map. Alternatively: Ctrl+T > Skilling > Invention > Invention Guild, enter the guild and go to the interior shown on the card map. Third option: Skills necklace > Invention Guild, walk a few steps north-east to the guild entrance, then go inside. Final step: Have an idea. Wear: Lab coat top, Lab coat legs, Staff of light." }
         };
         public static MasterClue ById(int id) { return All.First(c => c.Id == id); }
     }
@@ -104,8 +104,11 @@ namespace KavrosClueHelper
         private float zoom=1;
         private PointF pan;
         private Point? drag;
-        private float Span {get{return (clue.Reference?Math.Max(72,Math.Max(clue.Area.Width,clue.Area.Height)*3):128)/zoom;}}
-        private Rectangle MapBox {get{return clue!=null&&!clue.Reference?new Rectangle(Width*10/460,Height*34/471,Math.Max(1,Width*440/460),Math.Max(1,Height*234/471)):new Rectangle(8,43,Math.Max(1,Width-16),139);}}
+        private string assetsPath="";
+        private string mapPath="";
+        public string MapPath { get { return mapPath; } }
+        private float Span {get{return Math.Max(72,Math.Max(clue.Area.Width,clue.Area.Height)*3)/zoom;}}
+        private Rectangle MapBox {get{return new Rectangle(8,43,Math.Max(1,Width-16),139);}}
         private readonly ReferenceDetailsView details=new ReferenceDetailsView();
         public MasterClueView()
         {
@@ -136,12 +139,13 @@ namespace KavrosClueHelper
             if(clue==value) return;
             if(map!=null) { map.Dispose(); map=null; }
             if(overview!=null){if(!overviewShared)overview.Dispose();overview=null;}regionalOverview=false;overviewShared=false;
-            clue=value;zoom=1;pan=PointF.Empty;drag=null;detailed=false;
+            clue=value;zoom=1;pan=PointF.Empty;drag=null;detailed=false;mapPath="";assetsPath=assets??"";
             if(value!=null)
             {
                 string detail=Path.Combine(assets,"location-maps",value.Id+".jpg");
-                detailed=value.Reference&&File.Exists(detail);
-                string file=detailed?detail:value.Reference?Path.Combine(assets,"compass","world.png"):Path.Combine(assets,"master-maps",value.MapFile);
+                detailed=File.Exists(detail);
+                string file=detailed?detail:Path.Combine(assets,"compass","world.png");
+                mapPath=file;
                 using(Bitmap loaded=new Bitmap(file))map=(Bitmap)loaded.Clone();
                 if(detailed)
                 {
@@ -154,19 +158,15 @@ namespace KavrosClueHelper
                     }
                 }
             }
-            details.Visible=value!=null&&value.Reference;
-            details.Text=value==null?"":HideCoordinates(value.Travel);
+            string travel=value==null?"":HideCoordinates(value.Travel);
+            details.Visible=travel.Length>0;
+            details.Text=travel;
             details.SetBounds(8,202,Math.Max(1,Width-16),Math.Max(1,Height-208));
             Invalidate();
         }
         protected override void OnPaint(PaintEventArgs e)
         {
             if(clue==null){base.OnPaint(e);return;}
-            if(!clue.Reference){
-                float horizontal=Math.Max(0,(128-Span)/2),vertical=Math.Max(0,(128-Span*234/440)/2);
-                pan.X=Math.Max(-horizontal,Math.Min(horizontal,pan.X));pan.Y=Math.Max(-vertical,Math.Min(vertical,pan.Y));
-                MasterClueDrawing.Draw(e.Graphics,ClientRectangle,clue,map,zoom,pan);return;
-            }
             Graphics g=e.Graphics;g.Clear(KavrosTheme.Panel);
             TextRenderer.DrawText(g,clue.Location,Font,new Rectangle(8,2,Width-16,38),KavrosTheme.Text,TextFormatFlags.WordBreak|TextFormatFlags.EndEllipsis);
             Rectangle box=MapBox;
@@ -190,6 +190,8 @@ namespace KavrosClueHelper
                 var clip=g.Save();g.SetClip(box);
                 using(Pen green=new Pen(Color.Lime,2))g.DrawRectangle(green,mx-clue.Area.Width*unit/2,my-clue.Area.Height*unit/2,Math.Max(3,clue.Area.Width*unit),Math.Max(3,clue.Area.Height*unit));
                 g.FillEllipse(Brushes.Black,mx-5,my-5,10,10);g.FillEllipse(Brushes.Gold,mx-3,my-3,6,6);
+                LodestoneIcons.DrawInView(g,box,cx,cy,span,pan.X,pan.Y,assetsPath);
+                LodestoneIcons.DrawCompass(g,Font,box,assetsPath);
                 g.Restore(clip);
             }
             else TextRenderer.DrawText(g,clue.Area.IsEmpty?"This spot is not on the surface map.":"Interior or dungeon. Follow the directions.",Font,box,KavrosTheme.Ice,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.WordBreak);
@@ -197,7 +199,7 @@ namespace KavrosClueHelper
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             if(clue!=null&&MapBox.Contains(e.Location)&&e.Delta!=0)
-            {zoom=(float)Math.Max(!clue.Reference?0.35:0.04,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));Invalidate();}
+            {zoom=(float)Math.Max(0.04,Math.Min(8,zoom*Math.Pow(1.35,e.Delta/120.0)));Invalidate();}
             base.OnMouseWheel(e);
         }
         protected override void Dispose(bool disposing) { if(disposing && map!=null) { map.Dispose(); map=null; } if(disposing && overview!=null){if(!overviewShared)overview.Dispose();overview=null;} base.Dispose(disposing); }

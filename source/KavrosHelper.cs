@@ -27,6 +27,7 @@ namespace KavrosClueHelper
                 if(args.Length>1&&args[0]=="--follow-test")return FollowRegressionTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--reliability-test")return ReliabilityRegressionTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--paint-test")return PaintingRegressionTests.Run(args[1]);
+                if(args.Length>0 && args[0]=="--map-test") return MapIconRegressionTests.Run(args.Length>1 ? args[1] : "map-test-results.txt");
                 try { Native.SetProcessDpiAwarenessContext(new IntPtr(-4)); }
                 catch (EntryPointNotFoundException) { Native.SetProcessDPIAware(); }
                 Application.EnableVisualStyles();
@@ -52,6 +53,8 @@ namespace KavrosClueHelper
                     if(suite!=0) return suite;
                     int windows=WindowRegressionTests.Run(report);
                     if(windows!=0) return windows;
+                    int maps=MapIconRegressionTests.Run(report);
+                    if(maps!=0) return maps;
                     int analysis=AnalysisRegressionTests.Run(report);
                     if(analysis!=0) return analysis;
                     int overlay=OverlayRegressionTests.Run(report);
