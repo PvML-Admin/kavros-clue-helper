@@ -1,6 +1,6 @@
 # Kavros Clue Helper v0.7.0
 
-v0.7.0: new routes for clues that had no teleport, faster routes for 33 existing cards, scan dots you have already checked, and a treasure-map route by the Wilderness Agility Course.
+v0.7.0: new routes for clues that had no teleport, faster routes for 33 existing cards, scan dots you have already checked, and a treasure-map route by the Wilderness Agility Course. Fairy ring codes match the wiki list, ALP is no longer used for the Lighthouse, and a Fastest fairy ring step says the portable ring is required for that to be the fastest.
 
 Settings shows **Made by Zenity · v0.7.0**. The full notes are in CHANGELOG.md.
 
