@@ -26,6 +26,12 @@ namespace KavrosClueHelper
                 Check(preferred != null && preferred.Replace('\\', '/').Contains("/map-icons/lodestones/lumbridge.png"), "lodestone icons prefer assets/map-icons/lodestones");
                 string compass = LodestoneIcons.CompassFile(assets);
                 Check(compass.Replace('\\', '/').EndsWith("/map-icons/compass.png"), "compass image path is assets/map-icons/compass.png");
+                Check(File.Exists(compass), "compass icon is installed");
+                using (Bitmap icon = new Bitmap(compass))
+                {
+                    Check(icon.GetPixel(0, 0).A == 0 && icon.GetPixel(icon.Width - 1, icon.Height - 1).A == 0, "compass outside the circle is transparent");
+                    Check(icon.GetPixel(icon.Width / 2, icon.Height / 2).A == 255, "compass centre is opaque");
+                }
                 using (Bitmap canvas = new Bitmap(80, 40))
                 using (Graphics g = Graphics.FromImage(canvas))
                     LodestoneIcons.DrawCompass(g, SystemFonts.DefaultFont, new Rectangle(0, 0, 80, 40), Path.Combine(Path.GetTempPath(), "kavros-no-compass"));

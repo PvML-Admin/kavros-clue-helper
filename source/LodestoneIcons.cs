@@ -75,7 +75,8 @@ namespace KavrosClueHelper
                     compassFrom=file;
                 }
                 g.InterpolationMode=InterpolationMode.HighQualityBicubic;
-                g.DrawImage(compass,bounds.Right-28,bounds.Top+3,24,24);
+                int size=28;
+                g.DrawImage(compass,bounds.Right-size-4,bounds.Top+4,size,size);
                 return;
             }
             Font used=font??SystemFonts.DefaultFont;

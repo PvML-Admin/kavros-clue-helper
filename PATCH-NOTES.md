@@ -1,6 +1,6 @@
 # Kavros Clue Helper v0.7.5
 
-Not released yet. Master emote cards use the full-width map. Lodestone icons are drawn on clue maps when the stone is in view. Elite and master routes are filled in. Mos Le'Harmless says it is not available on Kavros.
+Not released yet. Master emote cards use the full-width map. Lodestone icons are drawn on clue maps when the stone is in view, and the round compass sits in the top-right corner. Elite and master routes are filled in. Mos Le'Harmless says it is not available on Kavros.
 
 # Kavros Clue Helper v0.7.4
 
