@@ -86,6 +86,7 @@ namespace KavrosClueHelper
         private int slidingBatchNumber=1;
         private List<GameWindow> availableWindows = new List<GameWindow>();
         private GameWindow attachedWindow;
+        private IntPtr panelOwner=new IntPtr(-1);
         private bool refreshingWindows, requestedScan;
         private DateTime nextDiscovery = DateTime.MinValue;
         private string captureDetails = "No capture attempted yet.";
@@ -282,17 +283,24 @@ namespace KavrosClueHelper
         }
         private void HideWhatsNew() { if (whatsNewPanel != null) whatsNewPanel.Visible = false; }
         private void ToggleWhatsNew() { if (whatsNewPanel != null && whatsNewPanel.Visible) HideWhatsNew(); else ShowWhatsNew(); }
-        private void ShowSettings(){if(WindowState==FormWindowState.Minimized)WindowState=FormWindowState.Normal;Show();Activate();}
+        private void ShowSettings()
+        {
+            if(WindowState==FormWindowState.Minimized)WindowState=FormWindowState.Normal;
+            // The panel is topmost. Drop it, without activating it, so this window can come forward.
+            if(floatingPanel!=null&&!floatingPanel.IsDisposed)floatingPanel.PlaceTopMost(false);
+            Show();Activate();BringToFront();
+        }
         internal void CheckForUpdatesOnStartup(){if(preferences.CheckForUpdates)AppUpdates.Check(this,false);}
         internal void PrepareForUpdate(){closing=true;}
         internal void SetUpdateStatus(string message){status.Text=message;}
-        private void OpenPanel(){draw.Checked=true;floatingEnabled.Checked=true;UpdateFloatingPanel();if(SelectedWindow==IntPtr.Zero||!Native.IsIconic(SelectedWindow)){floatingPanel.Show();floatingPanel.Activate();}}
+        private void OpenPanel(){draw.Checked=true;floatingEnabled.Checked=true;UpdateFloatingPanel();if(SelectedWindow==IntPtr.Zero||!Native.IsIconic(SelectedWindow))floatingPanel.Show();}
         private void ExitHelper(){closing=true;Close();}
         private void UpdateFloatingPanel()
         {
             if(closing||floatingPanel==null||floatingPanel.IsDisposed)return;
             bool exists=SelectedWindow!=IntPtr.Zero&&Native.IsWindow(SelectedWindow);
-            if(floatingPanel.IsHandleCreated)try{Native.SetOwner(floatingPanel.Handle,exists?SelectedWindow:IntPtr.Zero);}catch(System.DllNotFoundException){}catch(EntryPointNotFoundException){}
+            IntPtr owner=exists?SelectedWindow:IntPtr.Zero;
+            if(floatingPanel.IsHandleCreated&&owner!=panelOwner)try{Native.SetOwner(floatingPanel.Handle,owner);panelOwner=owner;}catch(System.DllNotFoundException){}catch(EntryPointNotFoundException){}
             bool minimised=exists&&Native.IsIconic(SelectedWindow);
             bool foreground=exists&&WindowLocator.IsForeground(SelectedWindow);
             if(!draw.Checked||!FloatingPanelLayout.Visible(floatingEnabled.Checked,offline,exists,minimised,foreground,floatingPanel.ContainsFocus,ContainsFocus)){floatingPanel.Hide();return;}
@@ -315,7 +323,8 @@ namespace KavrosClueHelper
             Rectangle desktop=exists?Screen.FromRectangle(game).WorkingArea:Screen.PrimaryScreen.WorkingArea;
             Rectangle placement=FloatingPanelLayout.Place(game,floatingPanel.Size,preferences.Offset,desktop);
             if(!floatingPanel.IsDragging&&floatingPanel.Bounds!=placement)floatingPanel.Bounds=placement;
-            floatingPanel.TopMost=true;
+            // Settings is this window. While it is open the panel must not stay above it, and raising the panel must not activate it.
+            floatingPanel.PlaceTopMost(!Visible);
             if(!floatingPanel.Visible)floatingPanel.Show();
         }
         private void ShowMasterView(bool show)
@@ -398,8 +407,9 @@ namespace KavrosClueHelper
             ShowGuidance();
             PollShortestSlider();
             TickTracking();
-            if (!windows.DroppedDown && (DateTime.UtcNow >= nextDiscovery || (SelectedWindow != IntPtr.Zero && !Native.IsWindow(SelectedWindow)))) RefreshWindows();
-            else if ((windows.SelectedItem as GameWindow) != null && ((GameWindow)windows.SelectedItem).Automatic) AttachWindow();
+            bool chosenAlive=SelectedWindow!=IntPtr.Zero&&Native.IsWindow(SelectedWindow);
+            bool handleLost=attachedWindow!=null&&!chosenAlive;
+            if (!windows.DroppedDown && WindowLocator.ShouldEnumerate(chosenAlive, DateTime.UtcNow>=nextDiscovery, handleLost)) RefreshWindows();
             if (busy || DateTime.UtcNow < nextRead) return;
             if (requestedScan)
             {

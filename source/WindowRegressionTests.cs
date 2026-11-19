@@ -47,6 +47,11 @@ namespace KavrosClueHelper
                 GameWindow archive = Window(12, "KavrosClueHelper-v0.2.zip", "WinRAR", "WinRarWindow");
                 GameWindow folder = Window(13, "KavrosClueHelper-v0.2", "explorer", "CabinetWClass");
                 Check(WindowLocator.Choose(new[] { discord, archive, folder, launcher }, IntPtr.Zero, discord.Handle) == null, "Kavros mentions in Discord, archives and folders are not game windows");
+                Check((Native.TopMostFlags & Native.SwpNoActivate) != 0, "raising the panel does not activate it");
+                Check(WindowLocator.ShouldEnumerate(true, true, false) == false, "a live chosen client is not enumerated on the timer");
+                Check(WindowLocator.ShouldEnumerate(false, false, true), "a dead handle is rediscovered immediately");
+                Check(WindowLocator.ShouldEnumerate(false, true, false), "the first client is sought on the slow timer");
+                Check(WindowLocator.ShouldEnumerate(false, false, false) == false, "an empty search does not enumerate every tick");
                 Check(FloatingPanelLayout.Visible(true, false, true, false, false, false, false), "another app in front leaves the panel visible");
                 Check(!FloatingPanelLayout.Visible(true, false, true, true, true, false, false), "minimising the chosen client hides the panel");
                 Check(!FloatingPanelLayout.Visible(true, true, true, false, true, false, false), "screenshot mode does not show the live panel");

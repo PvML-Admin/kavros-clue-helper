@@ -95,11 +95,26 @@ namespace KavrosClueHelper
 
         [DllImport("user32.dll", EntryPoint = "SetWindowLong")] static extern int SetWindowLong32(IntPtr window, int index, int value);
         [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")] static extern IntPtr SetWindowLongPtr64(IntPtr window, int index, IntPtr value);
+        public const int SwpNoSize=0x0001,SwpNoMove=0x0002,SwpNoActivate=0x0010,SwpNoOwnerZOrder=0x0200;
+        public static readonly IntPtr HwndTopMost=new IntPtr(-1),HwndNoTopMost=new IntPtr(-2);
+        // Reasserting topmost must not activate the panel. Activation every tick steals the game's mouse.
+        public static int TopMostFlags { get { return SwpNoSize|SwpNoMove|SwpNoActivate|SwpNoOwnerZOrder; } }
+        [DllImport("user32.dll", EntryPoint="GetWindowLong")] static extern int GetWindowLong32(IntPtr window, int index);
+        [DllImport("user32.dll", EntryPoint="GetWindowLongPtr")] static extern IntPtr GetWindowLongPtr64(IntPtr window, int index);
+        [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, int flags);
         public static void SetOwner(IntPtr child, IntPtr owner)
         {
             if (child == IntPtr.Zero) return;
             if (IntPtr.Size == 8) SetWindowLongPtr64(child, -8, owner);
             else SetWindowLong32(child, -8, owner.ToInt32());
+        }
+        public static void SetTopMostNoActivate(IntPtr window, bool top)
+        {
+            if (window == IntPtr.Zero) return;
+            int style = IntPtr.Size == 8 ? GetWindowLongPtr64(window, -20).ToInt32() : GetWindowLong32(window, -20);
+            bool already = (style & 0x00000008) != 0;
+            if (already == top) return;
+            SetWindowPos(window, top ? HwndTopMost : HwndNoTopMost, 0, 0, 0, 0, TopMostFlags);
         }
         public static Rectangle ClientBounds(IntPtr window)
         {

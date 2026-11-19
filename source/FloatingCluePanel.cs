@@ -247,6 +247,11 @@ namespace KavrosClueHelper
         public event Action SettingsRequested,ScanRequested,PauseRequested,ExitRequested,UserMoved,ClearRequested;
         public bool Collapsed {get{return prefs.Collapsed;}}
         public bool IsDragging {get{return dragging;}}
+        public void PlaceTopMost(bool top)
+        {
+            if(!IsHandleCreated){if(TopMost!=top)TopMost=top;return;}
+            Native.SetTopMostNoActivate(Handle,top);
+        }
         public string ReadingStage {get;private set;}
         public FloatingCluePanel(string directory,CompassSession compass,OverlayPreferences preferences)
         {

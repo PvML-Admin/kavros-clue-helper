@@ -94,6 +94,12 @@ namespace KavrosClueHelper
             IntPtr hit=Native.WindowFromPoint(new Native.PointStruct { X=point.X,Y=point.Y });
             return hit!=IntPtr.Zero && (hit==transparentOverlay || hit==window || Native.GetAncestor(hit,2)==window);
         }
+        // A live chosen client is not rediscovered on a timer. Enumeration is only for the first client, or after its handle dies.
+        public static bool ShouldEnumerate(bool chosenAlive, bool discoveryDue, bool handleLost)
+        {
+            if (chosenAlive) return false;
+            return discoveryDue || handleLost;
+        }
         public static string Describe(IEnumerable<GameWindow> all, GameWindow selected)
         {
             StringBuilder report = new StringBuilder("Kavros Clue Helper " + AppBranding.DisplayVersion + "\r\n");
