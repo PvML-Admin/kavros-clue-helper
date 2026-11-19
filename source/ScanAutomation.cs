@@ -69,7 +69,9 @@ namespace KavrosClueHelper
             Rectangle client=Native.ClientBounds(SelectedWindow);
             Rectangle visible = CaptureSearch.VisibleClient(client, System.Windows.Forms.SystemInformation.VirtualScreen);
             if (visible.Width < 60 || visible.Height < 60) return;
-            bool reset=trackedRegion!=region.Id||trackedFloor!=region.Level||trackingWindow!=SelectedWindow||trackingClient!=client.Size||trackingGeneration!=sourceGeneration;
+            // Re-reading the clue does not restart tracking. Only a different
+            // scan, floor, window or window size starts from scratch.
+            bool reset=trackedRegion!=region.Id||trackedFloor!=region.Level||trackingWindow!=SelectedWindow||trackingClient!=client.Size;
             if(reset){positionReader.Reset();floatingPanel.RestartTracking();trackedMinimap=Rectangle.Empty;}
             trackedRegion=region.Id;trackedFloor=region.Level;trackingWindow=SelectedWindow;trackingClient=client.Size;trackingGeneration=sourceGeneration;
             bool full=trackedMinimap.IsEmpty||now>=nextFullTracking;

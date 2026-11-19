@@ -46,16 +46,12 @@ namespace KavrosClueHelper
             using (Brush b = new SolidBrush(surface)) g.FillRectangle(b, label.ClientRectangle);
             using (Brush gold = new SolidBrush(KavrosTheme.Gold)) g.FillRectangle(gold, 1, 1, label.Width - 1, 2);
             string text = label.Text ?? "";
-            bool searching = mode == PuzzleKind.None || !String.IsNullOrEmpty(ReadingStage);
-            bool notFound = searching && summary.Text.StartsWith("Waiting for Kavros", StringComparison.OrdinalIgnoreCase);
+            bool idle = mode == PuzzleKind.None;
+            bool notFound = idle && summary.Text.StartsWith("Waiting for Kavros", StringComparison.OrdinalIgnoreCase);
             int width;
-            if (searching && !notFound)
-            {
-                string dots = searchDots <= 0 ? "" : new string('.', searchDots);
-                Font searchFont = KavrosTheme.Ui(9F, false);
-                TextRenderer.DrawText(g, "Searching" + dots, searchFont, new Point(12, 8), KavrosTheme.TextSoft, surface, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
-                width = TextRenderer.MeasureText(g, "Searching...", searchFont, Size.Empty, TextFormatFlags.NoPadding).Width;
-            }
+            // Nothing detected: no Searching strip, only the plain hint in
+            // the summary ("Open a clue or puzzle in Kavros.").
+            if (idle && !notFound) width = -8;
             else
             {
                 string pill = TitlePill(notFound, retained, mode);

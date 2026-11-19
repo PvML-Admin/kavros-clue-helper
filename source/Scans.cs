@@ -84,7 +84,7 @@ namespace KavrosClueHelper
             foreach(string line in File.ReadAllLines(Path.Combine(assets,"data","scan-routes.tsv"))){
                 string[] fields=line.Split('\t');int id;
                 if(fields.Length==2&&Int32.TryParse(fields[0],out id)){
-                    ScanRegion region=Regions.Find(r=>r.Id==id);if(region!=null)region.Route=fields[1];
+                    ScanRegion region=Regions.Find(r=>r.Id==id);if(region!=null)region.Route=fields[1].Replace("\\n","\n");
                 }
             }
         }
@@ -236,6 +236,14 @@ namespace KavrosClueHelper
         private DateTime lastConfirmed;
         private int confirmations;
         private int misses;
+        // Recent movement, used to estimate where the player is while the
+        // minimap cannot be matched for a few frames.
+        private readonly MotionEstimate motion=new MotionEstimate();
+        private readonly DetectionHold trackHold=new DetectionHold();
+        private static readonly TimeSpan LostTime=TimeSpan.FromSeconds(2);
+        public const int LostFrames=8;
+        public const string FindingHint="Finding your position on the minimap...";
+        public const string LostHint="Grey marker shows your last position. Finding you again automatically.";
         public readonly HashSet<int> Visited=new HashSet<int>();
         public void NoteCoverage()
         {
@@ -248,18 +256,18 @@ namespace KavrosClueHelper
             bool changed=Region==null||reading.Region==null||Region.Id!=reading.Region.Id;
             if(changed)
             {
-                Position=null;LastKnown=null;PositionTracked=false;pending=null;confirmations=0;misses=0;                MeerkatLocked=false;
+                Position=null;LastKnown=null;PositionTracked=false;pending=null;confirmations=0;misses=0;motion.Reset();trackHold.Reset();                MeerkatLocked=false;
                 Visited.Clear();
                 Meerkat=reading.Meerkat;
-                TrackingStatus=reading.Outside?"Too far away for this scan. "+ManualHint:ManualHint;
+                TrackingStatus=reading.Outside?"Too far away for this scan.":AutoTracking?FindingHint:ManualHint;
             }
             else if(!MeerkatLocked&&reading.Meerkat)Meerkat=true;
             Region=reading.Region;DifferentLevel=reading.DifferentLevel;Outside=reading.Outside;
-            if(Outside){Position=null;PositionTracked=false;pending=null;TrackingStatus="Too far away for this scan. "+ManualHint;}
+            if(Outside){Position=null;PositionTracked=false;pending=null;TrackingStatus="Too far away for this scan.";}
         }
         public bool InRange(PointF spot,int factor=1){return (!AutoTracking||PositionTracked)&&!DifferentLevel&&Position.HasValue&&Math.Max(Math.Abs(spot.X-Position.Value.X),Math.Abs(spot.Y-Position.Value.Y))<=Range*factor;}
-        public void Clear(){Region=null;Position=null;LastKnown=null;DifferentLevel=false;Outside=false;PositionTracked=false;pending=null;Visited.Clear();}
-        public void SetAutomatic(bool enabled){AutoTracking=enabled;Position=null;LastKnown=null;PositionTracked=false;pending=null;misses=0;TrackingStatus=enabled?ManualHint:"Right-click your spot on the map.";}
+        public void Clear(){Region=null;Position=null;LastKnown=null;DifferentLevel=false;Outside=false;PositionTracked=false;pending=null;motion.Reset();trackHold.Reset();Visited.Clear();}
+        public void SetAutomatic(bool enabled){AutoTracking=enabled;Position=null;LastKnown=null;PositionTracked=false;pending=null;misses=0;motion.Reset();trackHold.Reset();TrackingStatus=enabled?FindingHint:"Right-click your spot on the map.";}
         public void SetManual(PointF position){SetAutomatic(false);Position=position;TrackingStatus="Manual position set. Right-click the map to move it.";}
         public void PrepareRecheck(){if(LastKnown.HasValue)return;Position=null;PositionTracked=false;pending=null;TrackingStatus="Minimap found. Checking your current position...";}
         public void ApplyMatch(MinimapMatch match,DateTime now)
@@ -268,20 +276,35 @@ namespace KavrosClueHelper
             if(Outside)
             {
                 confirmations=0;PositionTracked=false;Position=null;pending=null;
-                TrackingStatus="Too far away for this scan. "+ManualHint;
+                TrackingStatus="Too far away for this scan.";
                 return;
             }
             if(match==null)
             {
-                if(PositionTracked&&LastKnown.HasValue&&(now-lastMatch).TotalSeconds<12)
-                {Position=LastKnown;TrackingStatus="Following your minimap automatically.";NoteCoverage();return;}
+                if(PositionTracked&&LastKnown.HasValue)
+                {
+                    // Keep following through missed frames, moving the marker
+                    // along the recent heading. Only several misses in a row,
+                    // over a couple of seconds, count as lost.
+                    trackHold.Miss(now);
+                    bool lost=(trackHold.Misses>=LostFrames&&(now-lastMatch)>=LostTime)||(now-lastMatch).TotalSeconds>=12;
+                    if(!lost)
+                    {
+                        PointF? estimate=motion.Estimate(now);
+                        Position=estimate.HasValue?estimate:LastKnown;
+                        TrackingStatus="Following your minimap automatically.";return;
+                    }
+                    PositionTracked=false;Position=null;pending=null;confirmations=0;misses=trackHold.Misses;
+                    TrackingStatus=LostHint;return;
+                }
                 confirmations=0;
                 PositionTracked=false;
                 if((now-lastMatch).TotalMilliseconds>650)Position=null;
                 misses++;
-                TrackingStatus=LastKnown.HasValue&&misses<3?"Grey marker shows your last position. "+ManualHint:ManualHint;
+                TrackingStatus=LastKnown.HasValue?LostHint:FindingHint;
                 return;
             }
+            trackHold.Seen();
             if(PositionTracked&&LastKnown.HasValue)
             {
                 double gap=Math.Max(0.05,(now-lastMatch).TotalSeconds);
@@ -291,21 +314,32 @@ namespace KavrosClueHelper
                 PointF held=LastKnown.Value;
                 var smoothed=new PointF(held.X+(match.Position.X-held.X)*0.7F,held.Y+(match.Position.Y-held.Y)*0.7F);
                 pending=match;lastMatch=now;misses=0;Position=smoothed;LastKnown=smoothed;PositionTracked=true;lastConfirmed=now;
+                motion.Observe(smoothed,now);
                 TrackingStatus="Following your minimap automatically.";
                 NoteCoverage();
                 return;
             }
             misses=0;
+            if(LastKnown.HasValue&&CompassMath.Distance(match.Position,LastKnown.Value)<=20+Math.Max(0,(now-lastMatch).TotalSeconds)*MotionEstimate.MaxSpeed)
+            {
+                // Back where we lost the player (or a short run from there):
+                // pick up again at once, without a confirmation frame.
+                pending=match;lastMatch=now;confirmations=2;Position=match.Position;LastKnown=match.Position;PositionTracked=true;lastConfirmed=now;
+                motion.Reset();motion.Observe(match.Position,now);
+                TrackingStatus="Following your minimap automatically.";
+                NoteCoverage();
+                return;
+            }
             bool consistent=pending!=null&&(now-lastMatch).TotalSeconds<2&&CompassMath.Distance(match.Position,pending.Position)<=18;
             confirmations=consistent?confirmations+1:1;consistent=consistent&&confirmations>=2;
             pending=match;lastMatch=now;
             PositionTracked=consistent;Position=consistent?(PointF?)match.Position:null;
-            if(consistent){LastKnown=match.Position;lastConfirmed=now;}
+            if(consistent){LastKnown=match.Position;lastConfirmed=now;motion.Reset();motion.Observe(match.Position,now);}
             TrackingStatus=consistent?"Following your minimap automatically.":"Position found. Confirming the next frame...";
             NoteCoverage();
         }
         public void Expire(DateTime now)
-        {if(AutoTracking&&Position.HasValue&&(now-lastMatch).TotalSeconds>12){Position=null;PositionTracked=false;pending=null;TrackingStatus="Position lost. "+ManualHint;}}
+        {if(AutoTracking&&Position.HasValue&&(now-lastMatch).TotalSeconds>12){Position=null;PositionTracked=false;pending=null;TrackingStatus=LastKnown.HasValue?LostHint:FindingHint;}}
 
         public string Summary {get{return Region==null?"":Region.Name+" | "+Range+" paces"+(Meerkat?" (meerkat)":"")+" | Dig locations: level "+Region.Level+"\n"+(AutoTracking?TrackingStatus:Position.HasValue?"Manual position set. Right-click the map to move it.":ManualHint)+(AutoTracking&&!PositionTracked&&LastKnown.HasValue?"\nGrey marker: last confirmed "+Math.Max(0,(int)(DateTime.UtcNow-lastConfirmed).TotalSeconds)+"s ago.":"");}}
 

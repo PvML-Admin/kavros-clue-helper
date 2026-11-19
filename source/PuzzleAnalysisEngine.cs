@@ -44,6 +44,8 @@ namespace KavrosClueHelper
         public Bitmap DiagnosticImage;
         public long Milliseconds;
         public bool Unchanged,Pending;
+        // A towers grid is on screen but its edge clues are not readable yet.
+        public Rectangle? TowerGrid;
         public void Dispose() { if (Preview != null) { Preview.Dispose(); Preview = null; } if(DiagnosticImage!=null) { DiagnosticImage.Dispose(); DiagnosticImage=null; } }
     }
     public sealed class PuzzleAnalysisEngine
@@ -63,6 +65,16 @@ namespace KavrosClueHelper
         private DateTime boardSeen;
         private int sourceId = Int32.MinValue;
         private DateTime nextBroadSearch = DateTime.MinValue;
+        // Lockbox and towers keep their last good plan through brief misses
+        // and only change board after the new board is read twice in a row.
+        private readonly DetectionHold boardHold = new DetectionHold();
+        private int towerWaits;
+        private readonly ChangeConfirmation boardChange = new ChangeConfirmation();
+        private bool HoldBoard(DateTime now)
+        {
+            return cached!=null&&last!=null&&SteadyPolicy.HoldsThroughMisses(last.Kind)&&boardHold.Miss(now);
+        }
+        private AnalysisResult Held(long elapsed){return new AnalysisResult{Plan=cached,Pending=true,Unchanged=true,Milliseconds=elapsed};}
         public int FullSearches { get; private set; }
         public int SlidingRouteReuses {get;private set;}
         public int BroadSearches { get { return detector.BroadSearches; } }
@@ -115,7 +127,7 @@ namespace KavrosClueHelper
                 { // Reframing the same game must retain the slider route; otherwise
                   // the worker and visible preview can follow different plans.
                   bool keepSlider=source==sourceId&&cached!=null&&(cached.Puzzle.Kind==PuzzleKind.Sliding||cached.Puzzle.Kind==PuzzleKind.Knot);
-                  last=null;if(!keepSlider){cached=null;solveKey=null;}sliderFrame=null;pendingSliderKey=null; if(source!=sourceId)knotFrames.Reset();else knotFrames.Missing(DateTime.UtcNow); sourceId = source; lastSize = image.Size; nextBroadSearch=DateTime.MinValue; detector.ResetSearch(); }
+                  last=null;if(!keepSlider){cached=null;solveKey=null;}boardHold.Reset();boardChange.Reset();sliderFrame=null;pendingSliderKey=null; if(source!=sourceId)knotFrames.Reset();else knotFrames.Missing(DateTime.UtcNow); sourceId = source; lastSize = image.Size; nextBroadSearch=DateTime.MinValue; detector.ResetSearch(); }
                 lastSize = image.Size;
                 Pixels pixels = new Pixels(image);
                 bool sameSolve = last != null && DetectionPolicy.CanTrack(cached) && solveKey == cached.Puzzle.Key + ":" + reverse+(cached.Puzzle.Kind==PuzzleKind.Knot?":"+cached.KnotMoving:"")+":"+wholeRows && !cached.KnotMoving && new Rectangle(Point.Empty,image.Size).Contains(last.Bounds);
@@ -125,7 +137,7 @@ namespace KavrosClueHelper
                 // still run the cheap board search, because a puzzle can open
                 // somewhere else on the same screen.
                 if (trackingBoard && hashUnchanged)
-                { boardSeen=DateTime.UtcNow; UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
+                { boardSeen=DateTime.UtcNow; boardHold.Seen(); boardChange.Reset(); UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
                 DetectedPuzzle puzzle = trackingBoard ? detector.ReadAgain(image,last,pixels) : null;
                 if (puzzle == null)
                 {
@@ -133,11 +145,22 @@ namespace KavrosClueHelper
                     DetectedPuzzle board=detector.DetectBoards(image,pixels,broad,livePolling);
                     if(board!=null)
                     {
+                        towerWaits=0;
                         if(last==null||trackingBoard)FullSearches++;
                         puzzle=board;
                     }
+                    else if(livePolling&&detector.TowerGridCandidate.HasValue&&!(last!=null&&SteadyPolicy.HoldsThroughMisses(last.Kind))&&++towerWaits<=6)
+                    {
+                        // The towers grid is opening: re-read it straight away
+                        // instead of spending this frame on the slow clue reader.
+                        return new AnalysisResult{TowerGrid=detector.TowerGridCandidate,Milliseconds=timer.ElapsedMilliseconds};
+                    }
                     else
                     {
+                        if(!detector.TowerGridCandidate.HasValue)towerWaits=0;
+                        // While a lockbox or towers board is held, a missed frame
+                        // keeps the board instead of running the slow clue reader.
+                        if(livePolling&&trackingBoard&&HoldBoard(DateTime.UtcNow))return Held(timer.ElapsedMilliseconds);
                         if(livePolling && broad) nextBroadSearch=DateTime.UtcNow.AddMilliseconds(100);
                         if(hashUnchanged)
                         { UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
@@ -155,7 +178,8 @@ namespace KavrosClueHelper
                     if(livePolling&&VisibleSlider(image,pixels))return PendingSlider(timer.ElapsedMilliseconds);
                     if(livePolling&&cached!=null&&last!=null&&last.Kind==PuzzleKind.Knot&&(DateTime.UtcNow-knotConfirmed).TotalMilliseconds<800&&detector.KnotFrameVisible(image,last))
                         return new AnalysisResult{Plan=cached,Pending=true,Unchanged=true,Milliseconds=timer.ElapsedMilliseconds};
-                    if(livePolling&&cached!=null&&last!=null&&(last.Kind==PuzzleKind.Towers||last.Kind==PuzzleKind.Lockbox||last.Kind==PuzzleKind.Sliding)&&(DateTime.UtcNow-boardSeen).TotalMilliseconds<1500)
+                    if(livePolling&&HoldBoard(DateTime.UtcNow))return Held(timer.ElapsedMilliseconds);
+                    if(livePolling&&cached!=null&&last!=null&&last.Kind==PuzzleKind.Sliding&&(DateTime.UtcNow-boardSeen).TotalMilliseconds<1500)
                         return new AnalysisResult{Plan=cached,Pending=true,Unchanged=true,Milliseconds=timer.ElapsedMilliseconds};
                     last = null; cached = null; solveKey = null; knotFrames.Missing(DateTime.UtcNow);
                     return new AnalysisResult { Preview = MakePreview(image,new Rectangle(Point.Empty,image.Size)), Milliseconds = timer.ElapsedMilliseconds };
@@ -176,6 +200,13 @@ namespace KavrosClueHelper
                     {if(pendingSliderKey!=puzzle.Key){pendingSliderKey=puzzle.Key;return PendingSlider(timer.ElapsedMilliseconds);}}
                     else pendingSliderKey=null;
                 }
+                if(livePolling&&cached!=null&&last!=null&&SteadyPolicy.HoldsThroughMisses(last.Kind)&&puzzle.Kind==last.Kind&&puzzle.Bounds.IntersectsWith(last.Bounds))
+                {
+                    // A click changes the board for good; a misread lasts one
+                    // frame. Show the new board only once it is read twice.
+                    if(!boardChange.Accept(last.Key,puzzle.Key)){boardHold.Seen();return Held(timer.ElapsedMilliseconds);}
+                }
+                else boardChange.Reset();
                 bool knotMoving=false;
                 if(puzzle.Kind==PuzzleKind.Knot)knotMoving=knotFrames.Observe(puzzle,DateTime.UtcNow,livePolling);
                 else knotFrames.Reset();
@@ -203,12 +234,14 @@ namespace KavrosClueHelper
                 if (!DetectionPolicy.CanTrack(plan))
                 {
                     if(livePolling&&VisibleSlider(image,pixels))return PendingSlider(timer.ElapsedMilliseconds);
+                    if(livePolling&&puzzle.Kind==(last==null?PuzzleKind.None:last.Kind)&&HoldBoard(DateTime.UtcNow))return Held(timer.ElapsedMilliseconds);
                     last = null; cached = null; solveKey = null; knotFrames.Missing(DateTime.UtcNow);
                     return new AnalysisResult { Preview = MakePreview(image,new Rectangle(Point.Empty,image.Size)), Milliseconds = timer.ElapsedMilliseconds };
                 }
                 last = puzzle; cached = plan; solveKey = key;if(puzzle.Kind==PuzzleKind.Sliding)sliderFrame=SliderFrame(pixels,puzzle);else{sliderFrame=null;pendingSliderKey=null;} lastHash = pixels.Hash(puzzle.Bounds);
                 if(puzzle.Kind==PuzzleKind.Knot&&!knotMoving)knotConfirmed=DateTime.UtcNow;
                 if(DetectionPolicy.IsBoardPuzzle(puzzle.Kind))boardSeen=DateTime.UtcNow;
+                boardHold.Seen();
                 return new AnalysisResult { Plan = plan, Preview = MakePreview(image,puzzle.Bounds), Milliseconds = timer.ElapsedMilliseconds };
             }
             finally { if(decoded!=null)decoded.Dispose();SearchCancellation.Token = CancellationToken.None; }

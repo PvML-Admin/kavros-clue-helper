@@ -179,8 +179,10 @@ namespace KavrosClueHelper
             double[] scales={1,1.5,2,2.5,3,4,5,6,8,10,12,16,0.75};double[] angles=Enumerable.Range(0,24).Select(i=>i*Math.PI/12).ToArray();
             if(local&&previous!=null)
             {
-                double radius=Math.Max(28,Math.Abs(velocity.X)+Math.Abs(velocity.Y)+18);
-                double cx=previous.Position.X+velocity.X,cy=previous.Position.Y+velocity.Y;
+                // After missed frames the player has kept moving: look further
+                // along the recent heading and widen the local window a little.
+                double radius=Math.Min(80,Math.Max(28,Math.Abs(velocity.X)+Math.Abs(velocity.Y)+18)+6*misses);
+                double cx=previous.Position.X+velocity.X*(misses+1),cy=previous.Position.Y+velocity.Y*(misses+1);
                 left=cx-radius;right=cx+radius;bottom=cy-radius;top=cy+radius;step=2;
                 if(!adapt){scales=new[]{Math.Max(0.5,previous.PixelsPerTile-0.35),previous.PixelsPerTile,previous.PixelsPerTile+0.35};
                 angles=new[]{previous.Rotation-Math.PI/18,previous.Rotation,previous.Rotation+Math.PI/18};}
@@ -244,7 +246,7 @@ namespace KavrosClueHelper
                 var samples=Samples(image,dot,viewport,9);
                 Diagnostics+="; dot "+dot+" viewport "+viewport+" samples "+samples.Count;if(!Textured(samples))continue;
                 double maxError=trusted?10:22,margin=trusted?5:2.5;
-                bool local=previous!=null&&misses<3&&!wideNext;if(wideNext)wideNext=false;
+                bool local=previous!=null&&misses<6&&!wideNext;if(wideNext)wideNext=false;
                 var trials=Search(samples,token,local);
                 Trial winner=trials.FirstOrDefault(),runner=winner==null?null:trials.Skip(1).FirstOrDefault(t=>CompassMath.Distance(new PointF((float)t.X,(float)t.Y),new PointF((float)winner.X,(float)winner.Y))>9);
                 bool valid=winner!=null&&winner.Error<=maxError&&(runner==null||runner.Error>=winner.Error+margin);

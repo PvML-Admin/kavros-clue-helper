@@ -21,6 +21,8 @@ namespace KavrosClueHelper
         {
             FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; TopMost = true;
             BackColor = Color.Fuchsia; TransparencyKey = Color.Fuchsia; DoubleBuffered = true; AutoScaleMode = AutoScaleMode.None;
+            // Paint each frame off screen in one pass so the marks never flash.
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
         }
         protected override bool ShowWithoutActivation { get { return true; } }
         protected override CreateParams CreateParams { get { CreateParams p = base.CreateParams; p.ExStyle |= 0x00080000 | 0x00000020 | 0x08000000 | 0x80; return p; } }
@@ -73,6 +75,10 @@ namespace KavrosClueHelper
         private readonly object engineGate=new object();
         private readonly string assetPath;
         private DetectedPuzzle current, lastLocated;
+        // Client area of a towers grid that is still opening, read next frame.
+        private Rectangle? towerHint;
+        // A scan clue stays locked until a different clue is read twice in a row.
+        private readonly ChangeConfirmation scanChange=new ChangeConfirmation();
         private readonly ClueRetention retainedClue=new ClueRetention();
         private volatile string analysisStage;
         private readonly ProgressBar scanProgress=new KavrosProgressBar();
@@ -453,7 +459,8 @@ namespace KavrosClueHelper
                 if (overlay.Visible && GuidanceDrawing.HideForCapture(overlay.CaptureExcluded, current == null ? PuzzleKind.None : current.Kind))
                 { overlay.Hide(); Native.DwmFlush(); }
                 Rectangle fullClient=new Rectangle(Point.Empty,bounds.Size);
-                Rectangle captureArea=captureSearch.Choose(bounds.Size,lastLocated==null||!DetectionPolicy.IsBoardPuzzle(lastLocated.Kind) ? (Rectangle?)null : lastLocated.Bounds);
+                Rectangle captureArea=captureSearch.Choose(bounds.Size,lastLocated==null||!DetectionPolicy.IsBoardPuzzle(lastLocated.Kind) ? towerHint : lastLocated.Bounds);
+                towerHint=null;
                 if(lastLocated!=null&&lastLocated.Kind==PuzzleKind.Sliding&&captureArea!=fullClient)captureArea=Rectangle.Intersect(fullClient,Rectangle.Inflate(captureArea,20,20));
                 captureArea = Rectangle.Intersect(captureArea, visible);
                 if (captureArea.Width < 60 || captureArea.Height < 60) captureArea = visible;
@@ -548,6 +555,13 @@ namespace KavrosClueHelper
                 {status.Text="Puzzle covered. Keeping the last reading.";nextRead=DateTime.UtcNow.AddMilliseconds(120);ShowGuidance();return;}
                 if(result.Pending&&current!=null&&current.Kind==PuzzleKind.Knot)
                 {marks=marks.Select(m=>new GuidanceMark{Box=m.Box,Text=m.Text,Colour=Color.Silver,Corner=m.Corner,Compact=m.Compact,Outline=m.Outline}).ToList();summary.Text="Updating counts - grey numbers show the last confirmed reading.";nextRead=DateTime.UtcNow.AddMilliseconds(75);ShowGuidance();return;}
+                if(!job.Offline&&result.Plan==null&&result.TowerGrid.HasValue)
+                {
+                    // The towers grid is open but its edge clues are still
+                    // appearing. Re-read just that area straight away.
+                    Rectangle hint=result.TowerGrid.Value;hint.Offset(job.CaptureOffset);
+                    towerHint=hint;nextRead=DateTime.MinValue;return;
+                }
                 if(!job.Offline && captureSearch.Complete(job.Cropped,DetectionPolicy.CanTrack(result.Plan)))
                 {
                     compassSession.Observe(null,DateTime.UtcNow);
@@ -627,12 +641,17 @@ namespace KavrosClueHelper
                 if(puzzle.Kind==PuzzleKind.Towers) puzzleDetails+="; clues "+String.Join(",",puzzle.Towers.Top.Concat(puzzle.Towers.Bottom).Concat(puzzle.Towers.Left).Concat(puzzle.Towers.Right));
                 if(puzzle.Kind==PuzzleKind.Compass)puzzleDetails+="; "+puzzle.Compass.Heading+"; arrow pixels "+puzzle.Compass.Pixels+"; error "+(puzzle.Compass.Error*180/Math.PI).ToString("0.000")+" degrees; bearings "+compassSession.Bearings.Count;
                 if(job.Stable && pendingKey!=puzzle.Key && DetectionPolicy.NeedsConfirmation(result.Plan)) { pendingKey=puzzle.Key; status.Text="Puzzle found - confirming the next frame..."; nextRead=DateTime.UtcNow.AddMilliseconds(100); return; }
+                DetectedPuzzle shownClue=retainedClue.Display(current);
+                if(!job.Offline&&shownClue!=null&&shownClue.Kind==PuzzleKind.Scan&&!scanChange.Accept(shownClue.Key,puzzle.Key))
+                {nextRead=DateTime.UtcNow.AddMilliseconds(100);return;}
                 lastLocated=puzzle;
                 retainedClue.Accept(puzzle);
                 if(puzzle.Kind==PuzzleKind.Compass)compassSession.Observe(puzzle.Compass,job.Offline?DateTime.UtcNow:job.CapturedAt);
                 else if(compassSession.HasHistory||compassSession.Current!=null)compassSession.NewClue();
                 pendingKey=puzzle.Key; offline=job.Offline;
-                if(!result.Unchanged || current==null || current.Bounds!=puzzle.Bounds || current.Grid!=puzzle.Grid || current.Key!=puzzle.Key) { current=puzzle; SolveAndShow(puzzle,result.Plan); }
+                // Same board in the same place: keep what is drawn untouched.
+                if(SteadyPolicy.HoldsThroughMisses(puzzle.Kind)&&SteadyPolicy.SameState(current,puzzle,2)) ShowGuidance();
+                else if(!result.Unchanged || current==null || current.Bounds!=puzzle.Bounds || current.Grid!=puzzle.Grid || current.Key!=puzzle.Key) { current=puzzle; SolveAndShow(puzzle,result.Plan); }
                 else ShowGuidance();
             }
             finally
