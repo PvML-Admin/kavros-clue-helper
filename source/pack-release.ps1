@@ -3,8 +3,8 @@ $ErrorActionPreference = 'Stop'
 $vpkVersion = '1.2.161'
 $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $tag = $env:RELEASE_TAG
-if ([string]::IsNullOrWhiteSpace($tag)) { throw 'Set RELEASE_TAG to the release tag, for example v0.7.3.' }
-if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Tag '$tag' must look like v0.7.3." }
+if ([string]::IsNullOrWhiteSpace($tag)) { throw 'Set RELEASE_TAG to the release tag, for example v0.7.4.' }
+if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Tag '$tag' must look like v0.7.4." }
 $version = $Matches[1]
 $identity = [string]([xml](Get-Content -LiteralPath (Join-Path $PSScriptRoot 'app.manifest') -Raw)).assembly.assemblyIdentity.version
 $manifestVersion = ([Version]$identity).ToString(3)

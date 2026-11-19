@@ -1,6 +1,8 @@
 # Kavros Clue Helper v0.7.4
 
-Pending release. Settings opens in front of the floating panel. The panel no longer steals the mouse from the game.
+v0.7.4: Settings opens in front of the floating panel again. The lag and frozen camera are fixed. The panel was taking focus from the game on a timer, and it no longer does.
+
+Settings shows **Made by Zenity · v0.7.4**. The full notes are in CHANGELOG.md.
 
 # Kavros Clue Helper v0.7.3
 
