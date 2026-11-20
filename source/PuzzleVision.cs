@@ -451,7 +451,17 @@ namespace KavrosClueHelper
         private readonly Dictionary<float, ImagePattern[]> lockboxPatterns = new Dictionary<float, ImagePattern[]>();
         private readonly Dictionary<float, OldFrame[]> oldFrames = new Dictionary<float, OldFrame[]>();
         private readonly Dictionary<float, ImagePattern[]> oldSliderAnchors = new Dictionary<float, ImagePattern[]>();
-        private readonly float[] scales = { 1F, 0.8F, 8F/9F, 2F/3F, 0.5F, 1.25F, 1.5F, 2F };
+        private readonly float[] scales = { 1F, 0.8F, 8F/9F, 2F/3F, 0.5F, 1.25F, 1.5F, 1.75F, 2F, 2.25F, 2.5F, 3F };
+        // Templates are drawn at 1080p. A 1440p or 4K client is searched at the
+        // nearest interface scales first, then the rest, so a large UI is not
+        // matched as a small 1080p puzzle.
+        public static float[] SearchOrder(int pixelHeight)
+        {
+            float[] classic = { 1F, 0.8F, 8F/9F, 2F/3F, 0.5F, 1.25F, 1.5F, 2F, 1.75F, 2.25F, 2.5F, 3F };
+            if (pixelHeight < 1400) return classic;
+            float target = pixelHeight / 1080F;
+            return classic.OrderBy(s => Math.Abs(s - target)).ThenBy(s => s).ToArray();
+        }
         public int LastTowerCluesRead;
         private string towerSolveKey;
         private List<int[]> towerSolutions;
@@ -509,19 +519,20 @@ namespace KavrosClueHelper
             if(lockbox!=null) return lockbox;
             if(!allowBroadSearch) return null;
             BroadSearches++;
+            float[] order=SearchOrder(screenshot.Height);
             if(progressive)
             {
                 var timer=System.Diagnostics.Stopwatch.StartNew();
                 int searched=0;
                 do
                 {
-                    float scale=scales[nextSearchScale]; nextSearchScale=(nextSearchScale+1)%scales.Length; searched++;
+                    float scale=order[nextSearchScale % order.Length]; nextSearchScale=(nextSearchScale+1)%order.Length; searched++;
                     DetectedPuzzle match=FindAtScale(screenshot,pixels,scale);
                     if(match!=null) return match;
-                } while(timer.ElapsedMilliseconds<180 && searched<scales.Length);
+                } while(timer.ElapsedMilliseconds<180 && searched<order.Length);
                 return null;
             }
-            foreach(float scale in scales)
+            foreach(float scale in order)
             {
                 DetectedPuzzle match=FindAtScale(screenshot,pixels,scale);
                 if(match!=null) return match;

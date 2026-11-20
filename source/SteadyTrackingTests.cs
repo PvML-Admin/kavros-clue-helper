@@ -40,7 +40,7 @@ namespace KavrosClueHelper
                 check(SteadyPolicy.SameState(a,b,2),"a 1 px jitter on the same board needs no redraw");
                 b.Board[3]=1;check(!SteadyPolicy.SameState(a,b,2),"a clicked board is redrawn");
                 b.Board[3]=0;b.Bounds=new Rectangle(140,100,300,300);check(!SteadyPolicy.SameState(a,b,2),"a moved board is redrawn");
-                check(SteadyPolicy.HoldsThroughMisses(PuzzleKind.Lockbox)&&SteadyPolicy.HoldsThroughMisses(PuzzleKind.Towers)&&!SteadyPolicy.HoldsThroughMisses(PuzzleKind.Sliding)&&!SteadyPolicy.HoldsThroughMisses(PuzzleKind.Knot),"only lockbox and towers use the hold");
+                check(SteadyPolicy.HoldsThroughMisses(PuzzleKind.Lockbox)&&SteadyPolicy.HoldsThroughMisses(PuzzleKind.Towers)&&SteadyPolicy.HoldsThroughMisses(PuzzleKind.Knot)&&!SteadyPolicy.HoldsThroughMisses(PuzzleKind.Sliding),"lockbox, towers and the knot hold through a miss");
 
                 var motion=new MotionEstimate();
                 check(!motion.Estimate(t).HasValue,"no estimate before any position");

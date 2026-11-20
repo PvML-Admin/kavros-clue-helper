@@ -41,19 +41,19 @@ namespace KavrosClueHelper
             }
             return marks;
         }
-        public static int TowerClicksRemaining(int current, int target, bool skipBlank)
+        // Kavros cycles 5, blank, then 1. Blank is always a step.
+        public static int TowerClicksRemaining(int current, int target)
         {
             if (current < 0 || current > 5 || target < 1 || target > 5) throw new ArgumentOutOfRangeException("Tower heights must be blank or 1-5.");
             if (current == 0) return target;
-            int cycle = skipBlank ? 5 : 6;
-            return (target - current + cycle) % cycle;
+            return (target - current + 6) % 6;
         }
-        public static List<GuidanceMark> TowerMarks(DetectedPuzzle puzzle, int[] solution, bool countdown = false, bool skipBlank = false)
+        public static List<GuidanceMark> TowerMarks(DetectedPuzzle puzzle, int[] solution, bool countdown = false)
         {
             List<GuidanceMark> result = new List<GuidanceMark>();
             for (int i = 0; i < 25; i++)
             {
-                int value = countdown ? TowerClicksRemaining(puzzle.Towers.Cells[i], solution[i], skipBlank) : solution[i];
+                int value = countdown ? TowerClicksRemaining(puzzle.Towers.Cells[i], solution[i]) : solution[i];
                 result.Add(new GuidanceMark { Box = Cell(puzzle, i), Text = value.ToString(), Colour = countdown && value == 0 ? Color.Lime : Color.White, Corner = true, Compact = true, Outline = false });
             }
             return result;
@@ -100,9 +100,18 @@ namespace KavrosClueHelper
         }
         public static bool HideForCapture(bool captureExcluded, PuzzleKind kind)
         {
-            // Tower badges avoid the grid lines and centred game digits, so
-            // even on older Windows they can remain visible during a capture.
-            return !captureExcluded && kind != PuzzleKind.Towers && kind != PuzzleKind.Sliding && kind != PuzzleKind.Knot;
+            // Screenshots and recordings must show the overlay. Capture reads
+            // the game window, then paints over these marks, so nothing is hidden.
+            return false;
+        }
+        public static Rectangle OpaquePatch(GuidanceMark mark)
+        {
+            if (mark.Sliding)
+            {
+                int size = Math.Max(12, Math.Min(22, (int)Math.Round(mark.Box.Width * 0.40)));
+                return new Rectangle(mark.Box.Left + 1, mark.Box.Top + 1, size, size);
+            }
+            return LabelBounds(mark);
         }
         public static void Draw(Graphics graphics, IEnumerable<GuidanceMark> marks)
         {

@@ -29,6 +29,9 @@ namespace KavrosClueHelper
                 bool show2, hide2, move2, paint2, known2; Rectangle placed2;
                 GuidanceDrawing.Present(true, known, placed, true, steady, false, out show2, out hide2, out move2, out paint2, out known2, out placed2);
                 Check(!show2 && !hide2 && !move2 && !paint2, "an unchanged puzzle is not hidden, shown, moved, or cleared");
+                float[] fourK = PuzzleDetector.SearchOrder(2160);
+                Check(fourK.Length >= 12 && Math.Abs(fourK[0] - 2F) < 0.01F, "a 4K frame searches the 2x interface scale first");
+                Check(PuzzleDetector.SearchOrder(1080)[0] == 1F, "a 1080p frame searches the native template first");
                 string preferred = LodestoneIcons.Resolve(assets, "Lumbridge lodestone");
                 Check(preferred != null && preferred.Replace('\\', '/').Contains("/map-icons/lodestones/lumbridge.png"), "lodestone icons prefer assets/map-icons/lodestones");
                 string compass = LodestoneIcons.CompassFile(assets);

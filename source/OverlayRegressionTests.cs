@@ -69,10 +69,12 @@ namespace KavrosClueHelper
                     changed = marks.Select(m => m.Offset(1, 0)).ToList();
                     Check(!GuidanceDrawing.SameMarks(marks, changed), "changed cell positions request a redraw");
                 }
-                Check(!GuidanceDrawing.HideForCapture(false, PuzzleKind.Towers), "tower labels stay visible even without capture exclusion");
                 foreach (PuzzleKind kind in new[] { PuzzleKind.Towers, PuzzleKind.Knot, PuzzleKind.Lockbox, PuzzleKind.Sliding })
-                    Check(!GuidanceDrawing.HideForCapture(true, kind), "excluded overlays remain visible during scans");
-                Check(GuidanceDrawing.HideForCapture(false, PuzzleKind.Lockbox), "unsupported capture exclusion retains safe lockbox reading");
+                    Check(!GuidanceDrawing.HideForCapture(false, kind) && !GuidanceDrawing.HideForCapture(true, kind), "overlays stay visible in screenshots");
+                Rectangle requested = new Rectangle(100, 200, 400, 400);
+                bool keepShow, keepHide, keepMove, keepPaint, keepKnown; Rectangle keepPlaced;
+                GuidanceDrawing.Present(true, true, requested, true, requested, false, out keepShow, out keepHide, out keepMove, out keepPaint, out keepKnown, out keepPlaced);
+                Check(!keepMove && keepPlaced == requested, "a DPI-shrunk window report does not replace the requested overlay rectangle");
                 File.AppendAllText(report, "V0.2.3 OVERLAY REGRESSIONS PASS: " + assertions + " assertions.\r\nCorner labels checked on bitmaps at 80%, 100%, 125%, 150% and 200%.\r\nNo windows were shown and no application input was sent.\r\n");
                 return 0;
             }

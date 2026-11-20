@@ -58,7 +58,7 @@ namespace KavrosClueHelper
      var marks=GuidanceDrawing.SliderMarks(puzzle,new[]{23,18,17,22});using(Graphics g=Graphics.FromImage(frame))GuidanceDrawing.Draw(g,marks);
      var read=detector.ReadAgain(frame,puzzle);Check(read!=null&&read.Board.SequenceEqual(puzzle.Board),"badges stay readable to the detector at scale "+scale);
     }
-    Check(!GuidanceDrawing.HideForCapture(false,PuzzleKind.Sliding),"slider is never hidden for routine screen capture");
+    Check(!GuidanceDrawing.HideForCapture(false,PuzzleKind.Sliding),"slider stays visible in screenshots");
     File.AppendAllText(report,"V0.5.5 SLIDER GUIDANCE PASS: "+checks+" assertions. Visible badges, twelve consecutive moves, rolling four-step previews, animation retention, closure and scaled tile reading. No windows shown or game input/capture.\r\n");return 0;
    }
    catch(Exception e){File.AppendAllText(report,e+"\r\n");return 1;}
