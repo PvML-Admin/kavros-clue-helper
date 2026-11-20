@@ -113,6 +113,19 @@ namespace KavrosClueHelper
             }
             return LabelBounds(mark);
         }
+        // Number badges, and the thin box stroke, without covering the tile picture.
+        public static void AddOpaque(GuidanceMark mark, IList<Rectangle> patches)
+        {
+            patches.Add(OpaquePatch(mark));
+            if (!mark.Outline && !mark.Sliding) return;
+            Rectangle box = mark.Sliding ? Rectangle.Inflate(mark.Box, 4, 4) : mark.Box;
+            int thick = 4;
+            if (box.Width <= thick * 2 || box.Height <= thick * 2) { patches.Add(box); return; }
+            patches.Add(new Rectangle(box.Left, box.Top, box.Width, thick));
+            patches.Add(new Rectangle(box.Left, box.Bottom - thick, box.Width, thick));
+            patches.Add(new Rectangle(box.Left, box.Top, thick, box.Height));
+            patches.Add(new Rectangle(box.Right - thick, box.Top, thick, box.Height));
+        }
         public static void Draw(Graphics graphics, IEnumerable<GuidanceMark> marks)
         {
             foreach (GuidanceMark mark in marks)

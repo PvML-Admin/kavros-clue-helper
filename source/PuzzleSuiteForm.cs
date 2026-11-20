@@ -491,7 +491,7 @@ namespace KavrosClueHelper
                 captureArea = Rectangle.Intersect(captureArea, visible);
                 if (captureArea.Width < 60 || captureArea.Height < 60) captureArea = visible;
                 Rectangle screenArea=captureArea; screenArea.Offset(bounds.Location);
-                Bitmap screenshot=ScreenReader.Capture(window, screenArea);
+                Bitmap screenshot=ScreenReader.Capture(screenArea);
                 ScreenReader.Cover(screenshot, screenArea, OverlayInk(bounds.Location));
                 // Never detect a puzzle in this helper's own screenshot preview
                 // when the panel is sitting above the game.
@@ -645,6 +645,7 @@ namespace KavrosClueHelper
                     Rectangle localGrid=p.Grid;localGrid.Offset(-p.Bounds.Left,-p.Bounds.Top);
                     using(Bitmap freshImage=ScreenReader.Capture(screen))
                     {
+                        ScreenReader.Cover(freshImage, screen, OverlayInk(Native.ClientBounds(job.Window).Location));
                         DetectedPuzzle fresh=analysisEngine.ReadOnlySlider(freshImage,new DetectedPuzzle{Kind=PuzzleKind.Sliding,Bounds=new Rectangle(Point.Empty,freshImage.Size),Grid=localGrid,Scale=p.Scale});
                         if(fresh==null||!fresh.Board.SequenceEqual(p.Board))
                         {
@@ -854,9 +855,9 @@ namespace KavrosClueHelper
             if(!overlay.Visible) return ink;
             foreach(GuidanceMark mark in marks)
             {
-                Rectangle patch=GuidanceDrawing.OpaquePatch(mark);
-                patch.Offset(clientOrigin);
-                ink.Add(patch);
+                int before=ink.Count;
+                GuidanceDrawing.AddOpaque(mark, ink);
+                for(int i=before;i<ink.Count;i++){Rectangle patch=ink[i];patch.Offset(clientOrigin);ink[i]=patch;}
             }
             return ink;
         }
@@ -869,7 +870,7 @@ namespace KavrosClueHelper
                 Rectangle client=SelectedWindow==IntPtr.Zero?Rectangle.Empty:Native.ClientBounds(SelectedWindow);
                 if(client.Width>=60 && client.Height>=60)
                 {
-                    using(Bitmap shot=ScreenReader.Capture(SelectedWindow, client)) shot.Save(Path.Combine(folder,"game.png"));
+                    using(Bitmap shot=ScreenReader.Capture(client)) shot.Save(Path.Combine(folder,"game.png"));
                 }
                 uint dpi=0;
                 try { if(SelectedWindow!=IntPtr.Zero) dpi=Native.GetDpiForWindow(SelectedWindow); } catch(EntryPointNotFoundException) { } catch(DllNotFoundException) { }

@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.9
+
+v0.7.9: The screen no longer flashes black. The helper copies the screen instead of asking the game window to repaint. The overlay still shows in screenshots, and its own numbers are covered before a puzzle is read.
+
+Settings shows **Made by Zenity · v0.7.9**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.8
 
 v0.7.8: Puzzle numbers sit on the tiles again at 1440p and 4K, and they do not blink. Towers go 5, blank, then 1. Slider clicks move the whole row. The overlay shows up in screenshots. Save debug on the panel stores a picture and the detection log. A compass clue stays locked, and the overlay follows the game window.
