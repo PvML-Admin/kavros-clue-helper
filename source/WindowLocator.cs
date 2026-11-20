@@ -89,6 +89,35 @@ namespace KavrosClueHelper
             if (foreground == IntPtr.Zero) return false;
             return foreground == game || Native.GetAncestor(foreground, 2) == game || (Native.GetAncestor(foreground, 3) == Native.GetAncestor(game, 3) && Native.GetAncestor(game, 3) != IntPtr.Zero);
         }
+        // Companion, AFK Warden, the Slayer helper and this helper. Not the launcher
+        // and not the game itself (the game is handled by IsForeground).
+        public static bool IsHelperProcess(string processName)
+        {
+            if (string.IsNullOrEmpty(processName)) return false;
+            if (processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                processName = processName.Substring(0, processName.Length - 4);
+            return EqualsName(processName, "KavrosCompanion")
+                || EqualsName(processName, "KavrosAfkWarden")
+                || EqualsName(processName, "KavrosSlayerHelper")
+                || EqualsName(processName, "KavrosClueHelper");
+        }
+        private static bool EqualsName(string processName, string expected)
+        {
+            return string.Equals(processName, expected, StringComparison.OrdinalIgnoreCase);
+        }
+        public static bool IsHelperWindow(IntPtr window)
+        {
+            if (window == IntPtr.Zero) return false;
+            uint pid;
+            Native.GetWindowThreadProcessId(window, out pid);
+            if (pid == 0) return false;
+            try
+            {
+                using (Process process = Process.GetProcessById((int)pid))
+                    return IsHelperProcess(process.ProcessName);
+            }
+            catch { return false; }
+        }
         public static bool AtPoint(IntPtr window,Point point,IntPtr transparentOverlay)
         {
             IntPtr hit=Native.WindowFromPoint(new Native.PointStruct { X=point.X,Y=point.Y });

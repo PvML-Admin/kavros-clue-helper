@@ -116,6 +116,16 @@ namespace KavrosClueHelper
             if (already == top) return;
             SetWindowPos(window, top ? HwndTopMost : HwndNoTopMost, 0, 0, 0, 0, TopMostFlags);
         }
+        // Drop or raise topmost without activating. After dropping, HWND_NOTOPMOST
+        // lands above every normal window, so tuckBehind (usually the foreground
+        // application) is used to slide the window just under that app.
+        public static void ApplyZOrderNoActivate(IntPtr window, bool topMost, IntPtr tuckBehind)
+        {
+            if (window == IntPtr.Zero) return;
+            SetTopMostNoActivate(window, topMost);
+            if (!topMost && tuckBehind != IntPtr.Zero && tuckBehind != window)
+                SetWindowPos(window, tuckBehind, 0, 0, 0, 0, TopMostFlags);
+        }
         public static Rectangle ClientBounds(IntPtr window)
         {
             Rect r;

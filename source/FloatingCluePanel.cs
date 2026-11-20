@@ -72,6 +72,19 @@ namespace KavrosClueHelper
             // Minimising the chosen client still does.
             return enabled&&!offline&&!minimised;
         }
+        // Topmost only while the player is looking at the game, at a Kavros helper
+        // (Companion, AFK Warden, the Slayer helper or this panel), or briefly after
+        // launch. Settings in front, a minimised client, or an unrelated application
+        // drops topmost so the panel stays above the game without covering those apps.
+        public static bool WantTopMost(bool gameExists,bool minimised,bool gameForeground,bool helperForeground,bool panelForeground,bool settingsForeground,bool launchGrace)
+        {
+            if(minimised)return false;
+            if(settingsForeground)return false;
+            if(launchGrace)return true;
+            if(panelForeground)return true;
+            if(helperForeground)return true;
+            return gameExists&&gameForeground;
+        }
     }
     public sealed class CompassMap : Control
     {
