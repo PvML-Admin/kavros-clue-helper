@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.10
+
+v0.7.10: Rescan reads the puzzle that is on screen again. A slide route is solved from the current tiles, including when a move does not match the old route. The hard cryptic about four blades is the Lumbridge windmill, top floor. A Dave's spellbook step notes that it is bought from the Vote shop.
+
+Settings shows **Made by Zenity · v0.7.10**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.9
 
 v0.7.9: The screen no longer flashes black. The helper copies the screen instead of asking the game window to repaint. The overlay still shows in screenshots, and its own numbers are covered before a puzzle is read.

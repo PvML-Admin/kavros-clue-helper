@@ -1357,11 +1357,12 @@ Tile 3202, 3470 | level 0</details>
   </clue>
   <clue id="173" tier="hard" type="cryptic" heading="Lumbridge windmill" action="Search Crate" x="3166" y="3309" width="1" height="1" level="2">
     <text>Four blades I have, yet draw no blood, Still I turn my prey to powder. If you are brave, come search my roof, It is there my blades are louder.</text>
-    <details>Fastest: Draynor Village lodestone.
-Alternatively: Amulet of farming &gt; Bushes and Cacti Patches &gt; 1. Varrock Bush Patch, run south to the windmill.
+    <text>Four blades I have, yet draw no blood; Still I turn my prey to powder. If you are brave, come search my roof; It is there my blades are louder.</text>
+    <details>Fastest: Draynor Village lodestone, run east to the windmill.
+Alternatively: Combat bracelet &gt; Champions' Guild, run south-west to the windmill.
 Third option: Amulet of farming &gt; Bushes and Cacti Patches &gt; 0. Next page &gt; 1. Lumbridge Hops Patch, run west to the windmill.
-Final step: Run east to the windmill, then climb to the top floor and search the crate. Use the stairs to floor 2 above ground.
-Clue: Search Crate (Lumbridge windmill).
+Final step: Run east to the windmill, then climb to the top floor and search the crates. Use the stairs to floor 2 above ground.
+Clue: Search the crates on the top floor of the Lumbridge windmill.
 
 Tile 3166, 3309 | level 2</details>
   </clue>

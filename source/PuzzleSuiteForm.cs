@@ -455,7 +455,9 @@ namespace KavrosClueHelper
         private void RequestScan()
         {
             CancelAnalysis(); nextRead=DateTime.MinValue;
+            if(analysisEngine!=null)analysisEngine.Reset();
             captureSearch.ForceFullWindow(); lastLocated=null;current=null;marks.Clear();canvas.Puzzle=null;canvas.Invalidate();ShowMasterView(false);
+            knotHistory=null;slidingMoves=null;slidingBoard=null;slidingTheme=null;slidingBatchNumber=1;
             if (offlineSource != null) { offlineSource.Dispose(); offlineSource = null; }
             offline = false; RefreshWindows();
 
@@ -810,16 +812,17 @@ namespace KavrosClueHelper
                 if(slidingBoard.SequenceEqual(puzzle.Board))return;
                 int oldBlank=Array.IndexOf(slidingBoard,24),nextBlank=Array.IndexOf(puzzle.Board,24);
                 bool adjacent=oldBlank>=0&&SlidingSolver.Neighbours(oldBlank).Contains(nextBlank);
-                if(!adjacent)return;
-                if(SlidingRoute.Advance(slidingBoard,slidingMoves,puzzle.Board,out remaining))
+                if(adjacent&&SlidingRoute.Advance(slidingBoard,slidingMoves,puzzle.Board,out remaining))
                 {
                     int consumed=slidingMoves.Count-remaining.Count;
                     slidingBatchNumber+=SlidingRoute.CompletedClicks(slidingBoard,slidingMoves,consumed);slidingMoves=remaining;
                     slidingBoard=(int[])puzzle.Board.Clone();return;
                 }
             }
+            // The board is not the next step of the cached route. Solve what is on screen.
             if(!SlidingSolver.IsSolvable(puzzle.Board))return;
-            slidingMoves=preparedRoute==null?SlidingClickOptimizer.Solve(puzzle.Board).Moves:new List<int>(preparedRoute);slidingBatchNumber=1;
+            preparedRoute=null;
+            slidingMoves=SlidingClickOptimizer.Solve(puzzle.Board).Moves;slidingBatchNumber=1;
             slidingBoard=(int[])puzzle.Board.Clone();slidingTheme=puzzle.Theme;
         }
         private Rectangle lastClient;

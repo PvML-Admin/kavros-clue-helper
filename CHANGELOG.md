@@ -1,5 +1,15 @@
 # Kavros Clue Helper
 
+## 0.7.10
+
+**Puzzles**
+- Rescan throws away the cached slide route and reads the tiles that are on screen. If a move does not land on the expected board, the helper solves that board instead of continuing the old route.
+- Rescan also clears a cached lockbox, tower or celtic knot.
+
+**Clues**
+- The hard cryptic "Four blades I have, yet draw no blood" leads to the Lumbridge windmill. Search the crates on the top floor.
+- A step that uses Dave's spellbook notes that it is bought from the Vote shop.
+
 ## 0.7.9
 
 **Capture**
