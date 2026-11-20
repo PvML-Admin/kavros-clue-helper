@@ -70,6 +70,24 @@ namespace KavrosClueHelper
             }
             return mark.Corner ? new Rectangle(mark.Box.X + 1, mark.Box.Y + 1, Math.Max(12, mark.Box.Width / 2), Math.Max(15, mark.Box.Height / 2)) : mark.Box;
         }
+        // Decide the window work for one tick. An unchanged puzzle does not show,
+        // hide, move, or paint again. A borderless window's reported Bounds are
+        // not used here: they can differ from the rectangle that was set, which
+        // used to move and clear the overlay on every tick.
+        public static void Present(bool visible, bool placedKnown, Rectangle placed, bool allow, Rectangle bounds, bool marksChanged, out bool show, out bool hide, out bool move, out bool paint, out bool nextKnown, out Rectangle nextPlaced)
+        {
+            show=false; hide=false; move=false; paint=false; nextKnown=placedKnown; nextPlaced=placed;
+            if(!allow)
+            {
+                if(visible)hide=true;
+                nextKnown=false;
+                return;
+            }
+            move=!placedKnown||placed!=bounds;
+            if(!visible)show=true;
+            if(move){nextKnown=true;nextPlaced=bounds;}
+            paint=marksChanged||move;
+        }
         public static bool SameMarks(IList<GuidanceMark> first, IList<GuidanceMark> second)
         {
             if (first.Count != second.Count) return false;

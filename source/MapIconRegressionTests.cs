@@ -22,6 +22,13 @@ namespace KavrosClueHelper
                 if (!File.Exists(Path.Combine(assets, "compass", "world.png"))) assets = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "assets"));
                 if (!File.Exists(Path.Combine(assets, "compass", "world.png"))) assets = "/workspace/assets";
                 Check(File.Exists(Path.Combine(assets, "compass", "world.png")), "world map is available for the map tests");
+                Rectangle steady = new Rectangle(10, 20, 200, 80);
+                bool show, hide, move, paint, known; Rectangle placed;
+                GuidanceDrawing.Present(false, false, Rectangle.Empty, true, steady, true, out show, out hide, out move, out paint, out known, out placed);
+                Check(show && !hide && move && paint, "the first puzzle frame is drawn once");
+                bool show2, hide2, move2, paint2, known2; Rectangle placed2;
+                GuidanceDrawing.Present(true, known, placed, true, steady, false, out show2, out hide2, out move2, out paint2, out known2, out placed2);
+                Check(!show2 && !hide2 && !move2 && !paint2, "an unchanged puzzle is not hidden, shown, moved, or cleared");
                 string preferred = LodestoneIcons.Resolve(assets, "Lumbridge lodestone");
                 Check(preferred != null && preferred.Replace('\\', '/').Contains("/map-icons/lodestones/lumbridge.png"), "lodestone icons prefer assets/map-icons/lodestones");
                 string compass = LodestoneIcons.CompassFile(assets);
@@ -80,6 +87,14 @@ namespace KavrosClueHelper
                 Check(vision.MatchEliteText("Scan this area. The orb is in range. 27 paces around Mos Le'Harmless.") == null, "the reader does not offer Mos Le'Harmless");
                 ScanRegion falador = vision.MatchEliteText("Scan this area. The orb is in range. 22 paces around Falador.");
                 Check(falador != null && falador.Id == 364, "other elite scans are still offered");
+                var clues = new ReferenceClueReader(assets);
+                Check(clues.MatchText("R AK MI").Card.Id == 335, "R AK MI is Karim");
+                Check(clues.MatchText("IMKROM").Card.Id == 340, "IM KROM is Rommik");
+                Check(clues.MatchText("Beckon at Varrock Dig Site, near the eastern winch. Bow or curtsy before you talk to me. Have nothing equipped at all when you do.").Card.Id == 7, "eastern winch beckon");
+                Check(clues.MatchText("Cheer in the Ogre pen in the Training Camp. Show you are angry before you talk to me. Equip a Green Dragonhide Body, green dragonhide chaps and a steel sq shield.").Card.Id == 256, "ogre pen cheer");
+                Check(clues.MatchText("Brush off the sand and dig in the quarry. There is a wheely handy barrow to the east. Don't worry, permission has been granite to dig there.").Card.Id == 217, "granite quarry");
+                string khazard = clues.Clues.Single(c => c.Card.Id == 96).Card.Travel;
+                Check(khazard.Contains("Lunar spellbook > Khazard Teleport") && khazard.Contains("Alternatively: Yanille lodestone.") && khazard.Contains("Ardougne Monastery") && khazard.Contains("Run east to Port Khazard and search the crate near the cart."), "Port Khazard card");
                 File.AppendAllText(report, "Map icon checks passed: " + assertions + "\n");
                 return 0;
             }

@@ -250,8 +250,9 @@ Tile 3308, 3206 | level 0</details>
   </clue>
   <clue id="96" tier="easy" type="simple" heading="Search the crate near a cart in Port Khazard" action="Search Crate" x="2660" y="3149" width="1" height="1" level="0">
     <text>Search the crate near a cart in Port Khazard.</text>
-    <details>Fastest: Yanille lodestone.
-Alternatively: Ctrl+T &gt; Locations &gt; Ardougne Monastery, then run south-east to Port Khazard.
+    <details>Fastest: Lunar spellbook &gt; Khazard Teleport.
+Alternatively: Yanille lodestone.
+Third option: Ctrl+T &gt; Locations &gt; Ardougne Monastery, then run south-east to Port Khazard.
 Final step: Run east to Port Khazard and search the crate near the cart.
 Clue: Search the crate near a cart in Port Khazard.
 
@@ -959,10 +960,11 @@ Tile 2397, 3355 | level 0</details>
   </clue>
   <clue id="217" tier="medium" type="cryptic" heading="Quarry south of the Desert Bandit Camp" action="Dig" x="3176" y="2916" width="1" height="1" level="0">
     <text>Brush off the sand and dig in the quarry. There is a wheely handy barrow to the east. Don't worry, it's coal to dig there - in fact, it's all oclay.</text>
-    <details>Fastest: Bandit Camp lodestone.
+    <text>Brush off the sand and dig in the quarry. There is a wheely handy barrow to the east. Don't worry, permission has been granite to dig there.</text>
+    <details>Fastest: Bandit Camp lodestone, run south-west to the quarry.
 Alternatively: Fairy ring BIQ (Kalphite Lair), run south-west to the quarry. Portable fairy ring can be made in ;;ig. An unlimited version can be bought for 5 Kavros dollars.
 Third option: Menaphos lodestone, run north to the quarry.
-Final step: Run south-west to the quarry.
+Final step: Run south-west to the north-eastern wheelbarrow and dig just west of it.
 Clue: Dig by the marked side of the wheelbarrow.
 
 Tile 3176, 2916 | level 0</details>
@@ -1680,9 +1682,12 @@ Tile 2917, 3476 | level 0</details>
   </clue>
   <clue id="7" tier="medium" type="emote" heading="Beckon at the Digsite, near the eastern winch" action="Beckon / Bow or Curtsy" x="3375" y="3440" width="7" height="7" level="0">
     <text>Beckon at the Digsite, near the eastern winch. Bow or curtsy before you talk to me. Equip a pointed red and black snelm, snakeskin boots, and an iron pickaxe.</text>
-    <details>Fastest: Fort Forinthry lodestone.
-Final step: Run south-east from the lodestone to the clue spot.
-Clue: Do: Beckon / Bow or Curtsy. Wear: Pointed Red and Black Snelm, Snakeskin Boots, Iron Pickaxe. Repeat the emote if required to speak to Uri.
+    <text>Beckon at Varrock Dig Site, near the eastern winch. Bow or curtsy before you talk to me. Have nothing equipped at all when you do.</text>
+    <details>Fastest: Fort Forinthry lodestone, run south-east to the eastern winch.
+Alternatively: Ancient spellbook &gt; Senntisten Teleport (Dig Site temple), run north-east to the eastern winch.
+Third option: Ctrl+T &gt; Skilling &gt; Archaeology &gt; Archaeology Guild, run north-east to the eastern winch.
+Final step: Stand by the eastern winch, next to the incomplete barge.
+Clue: Do: Beckon, then Bow or curtsy. Wear nothing if the scroll says so. The other wording asks for a pointed red and black snelm, snakeskin boots, and an iron pickaxe. Repeat the emote if required to speak to Uri.
 
 Tile 3375, 3440 | level 0</details>
   </clue>
@@ -1765,9 +1770,11 @@ Tile 2778, 3057 | level 0</details>
   </clue>
   <clue id="256" tier="medium" type="emote" heading="Cheer in the Ogre Pen in the Training Camp" action="Cheer / Angry" x="2523" y="3373" width="11" height="5" level="0">
     <text>Cheer in the Ogre Pen in the Training Camp. Show you are angry before you talk to me. Equip a green dragonhide body and chaps, and a steel squareshield.</text>
-    <details>Fastest: Ardougne lodestone.
-Final step: Run west from the lodestone to the clue spot.
-Clue: Do: Cheer / Angry. Wear: Green dragonhide body, Green dragonhide chaps, Steel square shield. Repeat the emote if required to speak to Uri.
+    <text>Cheer in the Ogre pen in the Training Camp. Show you are angry before you talk to me. Equip a Green Dragonhide Body, green dragonhide chaps and a steel sq shield.</text>
+    <details>Fastest: Dave's spellbook &gt; Ardougne (West Ardougne), run north to the ogre pen.
+Alternatively: Ardougne lodestone, run west to the ogre pen.
+Final step: Run north into the ogre pen in the Combat Training Camp.
+Clue: Do: Cheer, then Angry. Wear: Green dragonhide body, green dragonhide chaps, and a steel square shield. Repeat the emote if required to speak to Uri.
 
 Tile 2523, 3373 | level 0</details>
   </clue>
@@ -2046,9 +2053,13 @@ Tile 2457, 3380 | level 0</details>
   </clue>
   <clue id="335" tier="medium" type="anagram" heading="Talk to Karim in Al Kharid" action="Talk to Karim" x="3269" y="3182" width="3" height="3" level="0">
     <text>This anagram reveals who to speak to next: R Ak Mi</text>
+    <text>R Ak Mi</text>
+    <text>R AK MI</text>
     <anagram>R Ak Mi</anagram>
-    <details>Fastest: Al Kharid lodestone.
-Final step: Run west from the lodestone to the clue spot.
+    <anagram>R AK MI</anagram>
+    <details>Fastest: Al Kharid lodestone, run west to Karim.
+Alternatively: Gnome glider to Al Kharid, then run south to Karim.
+Final step: Run west to Karim at the kebab stall.
 Clue: Talk to Karim in Al Kharid.
 Challenge: I have 16 kebabs, I eat one myself and share the rest equally between 3 friends. How many do they have each?
 Answer: 5
@@ -2102,7 +2113,10 @@ Tile 3104, 3508 | level 0</details>
   </clue>
   <clue id="340" tier="medium" type="anagram" heading="Talk to Rommik in Rimmington" action="Talk to Rommik" x="2945" y="3193" width="6" height="7" level="0">
     <text>This anagram reveals who to speak to next: Im Krom</text>
+    <text>IM KROM</text>
+    <text>Im Krom</text>
     <anagram>Im Krom</anagram>
+    <anagram>IM KROM</anagram>
     <details>Fastest: Ctrl+T &gt; Locations &gt; Rimmington.
 Alternatively: Port Sarim lodestone, run west to Rimmington.
 Final step: Run south-west to Rommik's shop.

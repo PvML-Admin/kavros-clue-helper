@@ -14,6 +14,16 @@ namespace KavrosClueHelper
         {
             try
             {
+                Rectangle box = new Rectangle(10, 20, 200, 80);
+                bool show, hide, move, paint, known; Rectangle placed;
+                GuidanceDrawing.Present(false, false, Rectangle.Empty, true, box, true, out show, out hide, out move, out paint, out known, out placed);
+                Check(show && !hide && move && paint && known && placed == box, "the first puzzle frame is shown and painted once");
+                bool show2, hide2, move2, paint2, known2; Rectangle placed2;
+                GuidanceDrawing.Present(true, known, placed, true, box, false, out show2, out hide2, out move2, out paint2, out known2, out placed2);
+                Check(!show2 && !hide2 && !move2 && !paint2 && placed2 == box, "an unchanged puzzle does not hide, show, move, or clear");
+                bool show3, hide3, move3, paint3, known3; Rectangle placed3;
+                GuidanceDrawing.Present(true, known2, placed2, true, box, false, out show3, out hide3, out move3, out paint3, out known3, out placed3);
+                Check(!show3 && !hide3 && !move3 && !paint3, "a second unchanged tick still leaves the overlay alone");
                 string assets = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets");
                 PuzzleDetector detector = new PuzzleDetector(assets);
                 foreach (float scale in new[] { 0.8F, 1F, 1.25F, 1.5F, 2F })
