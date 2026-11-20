@@ -15,14 +15,14 @@ namespace KavrosClueHelper
         {
             try
             {
-                foreach (bool skipBlank in new[] { false, true })
-                    for (int current = 0; current <= 5; current++)
-                        for (int target = 1; target <= 5; target++)
-                        {
-                            int value = current, count = 0;
-                            while (value != target && count < 7) { value++; if (value > 5) value = skipBlank ? 1 : 0; count++; }
-                            Check(GuidanceDrawing.TowerClicksRemaining(current, target, skipBlank) == count, "remaining steps for " + current + " to " + target);
-                        }
+                for (int current = 0; current <= 5; current++)
+                    for (int target = 1; target <= 5; target++)
+                    {
+                        int value = current, count = 0;
+                        while (value != target && count < 7) { value++; if (value > 5) value = 0; count++; }
+                        Check(GuidanceDrawing.TowerClicksRemaining(current, target) == count, "remaining steps for " + current + " to " + target);
+                    }
+                Check(GuidanceDrawing.TowerClicksRemaining(5, 1) == 2, "a tower goes from 5 through blank to 1");
                 string assets = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets");
                 int[] targetCells = TowerSolver.Solve(TestFixtures.TowersExample(), false)[0];
                 int index = Array.IndexOf(targetCells, 4);
@@ -56,7 +56,7 @@ namespace KavrosClueHelper
                         if (step == 2) image.Save(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(report)), "tower-countdown-preview.png"));
                     }
                 }
-                File.AppendAllText(report, "V0.2.4 COUNTDOWN REGRESSIONS PASS: " + assertions + " assertions.\r\nChecks visible-number countdowns, unchanged frames, direct number selection, resets, overshoots and both wrap cycles.\r\nExisting solved answers are reused when only entered heights change. No windows were shown or application input sent.\r\n");
+                File.AppendAllText(report, "V0.2.4 COUNTDOWN REGRESSIONS PASS: " + assertions + " assertions.\r\nChecks visible-number countdowns, unchanged frames, direct number selection, resets, overshoots and the blank step between 5 and 1.\r\nExisting solved answers are reused when only entered heights change. No windows were shown or application input sent.\r\n");
                 return 0;
             }
             catch (Exception ex) { File.AppendAllText(report, ex + "\r\n"); return 1; }

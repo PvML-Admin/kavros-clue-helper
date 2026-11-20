@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -16,8 +17,17 @@ namespace KavrosClueHelper
     {
         public static Bitmap Capture(Rectangle bounds)
         {
+            return Capture(IntPtr.Zero, bounds);
+        }
+        // Prefer the game window's own pixels so the helper overlay is not in the
+        // picture. CopyFromScreen is the fallback, and the caller then paints over
+        // the opaque marks so those numbers are not read as the puzzle.
+        public static Bitmap Capture(IntPtr window, Rectangle bounds)
+        {
             if (bounds.Width < 60 || bounds.Height < 60)
                 throw new ArgumentException("Select the whole 5 x 5 grid, from its outer top-left to outer bottom-right corner.");
+            Bitmap direct = CaptureWindow(window, bounds);
+            if (direct != null) return direct;
             Bitmap image = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format24bppRgb);
             try
             {
@@ -26,6 +36,56 @@ namespace KavrosClueHelper
                 return image;
             }
             catch { image.Dispose(); throw; }
+        }
+        public static void Cover(Bitmap image, Rectangle captureScreen, IList<Rectangle> screenRects)
+        {
+            if (image == null || screenRects == null) return;
+            using (Graphics graphics = Graphics.FromImage(image))
+            foreach (Rectangle screen in screenRects)
+            {
+                Rectangle local = screen; local.Offset(-captureScreen.X, -captureScreen.Y);
+                local = Rectangle.Intersect(local, new Rectangle(Point.Empty, image.Size));
+                if (local.Width < 1 || local.Height < 1) continue;
+                int sampleX = local.Left > 1 ? local.Left - 2 : Math.Min(image.Width - 1, local.Right + 1);
+                int sampleY = Math.Max(0, Math.Min(image.Height - 1, local.Top + local.Height / 2));
+                using (Brush fill = new SolidBrush(image.GetPixel(sampleX, sampleY))) graphics.FillRectangle(fill, local);
+            }
+        }
+        private static Bitmap CaptureWindow(IntPtr window, Rectangle screenBounds)
+        {
+            if (window == IntPtr.Zero) return null;
+            try
+            {
+                Native.Rect windowRect;
+                if (!Native.GetWindowRect(window, out windowRect)) return null;
+                int width = windowRect.Right - windowRect.Left, height = windowRect.Bottom - windowRect.Top;
+                if (width < 60 || height < 60) return null;
+                using (Bitmap full = new Bitmap(width, height, PixelFormat.Format24bppRgb))
+                {
+                    using (Graphics graphics = Graphics.FromImage(full))
+                    {
+                        IntPtr dc = graphics.GetHdc();
+                        bool printed;
+                        try { printed = Native.PrintWindow(window, dc, 2); }
+                        finally { graphics.ReleaseHdc(dc); }
+                        if (!printed || MostlyBlack(full)) return null;
+                    }
+                    Rectangle local = screenBounds; local.Offset(-windowRect.Left, -windowRect.Top);
+                    local = Rectangle.Intersect(local, new Rectangle(0, 0, width, height));
+                    if (local.Width < 60 || local.Height < 60) return null;
+                    return full.Clone(local, PixelFormat.Format24bppRgb);
+                }
+            }
+            catch (EntryPointNotFoundException) { return null; }
+            catch (DllNotFoundException) { return null; }
+        }
+        private static bool MostlyBlack(Bitmap image)
+        {
+            long sum = 0; int count = 0;
+            for (int y = 0; y < image.Height; y += Math.Max(1, image.Height / 8))
+                for (int x = 0; x < image.Width; x += Math.Max(1, image.Width / 8))
+                { Color c = image.GetPixel(x, y); sum += c.R + c.G + c.B; count++; }
+            return count == 0 || sum / count < 12;
         }
 
         // Legacy 944 symbols have distinctive colours: blue hats, gold bows,
@@ -81,6 +141,9 @@ namespace KavrosClueHelper
         [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr window, System.Text.StringBuilder name, int capacity);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr window, System.Text.StringBuilder text, int length);
+        [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr window, out Rect rect);
+        [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr window, IntPtr dc, uint flags);
+        [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr window);
         [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr window, out Rect rect);
         [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr window, ref PointStruct point);
         [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -95,7 +158,7 @@ namespace KavrosClueHelper
 
         [DllImport("user32.dll", EntryPoint = "SetWindowLong")] static extern int SetWindowLong32(IntPtr window, int index, int value);
         [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")] static extern IntPtr SetWindowLongPtr64(IntPtr window, int index, IntPtr value);
-        public const int SwpNoSize=0x0001,SwpNoMove=0x0002,SwpNoActivate=0x0010,SwpNoOwnerZOrder=0x0200;
+        public const int SwpNoSize=0x0001,SwpNoMove=0x0002,SwpNoZOrder=0x0004,SwpNoActivate=0x0010,SwpNoOwnerZOrder=0x0200;
         public static readonly IntPtr HwndTopMost=new IntPtr(-1),HwndNoTopMost=new IntPtr(-2);
         // Reasserting topmost must not activate the panel. Activation every tick steals the game's mouse.
         public static int TopMostFlags { get { return SwpNoSize|SwpNoMove|SwpNoActivate|SwpNoOwnerZOrder; } }
@@ -107,6 +170,14 @@ namespace KavrosClueHelper
             if (child == IntPtr.Zero) return;
             if (IntPtr.Size == 8) SetWindowLongPtr64(child, -8, owner);
             else SetWindowLong32(child, -8, owner.ToInt32());
+        }
+        // Move in physical pixels without touching z-order. WinForms Bounds is
+        // scaled again when the handle is created, which shrinks the overlay
+        // toward the top-left on a 1440p or 4K display.
+        public static void PlaceNoZOrder(IntPtr window, Rectangle screen)
+        {
+            if (window == IntPtr.Zero || screen.Width < 1 || screen.Height < 1) return;
+            SetWindowPos(window, IntPtr.Zero, screen.X, screen.Y, screen.Width, screen.Height, SwpNoZOrder | SwpNoActivate | SwpNoOwnerZOrder);
         }
         public static void SetTopMostNoActivate(IntPtr window, bool top)
         {

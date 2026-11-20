@@ -51,7 +51,7 @@ namespace KavrosClueHelper
         // lockbox and the towers. Slider and knot keep their own rules.
         public static bool HoldsThroughMisses(PuzzleKind kind)
         {
-            return kind == PuzzleKind.Lockbox || kind == PuzzleKind.Towers;
+            return kind == PuzzleKind.Lockbox || kind == PuzzleKind.Towers || kind == PuzzleKind.Knot;
         }
         // Same board and nearly the same place: nothing to redraw.
         public static bool SameState(DetectedPuzzle shown, DetectedPuzzle next, int tolerance)

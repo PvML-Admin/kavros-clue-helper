@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.8
+
+v0.7.8: Puzzle numbers sit on the tiles again at 1440p and 4K, and they do not blink. Towers go 5, blank, then 1. Slider clicks move the whole row. The overlay shows up in screenshots. Save debug on the panel stores a picture and the detection log. A compass clue stays locked, and the overlay follows the game window.
+
+Settings shows **Made by Zenity · v0.7.8**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.7
 
 v0.7.7: The panel stays above the game and the other Kavros helpers, not above Discord or a browser. Lockbox and tower numbers no longer blink. Five medium clues that were missed now have cards. Port Khazard uses the Lunar Khazard Teleport. Thanks to PvML-Admin.

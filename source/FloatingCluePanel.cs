@@ -30,7 +30,7 @@ namespace KavrosClueHelper
                     if(p.Length==2&&p[0]=="enabled"&&Boolean.TryParse(p[1],out b))Enabled=b;
                     if(p.Length==2&&p[0]=="collapsed"&&Boolean.TryParse(p[1],out b))Collapsed=b;
                     if(p.Length==2&&p[0]=="shortest-slider"&&Boolean.TryParse(p[1],out b))ShortestSlider=b;
-                    if(p.Length==2&&p[0]=="whole-row-clicks"&&Boolean.TryParse(p[1],out b))WholeRowClicks=b;
+                    if(p.Length==2&&p[0]=="whole-row-clicks")WholeRowClicks=true;
                     if(p.Length==2&&p[0]=="check-updates"&&Boolean.TryParse(p[1],out b))CheckForUpdates=b;
                     if(p.Length==3&&p[0]=="offset"&&Int32.TryParse(p[1],out x)&&Int32.TryParse(p[2],out y))Offset=new Point(x,y);
                     if(p.Length==5&&p[0]=="spot"&&Int32.TryParse(p[2],out x)&&Int32.TryParse(p[3],out y))
@@ -254,7 +254,7 @@ namespace KavrosClueHelper
         private PuzzleKind layoutKind=(PuzzleKind)(-1);
         private bool layoutCollapsed;
         private int displayedMasterId=-1;
-        public event Action SettingsRequested,ScanRequested,PauseRequested,ExitRequested,UserMoved,ClearRequested;
+        public event Action SettingsRequested,ScanRequested,PauseRequested,ExitRequested,UserMoved,ClearRequested,DebugRequested;
         public bool Collapsed {get{return prefs.Collapsed;}}
         public bool IsDragging {get{return dragging;}}
         public void PlaceTopMost(bool top)
@@ -323,9 +323,10 @@ namespace KavrosClueHelper
             undoOrContinue=ButtonAt(compassControls,"Undo",176,90,82,delegate{if(session.HasPrevious)session.ResumePrevious();else session.Undo();RefreshCompass(true);});
             ButtonAt(compassControls,"New clue",266,90,114,delegate{session.NewClue();originSelected=false;map.SelectedOrigin=null;RefreshCompass(true);});
             footer.SetBounds(10,102,380,28);Controls.Add(footer);
-            ButtonAt(footer,"Rescan",0,0,88,delegate{if(ScanRequested!=null)ScanRequested();});pause.Text="Pause";pause.SetBounds(98,0,88,28);Style(pause);footer.Controls.Add(pause);pause.Click+=delegate{if(PauseRequested!=null)PauseRequested();};
-            ButtonAt(footer,"Clear",196,0,88,delegate{scanSession.Clear();if(ClearRequested!=null)ClearRequested();});
-            ButtonAt(footer,"Exit",294,0,86,delegate{if(ExitRequested!=null)ExitRequested();});
+            ButtonAt(footer,"Rescan",0,0,62,delegate{if(ScanRequested!=null)ScanRequested();});pause.Text="Pause";pause.SetBounds(68,0,58,28);Style(pause);footer.Controls.Add(pause);pause.Click+=delegate{if(PauseRequested!=null)PauseRequested();};
+            ButtonAt(footer,"Save debug",132,0,96,delegate{if(DebugRequested!=null)DebugRequested();});
+            ButtonAt(footer,"Clear",234,0,62,delegate{scanSession.Clear();if(ClearRequested!=null)ClearRequested();});
+            ButtonAt(footer,"Exit",302,0,78,delegate{if(ExitRequested!=null)ExitRequested();});
             positions.Text="";
             SetWaiting("Open Kavros and a clue or puzzle.");
             ApplyOverlayPolish();

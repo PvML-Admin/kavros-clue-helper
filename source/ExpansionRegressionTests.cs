@@ -75,7 +75,7 @@ namespace KavrosClueHelper
                         }
                         using(var closed=new Bitmap(settled.Width,settled.Height))using(AnalysisResult gone=engine.Analyze(closed,6000,false,CancellationToken.None,true))check(gone.Plan==null,"Closed knot removes guide");
                     }
-                    check(!GuidanceDrawing.HideForCapture(false,PuzzleKind.Knot),"Knot stays visible during captures");
+                    check(!GuidanceDrawing.HideForCapture(false,PuzzleKind.Knot),"Knot stays visible in screenshots");
                 }
                 var slider=new DetectedPuzzle{Kind=PuzzleKind.Sliding,Scale=1,Grid=new Rectangle(0,0,273,273)};var steps=GuidanceDrawing.SliderMarks(slider,new[]{0,1,2,3});check(steps.Select(m=>m.Colour.ToArgb()).Distinct().Count()==4&&steps[0].Colour==Color.Lime,"Distinct slider step colours");
                 log.AppendLine("PASS: "+count+" expansion assertions.");File.WriteAllText(report,log.ToString());return 0;

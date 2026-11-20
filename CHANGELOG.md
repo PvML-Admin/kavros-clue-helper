@@ -1,5 +1,20 @@
 # Kavros Clue Helper
 
+## 0.7.8
+
+**Overlays**
+- Lockbox, tower, slider, knot and light-box numbers sit on the puzzle tiles at 1080p, 1440p and 4K. The overlay is placed in the screen's real pixels, and it is not moved again until the puzzle or the game window actually moves. The numbers do not blink.
+- A tower cell goes 5, then blank, then 1. The "5 wraps straight to 1" option is gone.
+- Slider clicks are whole-row clicks. That checkbox is gone.
+- The celtic knot holds its marks through a small jitter. A compass clue stays locked when a frame is missed.
+- Moving or resizing the game window, including onto another monitor, moves the overlay with it and reads the puzzle again at the new size.
+
+**Capture**
+- The overlay is no longer hidden from screenshots or recordings. The helper reads the game window itself, and paints over its own marks, so those numbers are not treated as the puzzle.
+
+**Panel**
+- Save debug writes a screenshot, the detection details and a short log to a timestamped folder under Local AppData, shows that path for a few seconds, and opens the folder.
+
 ## 0.7.7
 
 Thanks to PvML-Admin for the panel change.

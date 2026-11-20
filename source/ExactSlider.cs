@@ -153,7 +153,7 @@ namespace KavrosClueHelper
                 preferences.ShortestSlider = shortestSlider.Checked;
                 preferences.Save();
                 if (analysisEngine == null || current == null || current.Kind != PuzzleKind.Sliding) return;
-                var plan = waitingSlider ?? new PuzzlePlan { Puzzle = current, Sliding = slidingMoves, SlidingWholeRows = wholeRowClicks.Checked };
+                var plan = waitingSlider ?? new PuzzlePlan { Puzzle = current, Sliding = slidingMoves, SlidingWholeRows = true };
                 if (!shortestSlider.Checked) analysisEngine.Proofs.Cancel();
                 SolveAndShow(current, plan);
             };
@@ -172,10 +172,10 @@ namespace KavrosClueHelper
             if (waitingSlider == null || slidingBatchNumber != 1) return;
             List<int> route;
             string error;
-            if (!analysisEngine.Proofs.Read(current.Board, current.Theme, wholeRowClicks.Checked, out route, out error) || route == null) return;
+            if (!analysisEngine.Proofs.Read(current.Board, current.Theme, true, out route, out error) || route == null) return;
             if (waitingSlider.Sliding != null && route.Count >= waitingSlider.Sliding.Count) return;
             waitingSlider = null;
-            SolveAndShow(current, new PuzzlePlan { Puzzle = current, Sliding = route, SlidingOptimal = true, SlidingWholeRows = wholeRowClicks.Checked });
+            SolveAndShow(current, new PuzzlePlan { Puzzle = current, Sliding = route, SlidingOptimal = true, SlidingWholeRows = true });
         }
 
         private bool AwaitShortestSlider(DetectedPuzzle puzzle, ref PuzzlePlan plan)
@@ -186,7 +186,7 @@ namespace KavrosClueHelper
                 List<int> remaining;
                 quickForThisSlider = slidingTheme == puzzle.Theme && SlidingRoute.Advance(slidingBoard, slidingMoves, puzzle.Board, out remaining);
             }
-            bool lines = wholeRowClicks.Checked;
+            bool lines = true;
             List<int> route;
             string error;
             if (analysisEngine.Proofs.Read(puzzle.Board, puzzle.Theme, lines, out route, out error) && route != null)
