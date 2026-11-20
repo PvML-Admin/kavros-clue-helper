@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.7
+
+v0.7.7: The panel stays above the game and the other Kavros helpers, not above Discord or a browser. Lockbox and tower numbers no longer blink. Five medium clues that were missed now have cards. Port Khazard uses the Lunar Khazard Teleport. Thanks to PvML-Admin.
+
+Settings shows **Made by Zenity · v0.7.7**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.6
 
 v0.7.6: Clue cards use Fastest, Alternatively, Third option, Final step, and Clue. The lockbox no longer flickers. Scan tracking holds your position through missed frames. The tower puzzle locks on faster. The yellow search bar is removed. Thanks to PvML-Admin.

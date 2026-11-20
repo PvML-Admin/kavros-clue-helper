@@ -140,6 +140,12 @@ namespace KavrosClueHelper
             {Color c=p.Get(r.Left+(int)(r.Width*f),y);if(c.R>155&&c.G>115&&c.B>65&&c.R-c.G>5&&c.R-c.G<90&&c.G-c.B>12&&c.G-c.B<100)good++;}
             return good>=3;
         }
+        private static string Letters(string value)
+        {
+            char[] chars=Regex.Replace(value??"","[^a-z]","").ToCharArray();
+            Array.Sort(chars);
+            return new string(chars);
+        }
         public static string Normalize(string text)
         {
             string t=Regex.Replace(text??"",@"\|(?=\s*[A-Za-z])","I").Replace("\uFB01","fi").Replace("\uFB02","fl").ToLowerInvariant().Replace('\u2019','\'');
@@ -181,7 +187,11 @@ namespace KavrosClueHelper
         }
         public ReferenceClue MatchText(string raw)
         {
-            string text=Normalize(raw);if(text.Length<8)return null;
+            string text=Normalize(raw);
+            string letters=Letters(text);
+            // A bare anagram such as "R AK MI" is shorter than eight characters
+            // after spaces are collapsed, so it still has to be matched.
+            if(text.Length<8 && letters.Length<4)return null;
             var dictionary=Clues.SelectMany(c=>c.Text.Concat(c.Anagrams)).SelectMany(t=>Normalize(t).Split(new[]{' '},StringSplitOptions.RemoveEmptyEntries));
             string cleaned=KeepKnownWords(text,dictionary);
             double best=0,runner=0;ReferenceClue winner=null;
@@ -204,6 +214,8 @@ namespace KavrosClueHelper
                         string n=Normalize(a);
                         if(cleaned==n||cleaned.EndsWith(" "+n)||cleaned.EndsWith(n))anagram=1;
                         else anagram=Math.Max(anagram,WindowScore(cleaned,n));
+                        string nLetters=Letters(n);
+                        if(letters.Length>=4 && Math.Abs(text.Length-n.Length)<=8 && letters==nLetters)anagram=1;
                     }
                     if(anagram>=0.9)score=Math.Max(score,anagram);
                     else if(!flat.Contains("anagram"))score=0;

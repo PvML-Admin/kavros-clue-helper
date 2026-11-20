@@ -16,6 +16,8 @@ namespace KavrosClueHelper
     public sealed class GuidanceOverlay : Form
     {
         private List<GuidanceMark> marks = new List<GuidanceMark>();
+        private Rectangle placed;
+        private bool placedKnown;
         public bool CaptureExcluded { get; private set; }
         public GuidanceOverlay()
         {
@@ -40,13 +42,21 @@ namespace KavrosClueHelper
         }
         public void UpdateGuidance(Rectangle bounds, List<GuidanceMark> next)
         {
-            bool changed = Bounds.Size != bounds.Size || !GuidanceDrawing.SameMarks(marks, next);
-            if (Bounds != bounds) Bounds = bounds;
-            if (changed) marks = next;
-            if (!Visible) Show();
-            if (changed) Invalidate();
+            bool show,hide,move,paint; Rectangle nextPlaced; bool nextKnown;
+            GuidanceDrawing.Present(Visible, placedKnown, placed, true, bounds, !GuidanceDrawing.SameMarks(marks, next), out show, out hide, out move, out paint, out nextKnown, out nextPlaced);
+            placedKnown=nextKnown; placed=nextPlaced;
+            if(paint) marks=next;
+            if(move) Bounds=bounds;
+            if(show) Show();
+            else if(hide) Hide();
+            if(paint) Invalidate();
         }
-        protected override void OnPaint(PaintEventArgs e) { GuidanceDrawing.Draw(e.Graphics, marks); }
+        protected override void OnPaintBackground(PaintEventArgs e) { }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Color.Fuchsia);
+            GuidanceDrawing.Draw(e.Graphics, marks);
+        }
     }
 
     public sealed partial class PuzzleSuiteForm : Form
@@ -832,7 +842,7 @@ namespace KavrosClueHelper
             // owned by the game when an unrelated application is in front, so the
             // marks do not float over Discord or the browser.
             if (offline || !draw.Checked || current == null || marks.Count == 0 || SelectedWindow == IntPtr.Zero || !Native.IsWindow(SelectedWindow) || Native.IsIconic(SelectedWindow))
-            { overlay.Hide(); return; }
+            { if(overlay.Visible) overlay.Hide(); return; }
             Rectangle client = Native.ClientBounds(SelectedWindow);
             Rectangle screen = current.Bounds; screen.Offset(client.Location);
             overlay.UpdateGuidance(screen, marks.Select(mark => mark.Offset(-current.Bounds.X, -current.Bounds.Y)).ToList());

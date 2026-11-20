@@ -1,5 +1,19 @@
 # Kavros Clue Helper
 
+## 0.7.7
+
+Thanks to PvML-Admin for the panel change.
+
+**Panel**
+- The clue panel and the puzzle overlays stay above the game, and above Companion, AFK Warden, the Slayer helper, and this helper. They drop back when another application, such as Discord or a browser, is in front. Settings still stays in front of the panel.
+
+**Puzzles**
+- The numbered boxes on a lockbox and the solution numbers on a towers puzzle no longer blink. The overlay is drawn once and redrawn only when the puzzle actually changes.
+
+**Clues**
+- Medium scrolls that were not recognised now open a card: the Varrock Dig Site eastern winch, Karim in Al Kharid (R Ak Mi, answer 5), Rommik in Rimmington (IM KROM, answer 7), the desert quarry wheelbarrow, and the ogre pen in the Combat Training Camp.
+- Search the crate near a cart in Port Khazard: Lunar spellbook Khazard Teleport, then the Yanille lodestone, then Ctrl+T > Locations > Ardougne Monastery and run south-east.
+
 ## 0.7.6
 
 Thanks to PvML-Admin for this one.
