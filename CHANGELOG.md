@@ -1,5 +1,11 @@
 # Kavros Clue Helper
 
+## 0.7.9
+
+**Capture**
+- Reading the game no longer uses PrintWindow. That call was blanking the whole screen for a moment on the DirectX client. Tracking, puzzle reads and Save debug copy the screen again.
+- The overlay still shows in screenshots and recordings. Before a puzzle is read, the helper paints over its own numbers and box edges so it does not treat them as the puzzle.
+
 ## 0.7.8
 
 **Overlays**
