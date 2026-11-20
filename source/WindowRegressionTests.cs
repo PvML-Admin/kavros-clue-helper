@@ -48,6 +48,17 @@ namespace KavrosClueHelper
                 GameWindow folder = Window(13, "KavrosClueHelper-v0.2", "explorer", "CabinetWClass");
                 Check(WindowLocator.Choose(new[] { discord, archive, folder, launcher }, IntPtr.Zero, discord.Handle) == null, "Kavros mentions in Discord, archives and folders are not game windows");
                 Check((Native.TopMostFlags & Native.SwpNoActivate) != 0, "raising the panel does not activate it");
+                Check((Native.TopMostFlags & Native.SwpNoOwnerZOrder) != 0, "raising the panel does not move the game window");
+                Check(FloatingPanelLayout.WantTopMost(true, false, true, false, false, false, false), "the panel is topmost while the game is in front");
+                Check(!FloatingPanelLayout.WantTopMost(true, false, false, false, false, false, false), "the panel drops back when another application is in front");
+                Check(FloatingPanelLayout.WantTopMost(true, false, false, true, false, false, false), "the panel stays up while Companion or another helper is in front");
+                Check(FloatingPanelLayout.WantTopMost(true, false, false, false, true, false, false), "the panel stays up while it is being used");
+                Check(!FloatingPanelLayout.WantTopMost(true, false, true, true, true, true, true), "Settings in front is not covered by a topmost panel");
+                Check(FloatingPanelLayout.WantTopMost(false, false, false, false, false, false, true), "an explicit launch lifts the panel before the client is found");
+                Check(!FloatingPanelLayout.WantTopMost(true, true, true, true, true, false, true), "a minimised client never gets a topmost panel");
+                Check(WindowLocator.IsHelperProcess("KavrosCompanion") && WindowLocator.IsHelperProcess("KavrosAfkWarden.exe") && WindowLocator.IsHelperProcess("kavrosslayerhelper") && WindowLocator.IsHelperProcess("KavrosClueHelper"), "Companion, AFK Warden, the Slayer helper and this helper count as friendly");
+                Check(!WindowLocator.IsHelperProcess("Discord") && !WindowLocator.IsHelperProcess("chrome") && !WindowLocator.IsHelperProcess("KavrosLauncher") && !WindowLocator.IsHelperProcess("rs2client") && !WindowLocator.IsHelperProcess("kavrosclient"), "the launcher, the game and unrelated applications are not helpers");
+                Check(!WindowLocator.IsHelperWindow(IntPtr.Zero), "a missing window is not a helper");
                 Check(WindowLocator.ShouldEnumerate(true, true, false) == false, "a live chosen client is not enumerated on the timer");
                 Check(WindowLocator.ShouldEnumerate(false, false, true), "a dead handle is rediscovered immediately");
                 Check(WindowLocator.ShouldEnumerate(false, true, false), "the first client is sought on the slow timer");
