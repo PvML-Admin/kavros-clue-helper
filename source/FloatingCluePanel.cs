@@ -379,6 +379,18 @@ namespace KavrosClueHelper
         public void ApplyTracking(MinimapMatch match,int region,DateTime now)
         {if(TrackingRegion==null||TrackingRegion.Id!=region)return;scanSession.ApplyMatch(match,now);RefreshScan();}
         public void ExpireTracking(DateTime now){if(TrackingRegion==null)return;scanSession.Expire(now);RefreshScan();}
+        private static string DaveRoute(string route)
+        {
+            if(string.IsNullOrEmpty(route)||route.IndexOf("Dave's spellbook",StringComparison.OrdinalIgnoreCase)<0)return route??"";
+            var lines=new List<string>();
+            foreach(string line in route.Replace("\r\n","\n").Split('\n'))
+            {
+                lines.Add(line);
+                if(line.IndexOf("Dave's spellbook",StringComparison.OrdinalIgnoreCase)>=0&&line.IndexOf("bought from the Vote shop",StringComparison.OrdinalIgnoreCase)<0)
+                    lines.Add("Dave's spellbook: bought from the Vote shop");
+            }
+            return string.Join("\n",lines.ToArray());
+        }
         private void RefreshScan()
         {
             if(mode!=PuzzleKind.Scan||scanSession.Region==null)return;
@@ -390,7 +402,7 @@ namespace KavrosClueHelper
             heading.Text=scanSession.Region.Name+" | "+scanSession.Range+" paces";
             heading.ForeColor=scanSession.DifferentLevel?KavrosTheme.Gold:KavrosTheme.Ice;
             string status=scanSession.AutoTracking?scanSession.TrackingStatus:scanSession.Position.HasValue?"Manual position set. Right-click the map to move it.":"Right-click your position on the map.";
-            string guidance=scanSession.Region.Route+"\n"+(scanSession.DifferentLevel?"Different level. Check the marked floor. ":"")+"Map level "+scanSession.Region.Level+". "+status;
+            string guidance=DaveRoute(scanSession.Region.Route)+"\n"+(scanSession.DifferentLevel?"Different level. Check the marked floor. ":"")+"Map level "+scanSession.Region.Level+". "+status;
             if(summary.Text!=guidance)summary.Text=guidance;
             string key=scanSession.Region.AssetKey+":"+scanSession.Range+":"+scanSession.Position+":"+scanSession.LastKnown+":"+scanSession.PositionTracked+":"+scanSession.AutoTracking+":"+scanSession.DifferentLevel;
             if(key!=scanPaintKey){scanPaintKey=key;scanMap.RefreshMap();}

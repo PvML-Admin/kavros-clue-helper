@@ -98,6 +98,13 @@ namespace KavrosClueHelper
                 Check(clues.MatchText("Brush off the sand and dig in the quarry. There is a wheely handy barrow to the east. Don't worry, permission has been granite to dig there.").Card.Id == 217, "granite quarry");
                 string khazard = clues.Clues.Single(c => c.Card.Id == 96).Card.Travel;
                 Check(khazard.Contains("Lunar spellbook > Khazard Teleport") && khazard.Contains("Alternatively: Yanille lodestone.") && khazard.Contains("Ardougne Monastery") && khazard.Contains("Run east to Port Khazard and search the crate near the cart."), "Port Khazard card");
+                string blades = "Four blades I have, yet draw no blood; Still I turn my prey to powder. If you are brave, come search my roof; It is there my blades are louder.";
+                Check(clues.MatchText(blades).Card.Id == 173, "four blades is the Lumbridge windmill");
+                Check(clues.MatchText("Four blades I have, yet draw no blood, Still I turn my prey to powder. If you are brave, come search my roof, It is there my blades are louder.").Card.Id == 173, "comma wording still matches the windmill");
+                string mill = clues.Clues.Single(c => c.Card.Id == 173).Card.Travel;
+                Check(mill.Contains("Fastest: Draynor Village lodestone, run east") && mill.Contains("Combat bracelet > Champions' Guild, run south-west") && mill.Contains("search the crates") && mill.IndexOf("bought from the Vote shop", StringComparison.OrdinalIgnoreCase) < 0, "windmill card");
+                string dave = clues.Clues.Single(c => c.Card.Id == 174).Card.Travel;
+                Check(dave.Contains("Dave's spellbook > Varrock (Museum)") && dave.IndexOf("bought from the Vote shop", StringComparison.OrdinalIgnoreCase) < 0, "Dave's spellbook note is not written into the card");
                 File.AppendAllText(report, "Map icon checks passed: " + assertions + "\n");
                 return 0;
             }

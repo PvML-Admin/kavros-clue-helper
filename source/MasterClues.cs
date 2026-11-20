@@ -81,17 +81,45 @@ namespace KavrosClueHelper
     {
         private bool measuring;
         public ReferenceDetailsView(){AutoScroll=true;DoubleBuffered=true;TabStop=true;MouseDown+=delegate{Focus();};}
+        private const string DaveNote="Dave's spellbook: bought from the Vote shop";
+        private static bool DaveStep(string line){return line!=null&&line.IndexOf("Dave's spellbook",StringComparison.OrdinalIgnoreCase)>=0;}
         private void MeasureContent()
         {
             if(measuring)return;measuring=true;
-            try{Size size=TextRenderer.MeasureText(Text,Font,new Size(Math.Max(1,ClientSize.Width-24),Int32.MaxValue),TextFormatFlags.WordBreak|TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix);AutoScrollMinSize=new Size(0,size.Height+8);}
+            try
+            {
+                int width=Math.Max(1,ClientSize.Width-24),height=8;
+                TextFormatFlags flags=TextFormatFlags.WordBreak|TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix;
+                using(Font note=new Font(Font.FontFamily,Math.Max(7F,Font.SizeInPoints-1.5F),FontStyle.Regular,GraphicsUnit.Point))
+                foreach(string line in (Text??"").Replace("\r\n","\n").Split('\n'))
+                {
+                    height+=TextRenderer.MeasureText(line,Font,new Size(width,int.MaxValue),flags).Height+2;
+                    if(DaveStep(line))height+=TextRenderer.MeasureText(DaveNote,note,new Size(width,int.MaxValue),flags).Height+2;
+                }
+                AutoScrollMinSize=new Size(0,height);
+            }
             finally{measuring=false;}
             Invalidate();
         }
         protected override void OnTextChanged(EventArgs e){base.OnTextChanged(e);AutoScrollPosition=Point.Empty;MeasureContent();}
         protected override void OnResize(EventArgs e){base.OnResize(e);MeasureContent();}
         protected override void OnPaint(PaintEventArgs e)
-        {e.Graphics.Clear(BackColor);TextRenderer.DrawText(e.Graphics,Text,Font,new Rectangle(4,4+AutoScrollPosition.Y,Math.Max(1,ClientSize.Width-24),Math.Max(Height,AutoScrollMinSize.Height)),ForeColor,TextFormatFlags.WordBreak|TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix);}
+        {
+            e.Graphics.Clear(BackColor);
+            int width=Math.Max(1,ClientSize.Width-24),y=4+AutoScrollPosition.Y;
+            TextFormatFlags flags=TextFormatFlags.WordBreak|TextFormatFlags.NoPadding|TextFormatFlags.NoPrefix;
+            using(Font note=new Font(Font.FontFamily,Math.Max(7F,Font.SizeInPoints-1.5F),FontStyle.Regular,GraphicsUnit.Point))
+            foreach(string line in (Text??"").Replace("\r\n","\n").Split('\n'))
+            {
+                Size size=TextRenderer.MeasureText(line,Font,new Size(width,int.MaxValue),flags);
+                TextRenderer.DrawText(e.Graphics,line,Font,new Rectangle(4,y,width,size.Height),ForeColor,flags);
+                y+=size.Height+2;
+                if(!DaveStep(line))continue;
+                Size noteSize=TextRenderer.MeasureText(DaveNote,note,new Size(width,int.MaxValue),flags);
+                TextRenderer.DrawText(e.Graphics,DaveNote,note,new Rectangle(4,y,width,noteSize.Height),Color.FromArgb(110,120,132),flags);
+                y+=noteSize.Height+2;
+            }
+        }
     }
     public sealed class MasterClueView : Control
     {

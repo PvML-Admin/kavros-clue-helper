@@ -58,7 +58,6 @@ namespace KavrosClueHelper
         private readonly KnotFrameTracker knotFrames=new KnotFrameTracker();
         private ulong lastHash;
         private Color[] sliderFrame;
-        private string pendingSliderKey;
         private Size lastSize;
         private Point? previousOrigin;
         private DateTime knotConfirmed;
@@ -82,6 +81,12 @@ namespace KavrosClueHelper
         public Action<string> Progress;
         public PuzzleAnalysisEngine(string assets) { detector = new PuzzleDetector(assets);detector.Progress=message=>{if(Progress!=null)Progress(message);}; }
         public DetectedPuzzle ReadOnlySlider(Bitmap image,DetectedPuzzle previous){return detector.ReadAgain(image,previous);}
+        // Rescan starts from the tiles on screen. The previous route must not be replayed.
+        public void Reset()
+        {
+            last=null;cached=null;solveKey=null;sliderFrame=null;lastHash=0;towerWaits=0;
+            boardHold.Reset();boardChange.Reset();knotFrames.Reset();
+        }
         private Color[] SliderFrame(Pixels pixels,DetectedPuzzle puzzle)
         {return Enumerable.Range(0,16).Select(i=>{
             int side=i/4;double along=(i%4+1)/5.0;int x=side<2?(side==0?puzzle.Grid.Left-(int)Math.Round(10*puzzle.Scale):puzzle.Grid.Right+(int)Math.Round(10*puzzle.Scale)):puzzle.Grid.Left+(int)Math.Round(puzzle.Grid.Width*along);
@@ -127,7 +132,7 @@ namespace KavrosClueHelper
                 { // Reframing the same game must retain the slider route; otherwise
                   // the worker and visible preview can follow different plans.
                   bool keepSlider=source==sourceId&&cached!=null&&(cached.Puzzle.Kind==PuzzleKind.Sliding||cached.Puzzle.Kind==PuzzleKind.Knot);
-                  last=null;if(!keepSlider){cached=null;solveKey=null;}boardHold.Reset();boardChange.Reset();sliderFrame=null;pendingSliderKey=null; if(source!=sourceId)knotFrames.Reset();else knotFrames.Missing(DateTime.UtcNow); sourceId = source; lastSize = image.Size; nextBroadSearch=DateTime.MinValue; detector.ResetSearch(); }
+                  last=null;if(!keepSlider){cached=null;solveKey=null;}boardHold.Reset();boardChange.Reset();sliderFrame=null; if(source!=sourceId)knotFrames.Reset();else knotFrames.Missing(DateTime.UtcNow); sourceId = source; lastSize = image.Size; nextBroadSearch=DateTime.MinValue; detector.ResetSearch(); }
                 lastSize = image.Size;
                 Pixels pixels = new Pixels(image);
                 bool sameSolve = last != null && DetectionPolicy.CanTrack(cached) && solveKey == cached.Puzzle.Key + ":" + reverse+(cached.Puzzle.Kind==PuzzleKind.Knot?":"+cached.KnotMoving:"")+":"+wholeRows && !cached.KnotMoving && new Rectangle(Point.Empty,image.Size).Contains(last.Bounds);
@@ -196,9 +201,12 @@ namespace KavrosClueHelper
                 if(livePolling&&cached!=null&&cached.Puzzle.Kind==PuzzleKind.Sliding&&puzzle.Kind==PuzzleKind.Sliding&&puzzle.Theme==cached.Puzzle.Theme)
                 {
                     List<int> route;
-                    if(!SlidingRoute.Advance(cached.Puzzle.Board,cached.Sliding,puzzle.Board,out route)&&VisibleSlider(image,pixels))
-                    {if(pendingSliderKey!=puzzle.Key){pendingSliderKey=puzzle.Key;return PendingSlider(timer.ElapsedMilliseconds);}}
-                    else pendingSliderKey=null;
+                    bool sameBoard=cached.Puzzle.Board!=null&&puzzle.Board!=null&&cached.Puzzle.Board.SequenceEqual(puzzle.Board);
+                    if(!sameBoard&&!SlidingRoute.Advance(cached.Puzzle.Board,cached.Sliding,puzzle.Board,out route))
+                    {
+                        // The tiles are not the next step of the old route. Solve this board.
+                        cached=null;solveKey=null;
+                    }
                 }
                 if(livePolling&&cached!=null&&last!=null&&SteadyPolicy.HoldsThroughMisses(last.Kind)&&puzzle.Kind==last.Kind&&puzzle.Bounds.IntersectsWith(last.Bounds))
                 {
@@ -238,7 +246,7 @@ namespace KavrosClueHelper
                     last = null; cached = null; solveKey = null; knotFrames.Missing(DateTime.UtcNow);
                     return new AnalysisResult { Preview = MakePreview(image,new Rectangle(Point.Empty,image.Size)), Milliseconds = timer.ElapsedMilliseconds };
                 }
-                last = puzzle; cached = plan; solveKey = key;if(puzzle.Kind==PuzzleKind.Sliding)sliderFrame=SliderFrame(pixels,puzzle);else{sliderFrame=null;pendingSliderKey=null;} lastHash = pixels.Hash(puzzle.Bounds);
+                last = puzzle; cached = plan; solveKey = key;if(puzzle.Kind==PuzzleKind.Sliding)sliderFrame=SliderFrame(pixels,puzzle);else sliderFrame=null; lastHash = pixels.Hash(puzzle.Bounds);
                 if(puzzle.Kind==PuzzleKind.Knot&&!knotMoving)knotConfirmed=DateTime.UtcNow;
                 if(DetectionPolicy.IsBoardPuzzle(puzzle.Kind))boardSeen=DateTime.UtcNow;
                 boardHold.Seen();
