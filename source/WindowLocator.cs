@@ -36,6 +36,29 @@ namespace KavrosClueHelper
             if (window.Client.Width < 250 || window.Client.Height < 150) score -= 250;
             return score;
         }
+        // The same bar auto-selection uses. Helpers, launchers, browsers and other apps stay below it.
+        public static bool IsClient(GameWindow window)
+        {
+            return Score(window) >= 100;
+        }
+        public static List<GameWindow> Clients(IEnumerable<GameWindow> windows)
+        {
+            List<GameWindow> clients = new List<GameWindow>();
+            if (windows == null) return clients;
+            foreach (GameWindow window in windows)
+                if (IsClient(window)) clients.Add(window);
+            return clients;
+        }
+        public static void NameClients(IList<GameWindow> clients)
+        {
+            if (clients == null) return;
+            for (int i = 0; i < clients.Count; i++)
+            {
+                GameWindow window = clients[i];
+                if (window == null) continue;
+                window.Display = ClientIdentity.Label(window.ProcessId, i, window.Title);
+            }
+        }
         public static GameWindow Choose(IEnumerable<GameWindow> windows, IntPtr current, IntPtr foreground)
         {
             return Choose(windows, current, 0, foreground);
@@ -49,7 +72,7 @@ namespace KavrosClueHelper
         // foreground client is used. A client AFK Warden is sitting on is not taken.
         public static GameWindow Choose(IEnumerable<GameWindow> windows, IntPtr current, uint processId, IntPtr foreground, ICollection<IntPtr> claimed)
         {
-            List<GameWindow> games = windows.Where(w => Score(w) >= 100).OrderByDescending(Score).ThenBy(w => w.Title).ToList();
+            List<GameWindow> games = windows.Where(IsClient).OrderByDescending(Score).ThenBy(w => w.Title).ToList();
             GameWindow existing = games.Find(w => w.Handle == current);
             if (existing != null) return existing;
             if (processId != 0)

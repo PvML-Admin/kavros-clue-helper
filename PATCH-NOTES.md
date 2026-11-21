@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.15
+
+v0.7.15: The client list shows only your Kavros clients. Client 1, Client 2, and Client 3 match the clients you have open. A name saved by Companion is still shown.
+
+Settings shows **Made by Zenity · v0.7.15**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.14
 
 v0.7.14: The client list shows the character name Companion saved for that client. A client with no saved name is listed as Client 1, Client 2, and so on. Thanks to PvML-Admin.
