@@ -91,6 +91,11 @@ namespace KavrosClueHelper
                     Rectangle cover=Rectangle.Intersect(surface.Bounds,screen);cover.Offset(-screen.X,-screen.Y);
                     if(cover.Width>0&&cover.Height>0)using(Graphics g=Graphics.FromImage(frame))g.FillRectangle(Brushes.Black,cover);
                 }
+                foreach(Rectangle foreign in WindowLocator.ForeignCovers(screen))
+                {
+                    Rectangle cover=foreign;cover.Offset(-screen.X,-screen.Y);
+                    if(cover.Width>0&&cover.Height>0)using(Graphics g=Graphics.FromImage(frame))g.FillRectangle(Brushes.Black,cover);
+                }
                 if(trackingCancellation!=null)trackingCancellation.Dispose();trackingCancellation=new CancellationTokenSource();
                 nextTracking=now.AddMilliseconds(250);
                 trackingWorker.RunWorkerAsync(new TrackingJob{Image=frame,Region=region,Floor=region.Level,Offset=area.Location,Generation=sourceGeneration,CapturedAt=DateTime.UtcNow});

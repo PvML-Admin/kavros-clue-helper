@@ -98,6 +98,9 @@ namespace KavrosClueHelper
         private int slidingBatchNumber=1;
         private List<GameWindow> availableWindows = new List<GameWindow>();
         private GameWindow attachedWindow;
+        internal static ClientBinding LaunchBinding;
+        private IntPtr launchHandle;
+        private uint launchProcess;
         private IntPtr panelOwner=new IntPtr(-1),overlayOwner=new IntPtr(-1),orderTuck=new IntPtr(-1);
         private bool panelTop,panelTopKnown,overlayTop,overlayTopKnown;
         private DateTime raiseUntil=DateTime.MinValue;
@@ -131,6 +134,7 @@ namespace KavrosClueHelper
 
         public PuzzleSuiteForm(bool startWithPanel=true)
         {
+            if (LaunchBinding != null) { launchHandle = LaunchBinding.Handle; launchProcess = LaunchBinding.ProcessId; }
             Text = "Kavros Clue Helper · " + AppBranding.DisplayVersion;
             Icon = AppBranding.LoadScroll();
             ClientSize = new Size(516, 1004); FormBorderStyle = FormBorderStyle.FixedSingle; MaximizeBox = false; StartPosition = FormStartPosition.CenterScreen; AutoScaleMode = AutoScaleMode.None;
@@ -358,6 +362,7 @@ namespace KavrosClueHelper
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+            PublishBinding(launchHandle, launchProcess);
             KavrosTheme.ApplyWindowChrome(Handle);
             bool scanKey = Native.RegisterHotKey(Handle, 11, 0x4006, (uint)Keys.L);
             bool drawKey = Native.RegisterHotKey(Handle, 12, 0x4006, (uint)Keys.H);
@@ -392,10 +397,12 @@ namespace KavrosClueHelper
         private void AttachWindow()
         {
             GameWindow choice = windows.SelectedItem as GameWindow;
-            uint boundProcess = attachedWindow == null ? 0 : attachedWindow.ProcessId;
-            GameWindow next = choice != null && !choice.Automatic && Native.IsWindow(choice.Handle) ? choice : WindowLocator.Choose(availableWindows, SelectedWindow, boundProcess, Native.GetForegroundWindow());
+            IntPtr boundHandle = SelectedWindow != IntPtr.Zero ? SelectedWindow : launchHandle;
+            uint boundProcess = attachedWindow != null ? attachedWindow.ProcessId : launchProcess;
+            GameWindow next = choice != null && !choice.Automatic && Native.IsWindow(choice.Handle) ? choice : WindowLocator.Choose(availableWindows, boundHandle, boundProcess, Native.GetForegroundWindow(), ClientLaunch.ClaimedHandles(availableWindows));
             IntPtr previous = SelectedWindow;
             attachedWindow = next;
+            if (next != null) { launchHandle = next.Handle; launchProcess = next.ProcessId; PublishBinding(next.Handle, next.ProcessId); }
             if (SelectedWindow != previous)
             {
                 if(compassSession!=null)compassSession.NewClue();
@@ -501,7 +508,7 @@ namespace KavrosClueHelper
                 if (captureArea.Width < 60 || captureArea.Height < 60) captureArea = visible;
                 Rectangle screenArea=captureArea; screenArea.Offset(bounds.Location);
                 Bitmap screenshot=ScreenReader.Capture(screenArea);
-                ScreenReader.Cover(screenshot, screenArea, OverlayInk(bounds.Location));
+                ScreenReader.Cover(screenshot, screenArea, CaptureInk(bounds.Location, screenArea));
                 // Never detect a puzzle in this helper's own screenshot preview
                 // when the panel is sitting above the game.
                 foreach(Form surface in new Form[]{this,floatingPanel})
@@ -667,7 +674,7 @@ namespace KavrosClueHelper
                     Rectangle localGrid=p.Grid;localGrid.Offset(-p.Bounds.Left,-p.Bounds.Top);
                     using(Bitmap freshImage=ScreenReader.Capture(screen))
                     {
-                        ScreenReader.Cover(freshImage, screen, OverlayInk(Native.ClientBounds(job.Window).Location));
+                        ScreenReader.Cover(freshImage, screen, CaptureInk(Native.ClientBounds(job.Window).Location, screen));
                         DetectedPuzzle fresh=analysisEngine.ReadOnlySlider(freshImage,new DetectedPuzzle{Kind=PuzzleKind.Sliding,Bounds=new Rectangle(Point.Empty,freshImage.Size),Grid=localGrid,Scale=p.Scale});
                         if(fresh==null||fresh.Board==null||p.Board==null||!fresh.Board.SequenceEqual(p.Board))
                         {
@@ -916,6 +923,24 @@ namespace KavrosClueHelper
                 Note("window changed "+client+" monitor "+monitor);
             }
             else if(moved) Note("window moved "+client);
+        }
+        private void PublishBinding(IntPtr handle, uint processId)
+        {
+            if (!IsHandleCreated) return;
+            try
+            {
+                if (handle != IntPtr.Zero) Native.SetProp(Handle, ClientLaunch.ClientProperty, handle);
+                if (processId != 0) Native.SetProp(Handle, ClientLaunch.ProcessProperty, new IntPtr((long)processId));
+            }
+            catch (DllNotFoundException) { }
+            catch (EntryPointNotFoundException) { }
+        }
+        private List<Rectangle> CaptureInk(Point clientOrigin, Rectangle screenArea)
+        {
+            List<Rectangle> ink = OverlayInk(clientOrigin);
+            try { ink.AddRange(WindowLocator.ForeignCovers(screenArea)); }
+            catch (Exception ex) { CrashLog.Write(ex); }
+            return ink;
         }
         private List<Rectangle> OverlayInk(Point clientOrigin)
         {

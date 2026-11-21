@@ -103,6 +103,11 @@ namespace KavrosClueHelper
         [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr window, ref PointStruct point);
         [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(PointStruct point);
+        [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr window, uint command);
+        [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr window, out Rect rect);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern bool SetProp(IntPtr window, string name, IntPtr data);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr GetProp(IntPtr window, string name);
+        public const uint GwHwndNext = 2, GwOwner = 4, GaRoot = 2;
         [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
         [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
         [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr context);

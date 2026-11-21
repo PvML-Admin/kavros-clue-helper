@@ -99,15 +99,21 @@ namespace KavrosClueHelper
                     }
                     return 0;
                 }
+                IntPtr launchForeground = IntPtr.Zero;
+                try { launchForeground = Native.GetForegroundWindow(); }
+                catch (DllNotFoundException) { }
+                catch (EntryPointNotFoundException) { }
+                ClientBinding binding = ClientLaunch.Capture(args, launchForeground);
                 bool firstInstance;
-                singleInstance = new System.Threading.Mutex(true, @"Local\KavrosClueHelper", out firstInstance);
+                singleInstance = new System.Threading.Mutex(true, InstanceName(binding), out firstInstance);
                 if (!firstInstance)
                 {
-                    IntPtr running = FindRunningHelper();
+                    IntPtr running = FindRunningHelper(binding);
                     bool posted = running != IntPtr.Zero && Native.PostMessage(running, Native.NoticeMessage, IntPtr.Zero, IntPtr.Zero);
                     if (!posted) NoticeToast.ShowAndWait("Already running. Check the tray.", Native.VirtualScreen());
                     return 0;
                 }
+                PuzzleSuiteForm.LaunchBinding = binding;
                 PuzzleSuiteForm helper = new PuzzleSuiteForm();
                 helper.Shown += delegate
                 {
@@ -126,17 +132,34 @@ namespace KavrosClueHelper
             }
         }
 
-        private static IntPtr FindRunningHelper()
+        private static string InstanceName(ClientBinding binding)
+        {
+            if (binding != null && binding.Handle != IntPtr.Zero) return @"Local\KavrosClueHelper." + binding.Handle.ToInt64();
+            if (binding != null && binding.ProcessId != 0) return @"Local\KavrosClueHelper.pid." + binding.ProcessId;
+            return @"Local\KavrosClueHelper";
+        }
+        // The notice goes to the helper already bound to this client, not to a helper on another client.
+        private static IntPtr FindRunningHelper(ClientBinding binding)
         {
             IntPtr found = IntPtr.Zero;
+            IntPtr wanted = binding == null ? IntPtr.Zero : binding.Handle;
+            uint wantedProcess = binding == null ? 0 : binding.ProcessId;
             try
             {
                 Native.EnumWindows(delegate(IntPtr window, IntPtr parameter)
                 {
                     StringBuilder text = new StringBuilder(256);
-                    if (Native.GetWindowText(window, text, text.Capacity) > 0 && text.ToString().StartsWith("Kavros Clue Helper"))
-                    { found = window; return false; }
-                    return true;
+                    if (Native.GetWindowText(window, text, text.Capacity) <= 0 || !text.ToString().StartsWith("Kavros Clue Helper")) return true;
+                    if (wanted != IntPtr.Zero)
+                    {
+                        if (Native.GetProp(window, ClientLaunch.ClientProperty) != wanted) return true;
+                    }
+                    else if (wantedProcess != 0)
+                    {
+                        if (Native.GetProp(window, ClientLaunch.ProcessProperty).ToInt64() != wantedProcess) return true;
+                    }
+                    found = window;
+                    return false;
                 }, IntPtr.Zero);
             }
             catch (Exception ex) { CrashLog.Write(ex); }

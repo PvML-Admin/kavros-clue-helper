@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.13
+
+v0.7.13: The helper attaches to the Kavros client it was opened from and stays on that client. Each client can run its own helper. Companion, AFK Warden and the Slayer helper are not treated as the game, and the helper does not take the client AFK Warden is using. A small overlay from those apps is covered before the screen is read.
+
+Settings shows **Made by Zenity · v0.7.13**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.12
 
 v0.7.12: Nothing pops up over the game. Notices are small, sit off the clue card and the puzzle, and clicks pass through them. An update waits on Restart. A bad frame is logged and skipped, and the helper keeps running.
