@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.17
+
+v0.7.17: Auto in the capture list names the client it is reading, such as Auto - Client 1 or the Companion character name. It says Auto - searching... until a client is found. Game found and the panel header use that same name.
+
+Settings shows **Made by Zenity · v0.7.17**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.16
 
 v0.7.16: The floating panel and the puzzle marks stay on the Kavros client the helper is reading. They follow that window, and they hide when it is minimised or when another window is in front. The panel header shows the character name from Companion, or Client 1, Client 2, and so on.

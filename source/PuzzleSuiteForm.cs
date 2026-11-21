@@ -105,6 +105,7 @@ namespace KavrosClueHelper
         private bool panelTop,panelTopKnown,overlayTop,overlayTopKnown;
         private DateTime raiseUntil=DateTime.MinValue;
         private bool refreshingWindows, requestedScan;
+        private string autoCaption;
         private DateTime nextDiscovery = DateTime.MinValue;
         private string captureDetails = "No capture attempted yet.";
         private string puzzleDetails = "No puzzle detected yet.";
@@ -305,7 +306,9 @@ namespace KavrosClueHelper
                 catch(System.DllNotFoundException){}catch(EntryPointNotFoundException){}
             }
             trackedVisible=FloatingPanelLayout.Shown(draw.Checked&&floatingEnabled.Checked,offline,exists,minimised,foreground,panelFront||overlayFront,settingsFront,covered);
-            floatingPanel.SetClient(ClientLabel());
+            string clientName=ClientLabel();
+            floatingPanel.SetClient(clientName);
+            ShowBoundClient(clientName);
             if(!trackedVisible)
             {
                 if(floatingPanel.Visible)floatingPanel.Hide();
@@ -335,12 +338,36 @@ namespace KavrosClueHelper
         }
         private string ClientLabel()
         {
-            if(attachedWindow==null)return "";
-            if(!string.IsNullOrEmpty(attachedWindow.Display))return attachedWindow.Display;
-            List<GameWindow> clients=WindowLocator.Clients(availableWindows);
-            int index=0;
-            for(int i=0;i<clients.Count;i++)if(clients[i].Handle==attachedWindow.Handle){index=i;break;}
-            return ClientIdentity.Label(attachedWindow.ProcessId,index,attachedWindow.Title);
+            return WindowLocator.BoundName(attachedWindow, WindowLocator.Clients(availableWindows));
+        }
+        // The Auto row, the Game found line, and the panel header all use clientName.
+        // Rewriting the combo item only when that text changes keeps the list from flickering.
+        private void ShowBoundClient(string clientName)
+        {
+            if(attachedWindow!=null)
+            {
+                string line=CaptureLabels.Found(clientName);
+                if(connection.Text!=line)
+                {
+                    connection.ForeColor=Color.FromArgb(87, 220, 181);
+                    connection.Text=line;
+                }
+            }
+            if(windows.DroppedDown||windows.Items.Count==0)return;
+            string caption=CaptureLabels.Auto(clientName);
+            GameWindow entry=windows.Items[0] as GameWindow;
+            if(entry==null||!entry.Automatic)return;
+            if(entry.ToString()==caption&&autoCaption==caption)return;
+            autoCaption=caption;
+            entry.Display=caption;
+            int index=windows.SelectedIndex;
+            refreshingWindows=true;
+            try
+            {
+                windows.Items[0]=entry;
+                if(index>=0&&index<windows.Items.Count&&windows.SelectedIndex!=index)windows.SelectedIndex=index;
+            }
+            finally{refreshingWindows=false;}
         }
         private IntPtr[] OwnSurfaces()
         {
@@ -425,7 +452,7 @@ namespace KavrosClueHelper
             try
             {
                 windows.Items.Clear();
-                windows.Items.Add(new GameWindow { Automatic = true, Title = "Auto - find the Kavros game window" });
+                windows.Items.Add(new GameWindow { Automatic = true, Title = "Auto - searching..." });
                 List<GameWindow> clients = WindowLocator.Clients(availableWindows);
                 WindowLocator.NameClients(clients);
                 foreach (GameWindow window in clients) windows.Items.Add(window);
@@ -462,7 +489,7 @@ namespace KavrosClueHelper
                 connection.ForeColor = Color.Gold; connection.Text = launcher ? "Kavros launcher found - waiting for the game client." : "Looking for Kavros - it can be opened after this helper.";
                 if (!offline) { detected.Text = "Waiting for Kavros"; status.Text = "The window list refreshes automatically. You can also pick a window manually."; }
             }
-            else { connection.ForeColor = Color.FromArgb(87, 220, 181); connection.Text = "Game found: " + next.Title; }
+            ShowBoundClient(ClientLabel());
         }
         private DateTime nextFailureLog;
         private void NoteFailure(Exception ex)

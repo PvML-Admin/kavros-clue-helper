@@ -362,9 +362,8 @@ namespace KavrosClueHelper
 
     internal static class StatusText
     {
-        // Connection line: "Game found: <title>" (green), launcher or searching
-        // (amber), or nothing found yet (red). Wording is unchanged; only the
-        // first part becomes a pill.
+        // Connection line: "Game found: <client>" (green), launcher or searching
+        // (amber), or nothing found yet (red). The first part becomes a pill.
         public static void DrawConnection(Graphics g, PaintedLabel label)
         {
             Color surface = KavrosTheme.SurfaceOf(label);

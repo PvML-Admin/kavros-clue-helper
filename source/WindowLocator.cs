@@ -7,6 +7,19 @@ using System.Text;
 
 namespace KavrosClueHelper
 {
+    internal static class CaptureLabels
+    {
+        public static string Auto(string client)
+        {
+            if (string.IsNullOrEmpty(client)) return "Auto - searching...";
+            return "Auto - " + client;
+        }
+        public static string Found(string client)
+        {
+            return "Game found: " + (client ?? "");
+        }
+    }
+
     public static class WindowLocator
     {
         private static bool Contains(string text, string value) { return (text ?? "").IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0; }
@@ -58,6 +71,23 @@ namespace KavrosClueHelper
                 if (window == null) continue;
                 window.Display = ClientIdentity.Label(window.ProcessId, i, window.Title);
             }
+        }
+        // The name shown for the client the helper is reading. A saved Companion
+        // name wins. Otherwise it is Client N across the real clients only.
+        public static string BoundName(GameWindow window, IList<GameWindow> clients)
+        {
+            if (window == null || window.Automatic) return "";
+            if (!string.IsNullOrEmpty(window.Display)) return window.Display;
+            int index = 0;
+            if (clients != null)
+            {
+                for (int i = 0; i < clients.Count; i++)
+                {
+                    GameWindow candidate = clients[i];
+                    if (candidate != null && candidate.Handle == window.Handle) { index = i; break; }
+                }
+            }
+            return ClientIdentity.Label(window.ProcessId, index, window.Title);
         }
         public static GameWindow Choose(IEnumerable<GameWindow> windows, IntPtr current, IntPtr foreground)
         {

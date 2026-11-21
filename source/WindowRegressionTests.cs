@@ -171,6 +171,11 @@ namespace KavrosClueHelper
                     ClientIdentity.ResetShareForTests(pickerFile);
                     WindowLocator.NameClients(shown);
                     Check(shown[0].Display == "Client 1" && shown[1].Display == "Zezima" && shown[2].Display == "Client 3", "Client N counts only real clients and keeps a Companion name");
+                    string boundName = WindowLocator.BoundName(shown[1], shown);
+                    Check(boundName == "Zezima" && CaptureLabels.Auto(boundName) == "Auto - Zezima" && CaptureLabels.Found(boundName) == "Game found: Zezima" && FloatingPanelLayout.Header(boundName, "MASTER CLUE") == "Zezima  ·  MASTER CLUE", "auto, game found and the panel header name the bound client");
+                    GameWindow unnamed = Window(33, "Kavros 944 | NXT LIVE", "rs2client", "JagWindow");
+                    Check(WindowLocator.BoundName(unnamed, new GameWindow[] { unnamed }) == "Client 1" && CaptureLabels.Auto("Client 1") == "Auto - Client 1" && CaptureLabels.Found("Client 1") == "Game found: Client 1", "a client without a Companion name is Client N in auto and game found");
+                    Check(CaptureLabels.Auto("") == "Auto - searching..." && CaptureLabels.Auto(null) == "Auto - searching..." && WindowLocator.BoundName(null, shown) == "", "auto says it is searching until a client is bound");
                 }
                 finally
                 {
