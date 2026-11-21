@@ -1,5 +1,13 @@
 # Kavros Clue Helper
 
+## 0.7.13
+
+**Clients**
+- Opening the helper from a client's Companion panel attaches to that client and stays there. Another Kavros window in front does not take it.
+- Each client can have its own helper. Opening it again on the same client shows the small notice on that helper.
+- Companion, AFK Warden and the Slayer helper are not treated as the game. The helper does not attach to the client AFK Warden is using.
+- A small overlay from those apps is covered before the screen is read. If Companion passes the window or the process, that client is used.
+
 ## 0.7.12
 
 **Notices**

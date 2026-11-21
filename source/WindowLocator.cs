@@ -17,7 +17,12 @@ namespace KavrosClueHelper
         }
         public static int Score(GameWindow window)
         {
-            if (window == null || window.Automatic || window.Handle == IntPtr.Zero || Contains(window.Title, "Kavros Clue Helper") || Contains(window.ProcessName, "KavrosClueHelper")) return -1000;
+            if (window == null || window.Automatic || window.Handle == IntPtr.Zero) return -1000;
+            // Companion, AFK Warden, the Slayer helper and this helper sit on a client.
+            // Their windows are never the game, even when the title contains Kavros.
+            if (IsHelperProcess(window.ProcessName) || Contains(window.Title, "Kavros Clue Helper")) return -1000;
+            if (Contains(window.Title, "AFK Warden") || Contains(window.Title, "Slayer Helper")) return -1000;
+            if (Contains(window.Title, "Companion") && (Contains(window.Title, "Kavros") || Contains(window.ProcessName, "Kavros"))) return -1000;
             if (Contains(window.ClassName, "CabinetWClass") || Contains(window.ClassName, "WinRarWindow") || Contains(window.ClassName, "Chrome_WidgetWin") || Contains(window.ClassName, "ApplicationFrameWindow")) return -1000;
             if (IsLauncher(window)) return -1000;
             // Title must contain Kavros. A rev number such as 944 or 951 is not required,
@@ -35,9 +40,14 @@ namespace KavrosClueHelper
         {
             return Choose(windows, current, 0, foreground);
         }
-        // A chosen client stays chosen. Focus, z-order and a second Kavros window never replace it.
-        // A lost handle is reattached only to a window of the same process. A different process is ignored.
         public static GameWindow Choose(IEnumerable<GameWindow> windows, IntPtr current, uint processId, IntPtr foreground)
+        {
+            return Choose(windows, current, processId, foreground, null);
+        }
+        // A chosen client stays chosen. Focus and a second Kavros window never replace it.
+        // A lost handle is reattached to the same process. Once that process is gone, the
+        // foreground client is used. A client AFK Warden is sitting on is not taken.
+        public static GameWindow Choose(IEnumerable<GameWindow> windows, IntPtr current, uint processId, IntPtr foreground, ICollection<IntPtr> claimed)
         {
             List<GameWindow> games = windows.Where(w => Score(w) >= 100).OrderByDescending(Score).ThenBy(w => w.Title).ToList();
             GameWindow existing = games.Find(w => w.Handle == current);
@@ -46,16 +56,81 @@ namespace KavrosClueHelper
             {
                 GameWindow sameProcess = games.Find(w => w.ProcessId == processId);
                 if (sameProcess != null) return sameProcess;
-                if (current != IntPtr.Zero) return null;
+                if (current != IntPtr.Zero) return ForegroundClient(games, foreground, claimed);
             }
             if (current != IntPtr.Zero)
             {
-                if (games.Count == 1) return games[0];
+                if (games.Count == 1 && !IsClaimed(games[0].Handle, claimed)) return games[0];
                 return null;
             }
+            List<GameWindow> open = games;
+            if (claimed != null && claimed.Count > 0) open = games.Where(w => !IsClaimed(w.Handle, claimed)).ToList();
+            if (open.Count == 0) return null;
+            GameWindow focused = open.Find(w => w.Handle == foreground);
+            if (focused != null && Score(focused) >= Score(open[0]) - 50) return focused;
+            return open.FirstOrDefault();
+        }
+        private static GameWindow ForegroundClient(List<GameWindow> games, IntPtr foreground, ICollection<IntPtr> claimed)
+        {
             GameWindow focused = games.Find(w => w.Handle == foreground);
-            if (focused != null && Score(focused) >= Score(games[0]) - 50) return focused;
-            return games.FirstOrDefault();
+            if (focused == null || IsClaimed(focused.Handle, claimed)) return null;
+            return focused;
+        }
+        private static bool IsClaimed(IntPtr handle, ICollection<IntPtr> claimed)
+        {
+            return claimed != null && claimed.Contains(handle);
+        }
+        // Small helper overlays that sit on the capture are masked. A window that
+        // covers most of the client is left alone so a transparent shell is not wiped.
+        public static List<Rectangle> CoverRects(IEnumerable<GameWindow> windows, Rectangle capture, int selfProcessId)
+        {
+            List<Rectangle> covers = new List<Rectangle>();
+            if (windows == null || capture.Width < 1 || capture.Height < 1) return covers;
+            long limit = (long)capture.Width * capture.Height * 7 / 10;
+            foreach (GameWindow window in windows)
+            {
+                if (window == null || window.Handle == IntPtr.Zero || window.ProcessId == (uint)selfProcessId) continue;
+                if (!IsHelperProcess(window.ProcessName) || Score(window) >= 100) continue;
+                Rectangle hit = Rectangle.Intersect(window.Client, capture);
+                if (hit.Width < 1 || hit.Height < 1) continue;
+                if ((long)hit.Width * hit.Height > limit) continue;
+                covers.Add(hit);
+            }
+            return covers;
+        }
+        public static List<Rectangle> ForeignCovers(Rectangle screenArea)
+        {
+            List<Rectangle> covers = new List<Rectangle>();
+            if (screenArea.Width < 1 || screenArea.Height < 1) return covers;
+            try
+            {
+                int self = Process.GetCurrentProcess().Id;
+                Dictionary<uint, string> names = new Dictionary<uint, string>();
+                List<GameWindow> found = new List<GameWindow>();
+                Native.EnumWindows(delegate(IntPtr window, IntPtr parameter)
+                {
+                    if (!Native.IsWindowVisible(window)) return true;
+                    uint pid;
+                    Native.GetWindowThreadProcessId(window, out pid);
+                    if (pid == 0 || pid == (uint)self) return true;
+                    string name;
+                    if (!names.TryGetValue(pid, out name))
+                    {
+                        name = "";
+                        try { using (Process process = Process.GetProcessById((int)pid)) name = process.ProcessName ?? ""; }
+                        catch { name = ""; }
+                        names[pid] = name;
+                    }
+                    if (!IsHelperProcess(name)) return true;
+                    Native.Rect rect;
+                    if (!Native.GetWindowRect(window, out rect)) return true;
+                    found.Add(new GameWindow { Handle = window, ProcessId = pid, ProcessName = name, Title = "overlay", Client = Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom) });
+                    return true;
+                }, IntPtr.Zero);
+                covers = CoverRects(found, screenArea, self);
+            }
+            catch (Exception ex) { CrashLog.Write(ex); }
+            return covers;
         }
         public static List<GameWindow> Enumerate(int excludedProcessId)
         {
@@ -98,13 +173,26 @@ namespace KavrosClueHelper
         // and not the game itself (the game is handled by IsForeground).
         public static bool IsHelperProcess(string processName)
         {
-            if (string.IsNullOrEmpty(processName)) return false;
+            string name = ProcessBaseName(processName);
+            return EqualsName(name, "KavrosCompanion")
+                || EqualsName(name, "KavrosAfkWarden")
+                || EqualsName(name, "KavrosSlayerHelper")
+                || EqualsName(name, "KavrosClueHelper");
+        }
+        public static bool IsWardenProcess(string processName)
+        {
+            return EqualsName(ProcessBaseName(processName), "KavrosAfkWarden");
+        }
+        public static bool IsCompanionProcess(string processName)
+        {
+            return EqualsName(ProcessBaseName(processName), "KavrosCompanion");
+        }
+        private static string ProcessBaseName(string processName)
+        {
+            if (string.IsNullOrEmpty(processName)) return "";
             if (processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                processName = processName.Substring(0, processName.Length - 4);
-            return EqualsName(processName, "KavrosCompanion")
-                || EqualsName(processName, "KavrosAfkWarden")
-                || EqualsName(processName, "KavrosSlayerHelper")
-                || EqualsName(processName, "KavrosClueHelper");
+                return processName.Substring(0, processName.Length - 4);
+            return processName;
         }
         private static bool EqualsName(string processName, string expected)
         {
