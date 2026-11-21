@@ -212,15 +212,15 @@ namespace KavrosClueHelper
         }
         public MinimapMatch Find(Bitmap capture,ScanRegion region,Point captureOffset,CancellationToken token)
         {
-            Load(region);var image=new Surface(capture);var homes=anchor.Find(capture);var dots=PlayerDots(image,homes.Any(h=>h.Width<20));Diagnostics="Home anchors: "+homes.Count+"; Player dots: "+dots.Count;
+            Load(region);var image=new Surface(capture);var marks=anchor.Marks(capture);var homes=marks.Where(m=>!m.Legacy).Select(m=>m.Box).ToList();var legacy=marks.Where(m=>m.Legacy).Select(m=>m.Box).ToList();var dots=PlayerDots(image,homes.Concat(legacy).Any(h=>h.Width<20));Diagnostics="Home anchors: "+homes.Count+"; Legacy anchors: "+legacy.Count+"; Player dots: "+dots.Count;
             if(previous!=null)
             {
                 Point expected=new Point(previous.PlayerPixel.X-captureOffset.X,previous.PlayerPixel.Y-captureOffset.Y);
                 dots=dots.OrderBy(p=>Math.Abs(p.X-expected.X)+Math.Abs(p.Y-expected.Y)).ToList();
             }
-            var homeViews=homes.Select(h=>MinimapAnchor.Viewport(image.Width,image.Height,h,image.Get)).Where(v=>v!=null).ToList();
-            var candidates=dots.Select(dot=>new{Dot=dot,View=homeViews.Where(v=>v.Bounds.Contains(dot)&&Math.Abs(dot.X-v.Bounds.Left-v.Bounds.Width/2)<v.Bounds.Width*0.12&&Math.Abs(dot.Y-v.Bounds.Top-v.Bounds.Height/2)<v.Bounds.Height*0.12).OrderBy(v=>Math.Abs(dot.X-v.Bounds.Left-v.Bounds.Width/2)+Math.Abs(dot.Y-v.Bounds.Top-v.Bounds.Height/2)).FirstOrDefault()??MinimapViewport.Find(image.Width,image.Height,dot,image.Get)??(homes.Count==1&&dots.Count==1?MinimapAnchor.FromCentre(image.Width,image.Height,dot,homes[0]):null)}).Where(v=>v.View!=null).ToList();
-            if(homes.Count>0){var anchored=candidates.Where(v=>homes.Any(h=>MinimapAnchor.ContainsHome(v.View.Bounds,h))).OrderBy(v=>Math.Abs(v.Dot.X-(v.View.Bounds.Left+v.View.Bounds.Width/2))+Math.Abs(v.Dot.Y-(v.View.Bounds.Top+v.View.Bounds.Height/2))).Take(1).ToList();if(anchored.Count>0)candidates=anchored;}
+            var homeViews=homes.Select(h=>MinimapAnchor.Viewport(image.Width,image.Height,h,image.Get)).Concat(legacy.Select(h=>MinimapAnchor.LegacyViewport(image.Width,image.Height,h))).Where(v=>v!=null).ToList();
+            var candidates=dots.Select(dot=>new{Dot=dot,View=homeViews.Where(v=>v.Bounds.Contains(dot)&&Math.Abs(dot.X-v.Bounds.Left-v.Bounds.Width/2)<v.Bounds.Width*0.12&&Math.Abs(dot.Y-v.Bounds.Top-v.Bounds.Height/2)<v.Bounds.Height*0.12).OrderBy(v=>Math.Abs(dot.X-v.Bounds.Left-v.Bounds.Width/2)+Math.Abs(dot.Y-v.Bounds.Top-v.Bounds.Height/2)).FirstOrDefault()??MinimapViewport.Find(image.Width,image.Height,dot,image.Get)??(homes.Count==1&&dots.Count==1?MinimapAnchor.FromCentre(image.Width,image.Height,dot,homes[0]):null)??(legacy.Count==1&&dots.Count==1?MinimapAnchor.LegacyViewport(image.Width,image.Height,legacy[0]):null)}).Where(v=>v.View!=null).ToList();
+            if(homes.Count>0||legacy.Count>0){var anchored=candidates.Where(v=>homes.Any(h=>MinimapAnchor.ContainsHome(v.View.Bounds,h))||legacy.Any(h=>MinimapAnchor.ContainsLegacy(v.View.Bounds,h))).OrderBy(v=>Math.Abs(v.Dot.X-(v.View.Bounds.Left+v.View.Bounds.Width/2))+Math.Abs(v.Dot.Y-(v.View.Bounds.Top+v.View.Bounds.Height/2))).Take(1).ToList();if(anchored.Count>0)candidates=anchored;}
             else if(previous==null)candidates=candidates.OrderByDescending(v=>v.View.FrameSides).ToList();
             int skip=previous==null&&candidates.Count>1?(searchBatch++)%candidates.Count:0;
             foreach(var candidate in candidates.Skip(skip).Take(1))

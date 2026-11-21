@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.19
+
+v0.7.19: Legacy towers, lockbox, Celtic knot, compass, and scan parchment are read alongside the modern interface. The round legacy minimap is found from its H button. The compass also checks the 1440p size. Celtic knot counts show as soon as the knot is still, and tiles that have not changed are not read again.
+
+Settings shows **Made by Zenity · v0.7.19**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.18
 
 v0.7.18: A steady compass settles through small jitter, and one missed frame no longer throws the reading away. Record stays available for about two seconds and only lights up when it will take the heading. Settings has Blur live preview, off by default. Scan clues are also recognised with the older brown stone border.

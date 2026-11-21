@@ -231,7 +231,8 @@ namespace KavrosClueHelper
                 for(int x=Math.Max(body.X,hit.X-(int)(50*s));x<Math.Min(body.Right,hit.X+(int)(135*s));x++)
                 {Color c=p.Get(x,y);if(c.R>185&&c.G>185&&c.B>185&&Math.Abs(c.R-c.G)<25)white++;}
                 if(white<65*s*s)continue;
-                return new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=new ScanReading{Region=model.Region,DifferentLevel=model.Level.Find(p,body,1,35).Count>0},Bounds=body,Scale=s,Confidence=0.95,Message="Scan clue"};
+                var reading=new ScanReading{Region=model.Region,DifferentLevel=model.Level.Find(p,body,1,35).Count>0,Outside=titles.Outside(p,body)};
+                return new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=reading,Bounds=body,Scale=s,Confidence=0.95,Message="Scan clue"};
             }
             return ReadElite(image,p);
         }

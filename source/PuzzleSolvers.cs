@@ -142,6 +142,9 @@ namespace KavrosClueHelper
         public KnotLock[] Locks;
         public int[] Colours;
         public System.Drawing.Point[][] Buttons;
+        // True when every rune, track and match marker was read well clear of its threshold.
+        public bool Reliable;
+        public double MinRune, MinTrack, MinMargin;
     }
     public sealed class KnotSolution { public int[] Offsets; public bool Certain; public int Cost { get { return Offsets.Sum(v => Math.Abs(v)); } } }
     public static class KnotSolver

@@ -17,11 +17,23 @@ namespace KavrosClueHelper
             public int Id, Colour;
             public bool Intersection, Matches;
             public bool[] Neighbours;
+            public double RuneScore, TrackScore, MatchMargin;
+        }
+        private sealed class Remembered
+        {
+            public ulong Hash;
+            public int Id, Colour;
+            public bool Empty, Intersection, Matches;
+            public bool[] Neighbours;
+            public double RuneScore, TrackScore, MatchMargin;
         }
         private sealed class Lane { public int Colour; public List<Tile> Tiles = new List<Tile>(); }
         private sealed class Layout { public long[] Hash; public Point[][] Buttons; }
         private readonly List<double[]> runes = new List<double[]>();
         private readonly List<Layout> layouts = new List<Layout>();
+        private Remembered[,] remembered;
+        private Point rememberedOrigin;
+        public int CacheHits, CacheMisses;
         private static readonly Point[] Directions = { new Point(-1, -1), new Point(1, -1), new Point(1, 1), new Point(-1, 1) };
         private static readonly Point[] Corners = { new Point(0, 0), new Point(23, 0), new Point(24, 24), new Point(0, 24) };
         private static readonly Point[] TrackSamples = { new Point(11, -3), new Point(12, -3), new Point(-5, 12), new Point(-5, 13), new Point(29, 12), new Point(29, 13), new Point(11, 28), new Point(12, 28) };
@@ -103,12 +115,33 @@ namespace KavrosClueHelper
                 LastError = "grid origin " + origin + " size " + width + "x" + height;
                 if (width < 5 || width > 22 || height < 4 || height > 18) return null;
                 Tile[,] grid = new Tile[width, height]; int valid = 0;
+                double worstRune = 1, worstTrack = 1, worstMargin = 4;
+                if (remembered == null || rememberedOrigin != origin || remembered.GetLength(0) != width || remembered.GetLength(1) != height)
+                { remembered = new Remembered[width, height]; rememberedOrigin = origin; }
                 for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
                 {
                     if (((x + y) % 2 != 0) != odd) continue;
                     Point position = new Point(origin.X + x * 24, origin.Y + y * 24);
-                    Tile value = ReadTile(pixels, position);
-                    if (value != null) { value.Position = new Point(x, y); grid[x, y] = value; valid++; }
+                    ulong hash = HashTile(pixels, position);
+                    Remembered prior = remembered[x, y];
+                    Tile value;
+                    if (prior != null && prior.Hash == hash)
+                    {
+                        CacheHits++;
+                        value = prior.Empty ? null : new Tile { Id = prior.Id, Colour = prior.Colour, Intersection = prior.Intersection, Matches = prior.Matches, Neighbours = prior.Neighbours, RuneScore = prior.RuneScore, TrackScore = prior.TrackScore, MatchMargin = prior.MatchMargin };
+                    }
+                    else
+                    {
+                        CacheMisses++;
+                        value = ReadTile(pixels, position);
+                        remembered[x, y] = new Remembered { Hash = hash, Empty = value == null, Id = value == null ? 0 : value.Id, Colour = value == null ? 0 : value.Colour, Intersection = value != null && value.Intersection, Matches = value != null && value.Matches, Neighbours = value == null ? null : value.Neighbours, RuneScore = value == null ? 0 : value.RuneScore, TrackScore = value == null ? 0 : value.TrackScore, MatchMargin = value == null ? 0 : value.MatchMargin };
+                    }
+                    if (value != null)
+                    {
+                        value.Position = new Point(x, y); grid[x, y] = value; valid++;
+                        worstRune = Math.Min(worstRune, value.RuneScore); worstTrack = Math.Min(worstTrack, value.TrackScore);
+                        if (value.Intersection) worstMargin = Math.Min(worstMargin, value.MatchMargin);
+                    }
                 }
                 if (valid < 20) { LastError += "; valid tiles " + valid; return null; }
                 List<Lane> lanes = new List<Lane>();
@@ -150,10 +183,10 @@ namespace KavrosClueHelper
                     locks.Add(new KnotLock { A = a, IndexA = i, B = b, IndexB = j });
                 }
                 if (locks.Count < 3) { LastError = "too few locks: " + locks.Count; return null; }
-                KnotPuzzle puzzle = new KnotPuzzle { Lanes = lanes.Select(l => l.Tiles.Select(t => new RuneValue(t.Id, t.Intersection && !t.Matches && t.Colour != l.Colour)).ToArray()).ToArray(), Locks = locks.ToArray(), Colours = lanes.Select(l => l.Colour).ToArray() };
-                long[] hash = puzzle.Lanes.Select(l => (long)l.Length).Concat(puzzle.Locks.Select(l => l.A < l.B ? 10000L * (l.A * 100 + l.IndexA) + l.B * 100 + l.IndexB : 10000L * (l.B * 100 + l.IndexB) + l.A * 100 + l.IndexA).OrderBy(h => h)).ToArray();
-                Layout layout = layouts.Find(l => l.Hash.SequenceEqual(hash));
-                if (layout == null) { LastError = "unknown shape " + String.Join(",", hash); return null; }
+                KnotPuzzle puzzle = new KnotPuzzle { Lanes = lanes.Select(l => l.Tiles.Select(t => new RuneValue(t.Id, t.Intersection && !t.Matches && t.Colour != l.Colour)).ToArray()).ToArray(), Locks = locks.ToArray(), Colours = lanes.Select(l => l.Colour).ToArray(), MinRune = worstRune, MinTrack = worstTrack, MinMargin = worstMargin, Reliable = worstRune >= 0.93 && worstTrack >= 0.88 && worstMargin >= 0.45 };
+                long[] shape = puzzle.Lanes.Select(l => (long)l.Length).Concat(puzzle.Locks.Select(l => l.A < l.B ? 10000L * (l.A * 100 + l.IndexA) + l.B * 100 + l.IndexB : 10000L * (l.B * 100 + l.IndexB) + l.A * 100 + l.IndexA).OrderBy(h => h)).ToArray();
+                Layout layout = layouts.Find(l => l.Hash.SequenceEqual(shape));
+                if (layout == null) { LastError = "unknown shape " + String.Join(",", shape); return null; }
                 puzzle.Buttons = layout.Buttons.Select(pair => pair.Select(p => new Point(70 + origin.X + p.X * 24 + 12, 13 + origin.Y + p.Y * 24 + 12)).ToArray()).ToArray();
                 return puzzle;
             }
@@ -176,7 +209,22 @@ namespace KavrosClueHelper
             bool intersection = neighbours < 2;
             double green = MatchSamples.Sum(s => Greens.Max(c => Pixels.ColourSimilarity(c, image.Get(p.X + s.X, p.Y + s.Y))));
             double red = MatchSamples.Sum(s => Reds.Max(c => Pixels.ColourSimilarity(c, image.Get(p.X + s.X, p.Y + s.Y))));
-            return new Tile { Id = id, Colour = colour, Intersection = intersection, Matches = green > red, Neighbours = background.Select(b => !b).ToArray() };
+            return new Tile { Id = id, Colour = colour, Intersection = intersection, Matches = green > red, Neighbours = background.Select(b => !b).ToArray(), RuneScore = score, TrackScore = certainty, MatchMargin = Math.Abs(green - red) };
+        }
+        private static ulong HashTile(Pixels image, Point p)
+        {
+            unchecked
+            {
+                ulong hash = 14695981039346656037UL;
+                for (int y = -6; y <= 30; y++) for (int x = -6; x <= 30; x++)
+                {
+                    Color colour = image.Get(p.X + x, p.Y + y);
+                    hash ^= colour.R; hash *= 1099511628211UL;
+                    hash ^= colour.G; hash *= 1099511628211UL;
+                    hash ^= colour.B; hash *= 1099511628211UL;
+                }
+                return hash;
+            }
         }
 
         public static KnotPuzzle Merge(KnotPuzzle current, KnotPuzzle previous)
