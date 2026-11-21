@@ -15,10 +15,12 @@ namespace KavrosClueHelper
         [STAThread]
         public static int Main(string[] args)
         {
+            CrashLog.Install();
             NetSecurity.EnableModernTls();
             try
             {
-                AppUpdates.Start();
+                try { AppUpdates.Start(); }
+                catch (Exception startup) { CrashLog.Write(startup); }
                 if(args.Length>1&&args[0]=="--catalogue-test")return ReferenceRegressionTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--slider-optimiser-test")return SlidingOptimizerTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--slider-click-test")return SlidingClickOptimizerTests.Run(args[1]);
@@ -33,7 +35,13 @@ namespace KavrosClueHelper
                 if(args.Length>0 && args[0]=="--countdown-test") return CountdownRegressionTests.Run(args.Length>1 ? args[1] : "countdown-test-results.txt");
                 if(args.Length>0 && args[0]=="--capture-test") return CaptureRegressionTests.Run(args.Length>1 ? args[1] : "capture-test-results.txt");
                 try { Native.SetProcessDpiAwarenessContext(new IntPtr(-4)); }
-                catch (EntryPointNotFoundException) { Native.SetProcessDPIAware(); }
+                catch (EntryPointNotFoundException)
+                {
+                    try { Native.SetProcessDPIAware(); }
+                    catch (EntryPointNotFoundException) { }
+                    catch (DllNotFoundException) { }
+                }
+                catch (DllNotFoundException) { }
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 if(args.Length>1&&args[0]=="--automation-test")return AutomationRegressionTests.Run(args[1]);
@@ -47,6 +55,7 @@ namespace KavrosClueHelper
                 if(args.Length>0 && args[0]=="--master-test") return MasterRegressionTests.Run(args.Length>1 ? args[1] : "master-test-results.txt");
                 if(args.Length>0 && args[0]=="--discovery-test") return DiscoveryRegressionTests.Run(args.Length>1 ? args[1] : "discovery-test-results.txt");
                 if(args.Length>0 && args[0]=="--compass-test") return CompassRegressionTests.Run(args.Length>1 ? args[1] : "compass-test-results.txt");
+                if(args.Length>0 && args[0]=="--robustness-test") return RobustnessRegressionTests.Run(args.Length>1 ? args[1] : "robustness-test-results.txt");
                 if (args.Length > 0 && args[0] == "--self-test")
                 {
                     string report = args.Length > 1 ? args[1] : "test-results.txt";
@@ -68,6 +77,8 @@ namespace KavrosClueHelper
                     if(master!=0) return master;
                     int capture=CaptureRegressionTests.Run(report);
                     if(capture!=0)return capture;
+                    int robust=RobustnessRegressionTests.Run(report);
+                    if(robust!=0)return robust;
                     int discovery=DiscoveryRegressionTests.Run(report);
                     return discovery==0?CompassRegressionTests.Run(report):discovery;
                 }
@@ -90,7 +101,13 @@ namespace KavrosClueHelper
                 }
                 bool firstInstance;
                 singleInstance = new System.Threading.Mutex(true, @"Local\KavrosClueHelper", out firstInstance);
-                if (!firstInstance) { MessageBox.Show("Kavros Clue Helper is already running (check the tray).", "Kavros Clue Helper"); return 0; }
+                if (!firstInstance)
+                {
+                    IntPtr running = FindRunningHelper();
+                    bool posted = running != IntPtr.Zero && Native.PostMessage(running, Native.NoticeMessage, IntPtr.Zero, IntPtr.Zero);
+                    if (!posted) NoticeToast.ShowAndWait("Already running. Check the tray.", Native.VirtualScreen());
+                    return 0;
+                }
                 PuzzleSuiteForm helper = new PuzzleSuiteForm();
                 helper.Shown += delegate
                 {
@@ -103,11 +120,27 @@ namespace KavrosClueHelper
             }
             catch (Exception exception)
             {
-                if (args.Length > 0)
-                { File.WriteAllText("error.txt", exception.ToString()); return 1; }
-                MessageBox.Show(exception.Message, "Kavros Clue Helper", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                CrashLog.Write(exception);
+                if (args.Length > 0) File.WriteAllText("error.txt", exception.ToString());
                 return 1;
             }
+        }
+
+        private static IntPtr FindRunningHelper()
+        {
+            IntPtr found = IntPtr.Zero;
+            try
+            {
+                Native.EnumWindows(delegate(IntPtr window, IntPtr parameter)
+                {
+                    StringBuilder text = new StringBuilder(256);
+                    if (Native.GetWindowText(window, text, text.Capacity) > 0 && text.ToString().StartsWith("Kavros Clue Helper"))
+                    { found = window; return false; }
+                    return true;
+                }, IntPtr.Zero);
+            }
+            catch (Exception ex) { CrashLog.Write(ex); }
+            return found;
         }
     }
 
@@ -320,18 +353,25 @@ namespace KavrosClueHelper
             Native.SetForegroundWindow(game);
             Rectangle client = Native.ClientBounds(game);
             if (client.Width < 100 || client.Height < 100) throw new Exception("The game window is too small.");
-            using (GridSelector selector = new GridSelector(client))
+            GridSelector selector = new GridSelector(client);
+            selector.FormClosed += delegate
             {
-                if (selector.ShowDialog() != DialogResult.OK) return;
-                Rectangle region = selector.Selection;
-                if (region.Width < 60 || region.Height < 60 || Math.Abs(region.Width - region.Height) > Math.Max(region.Width, region.Height) * 0.12)
-                    throw new Exception("Select a square around all 25 tiles, without the title or instructions. Try again.");
-                relativeRegion = region;
-                calibratedClientSize = client.Size;
-            }
-            manual = false; candidate = null; accepted = null;
-            regionText.Text = String.Format("Grid selected: {0} x {1} px. Reselect if the puzzle moves.", relativeRegion.Width, relativeRegion.Height);
-            ReadOnce();
+                try
+                {
+                    if (selector.DialogResult != DialogResult.OK) return;
+                    Rectangle region = selector.Selection;
+                    if (region.Width < 60 || region.Height < 60 || Math.Abs(region.Width - region.Height) > Math.Max(region.Width, region.Height) * 0.12)
+                    { status.Text = "Select a square around all 25 tiles, without the title or instructions. Try again."; return; }
+                    relativeRegion = region;
+                    calibratedClientSize = client.Size;
+                    manual = false; candidate = null; accepted = null;
+                    regionText.Text = String.Format("Grid selected: {0} x {1} px. Reselect if the puzzle moves.", relativeRegion.Width, relativeRegion.Height);
+                    ReadOnce();
+                }
+                catch (Exception ex) { status.Text = ex.Message; }
+                finally { selector.Dispose(); }
+            };
+            selector.Show();
         }
 
         private Rectangle ScreenRegion()

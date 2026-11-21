@@ -71,8 +71,12 @@ namespace KavrosClueHelper
             RectangleF bounds=region.MapBounds;
             if(File.Exists(referenceFile))
             {
-                float[] box=File.ReadAllText(Path.Combine(assets,"scan",region.Id+"-track-map.tsv")).Trim().Split(new[]{'\t'}).Select(v=>Single.Parse(v,CultureInfo.InvariantCulture)).ToArray();
-                bounds=RectangleF.FromLTRB(box[0],box[1],box[2],box[3]);
+                try
+                {
+                    RectangleF parsed;
+                    if(ScanTables.TryBox(File.ReadAllText(Path.Combine(assets,"scan",region.Id+"-track-map.tsv")), out parsed)) bounds=parsed;
+                }
+                catch(Exception ex){CrashLog.Write(ex);}
             }
             else referenceFile=Path.Combine(assets,"scan",region.AssetKey+".png");
             using(Bitmap image=new Bitmap(referenceFile))SetReference(image,bounds,region.Id);

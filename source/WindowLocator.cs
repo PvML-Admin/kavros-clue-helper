@@ -63,6 +63,13 @@ namespace KavrosClueHelper
             Dictionary<uint, string> processNames = new Dictionary<uint, string>();
             Native.EnumWindows(delegate(IntPtr window, IntPtr parameter)
             {
+                try { return Inspect(window, excludedProcessId, list, processNames); }
+                catch (Exception ex) { CrashLog.Write(ex); return true; }
+            }, IntPtr.Zero);
+            return list.OrderByDescending(Score).ThenBy(w => w.Title).ToList();
+        }
+        private static bool Inspect(IntPtr window, int excludedProcessId, List<GameWindow> list, Dictionary<uint, string> processNames)
+        {
                 if (!Native.IsWindowVisible(window)) return true;
                 uint pid; Native.GetWindowThreadProcessId(window, out pid);
                 if (pid == excludedProcessId) return true;
@@ -79,8 +86,6 @@ namespace KavrosClueHelper
                 if (Contains(processName, "KavrosClueHelper") || Contains(title.ToString(), "Kavros Clue Helper")) return true;
                 list.Add(new GameWindow { Handle = window, Title = title.ToString(), ProcessId = pid, ProcessName = processName, ClassName = className.ToString(), Client = Native.ClientBounds(window) });
                 return true;
-            }, IntPtr.Zero);
-            return list.OrderByDescending(Score).ThenBy(w => w.Title).ToList();
         }
         public static bool IsForeground(IntPtr game)
         {

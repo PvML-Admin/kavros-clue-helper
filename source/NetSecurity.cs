@@ -12,6 +12,14 @@ namespace KavrosClueHelper
     {
         internal static void EnableModernTls()
         {
+            // Best-effort. A configuration or runtime failure must not kill the
+            // overlay; the clue reader works without the update channel.
+            try { Apply(); }
+            catch (Exception) { }
+        }
+
+        static void Apply()
+        {
             try
             {
                 AppContext.SetSwitch("Switch.System.Net.DontEnableSystemDefaultTlsVersions", false);
@@ -30,8 +38,11 @@ namespace KavrosClueHelper
             }
             catch (NotSupportedException)
             {
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+                try { ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12; }
+                catch (NotSupportedException) { }
+                catch (TypeInitializationException) { }
             }
+            catch (TypeInitializationException) { }
 
             // TLS 1.3 is SecurityProtocolType value 12288. The name is not on
             // every Framework reference assembly, and setting it throws when
@@ -41,6 +52,7 @@ namespace KavrosClueHelper
                 ServicePointManager.SecurityProtocol |= (SecurityProtocolType)12288;
             }
             catch (NotSupportedException) { }
+            catch (TypeInitializationException) { }
         }
     }
 }

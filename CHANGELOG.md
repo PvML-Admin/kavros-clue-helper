@@ -1,5 +1,16 @@
 # Kavros Clue Helper
 
+## 0.7.12
+
+**Notices**
+- Nothing pops up over the game. A helper that is already running, an update check, and a saved capture show a small notice for a few seconds.
+- The notice sits in a free corner of the game window, off the clue card, the puzzle, and the numbers on the tiles. Clicks pass through it. When an update is ready, Restart stays until you click it.
+- The helper covers its own notice before it reads the screen, so the notice is not treated as part of the puzzle.
+
+**Stability**
+- A bad frame or a broken line in the clue data is written to a log and skipped. The helper keeps running.
+- With the game closed and nothing on screen, the helper checks less often.
+
 ## 0.7.11
 
 **Puzzles**

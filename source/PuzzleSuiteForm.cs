@@ -229,35 +229,14 @@ namespace KavrosClueHelper
             automatic.Checked = true;
             InitializeTracking();
             timer.Interval = 50; timer.Tick += delegate { TickReader(); }; timer.Start();
-            FormClosed += delegate { closing=true; CancelAnalysis(); StopTracking(); timer.Stop(); timer.Dispose(); overlay.Dispose();floatingPanel.Dispose();tray.Visible=false;tray.Dispose();trayMenu.Dispose();if (Icon != null) Icon.Dispose(); if (preview.Image != null) preview.Image.Dispose(); if(diagnosticCapture!=null) diagnosticCapture.Dispose(); if(offlineSource!=null) offlineSource.Dispose(); Native.UnregisterHotKey(Handle, 11); Native.UnregisterHotKey(Handle, 12); };
+            FormClosed += delegate { closing=true; CancelAnalysis(); StopTracking(); if(trackingCancellation!=null && !trackingWorker.IsBusy){trackingCancellation.Dispose();trackingCancellation=null;} timer.Stop(); timer.Dispose(); if(notice!=null)notice.Dispose(); sliderTips.Dispose(); overlay.Dispose();floatingPanel.Dispose();tray.Visible=false;tray.Dispose();trayMenu.Dispose();if (Icon != null) Icon.Dispose(); if (preview.Image != null) preview.Image.Dispose(); if(diagnosticCapture!=null) diagnosticCapture.Dispose(); if(offlineSource!=null) offlineSource.Dispose(); Native.UnregisterHotKey(Handle, 11); Native.UnregisterHotKey(Handle, 12); };
         }
-        private Panel toastBar; private Label toastText; private Button toastAction; private Timer toastTimer; private TextBox whatsNew; private Panel whatsNewPanel; private Action toastClick;
+        private NoticeToast notice; private TextBox whatsNew; private Panel whatsNewPanel;
         internal void ShowToast(string message, bool error, string action, Action click)
         {
-            if (toastBar == null)
-            {
-                toastBar = new Panel { Name = "UpdateToast", Height = 40, Dock = DockStyle.Bottom, Visible = false };
-                toastText = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0) };
-                toastAction = new Button { Dock = DockStyle.Right, Width = 120, FlatStyle = FlatStyle.Flat, Visible = false };
-                toastAction.Click += delegate { if (toastClick != null) toastClick(); toastBar.Visible = false; if (toastTimer != null) toastTimer.Stop(); };
-                toastBar.Controls.Add(toastText); toastBar.Controls.Add(toastAction);
-                toastTimer = new Timer { Interval = 5000 };
-                toastTimer.Tick += delegate { toastTimer.Stop(); toastBar.Visible = false; };
-                Controls.Add(toastBar);
-            }
-            toastBar.BackColor = error ? KavrosTheme.Danger : KavrosTheme.Panel;
-            toastText.ForeColor = error ? KavrosTheme.GoldInk : KavrosTheme.Text;
-            toastText.Text = message;
-            toastClick = click;
-            toastAction.Text = action ?? "";
-            toastAction.Visible = action != null;
-            toastAction.BackColor = KavrosTheme.Gold;
-            toastAction.ForeColor = KavrosTheme.GoldInk;
-            toastBar.Visible = true; toastBar.BringToFront();
-            toastTimer.Stop();
-            // Everything fades after 5 seconds except the update offer, which waits for a click.
-            if (click == null || action != "Update now") toastTimer.Start();
-            if (floatingPanel != null && !floatingPanel.IsDisposed) floatingPanel.ShowBanner(message, error);
+            if (notice == null || notice.IsDisposed) notice = new NoticeToast();
+            Rectangle game = SelectedWindow != IntPtr.Zero ? Native.ClientBounds(SelectedWindow) : Native.VirtualScreen();
+            notice.Present(message, error, action, click, game, NoticeBlocked(), action == "Restart");
         }
         internal void ShowWhatsNew()
         {
@@ -386,7 +365,8 @@ namespace KavrosClueHelper
         }
         protected override void WndProc(ref Message m)
         {
-            if (m.Msg == 0x312) { if (m.WParam.ToInt32() == 11) RequestScan(); if (m.WParam.ToInt32() == 12) draw.Checked = !draw.Checked; }
+            if (m.Msg == Native.NoticeMessage) { try { ShowToast("Already running. Check the tray.", false, null, null); } catch (Exception ex) { NoteFailure(ex); } return; }
+            if (m.Msg == 0x312) { try { if (m.WParam.ToInt32() == 11) RequestScan(); if (m.WParam.ToInt32() == 12) draw.Checked = !draw.Checked; } catch (Exception ex) { NoteFailure(ex); } }
             base.WndProc(ref m);
         }
         private void RefreshWindows()
@@ -435,8 +415,17 @@ namespace KavrosClueHelper
             }
             else { connection.ForeColor = Color.FromArgb(87, 220, 181); connection.Text = "Game found: " + next.Title; }
         }
+        private DateTime nextFailureLog;
+        private void NoteFailure(Exception ex)
+        {
+            if (DateTime.UtcNow >= nextFailureLog) { CrashLog.Write(ex); nextFailureLog = DateTime.UtcNow.AddSeconds(5); }
+            if (!closing && !IsDisposed) status.Text = "Could not use that reading. It will try again.";
+            nextRead = DateTime.UtcNow.AddMilliseconds(500);
+        }
         private void TickReader()
         {
+            try
+            {
             FollowWindow();
             ShowGuidance();
             PollShortestSlider();
@@ -451,7 +440,23 @@ namespace KavrosClueHelper
                 else { Scan(false); }
             }
             else if (automatic.Checked && !offline) Scan(true);
+            }
+            catch (Exception ex) { NoteFailure(ex); }
+            finally
+            {
+                try
+                {
+                    if (notice != null && notice.Visible)
+                    {
+                        Rectangle game = SelectedWindow != IntPtr.Zero ? Native.ClientBounds(SelectedWindow) : Native.VirtualScreen();
+                        notice.MoveClear(game, NoticeBlocked());
                     }
+                    int interval = IdleTiming.Interval(SelectedWindow != IntPtr.Zero, overlay.Visible, busy);
+                    if (timer.Interval != interval) timer.Interval = interval;
+                }
+                catch (Exception) { }
+            }
+        }
         private void RequestScan()
         {
             CancelAnalysis(); nextRead=DateTime.MinValue;
@@ -480,7 +485,7 @@ namespace KavrosClueHelper
             if (window == IntPtr.Zero || !Native.IsWindow(window)) { overlay.Hide(); status.Text = "Waiting for Kavros. The game window will be selected automatically."; return; }
             if (Native.IsIconic(window)) { overlay.Hide(); status.Text = "Game found, but minimized. Restore Kavros to read the puzzle."; return; }
             Rectangle bounds = Native.ClientBounds(window);
-            Rectangle visible = CaptureSearch.VisibleClient(bounds, SystemInformation.VirtualScreen);
+            Rectangle visible = CaptureSearch.VisibleClient(bounds, Native.VirtualScreen());
             if (visible.Width < 60 || visible.Height < 60) { overlay.Hide(); status.Text = "Bring the clue into view to capture it."; return; }
             Rectangle visibleScreen = visible; visibleScreen.Offset(bounds.Location);
             IntPtr overlayHandle=overlay.IsHandleCreated ? overlay.Handle : IntPtr.Zero;
@@ -664,10 +669,10 @@ namespace KavrosClueHelper
                     {
                         ScreenReader.Cover(freshImage, screen, OverlayInk(Native.ClientBounds(job.Window).Location));
                         DetectedPuzzle fresh=analysisEngine.ReadOnlySlider(freshImage,new DetectedPuzzle{Kind=PuzzleKind.Sliding,Bounds=new Rectangle(Point.Empty,freshImage.Size),Grid=localGrid,Scale=p.Scale});
-                        if(fresh==null||!fresh.Board.SequenceEqual(p.Board))
+                        if(fresh==null||fresh.Board==null||p.Board==null||!fresh.Board.SequenceEqual(p.Board))
                         {
                             List<int> remaining;
-                            if(fresh!=null&&result.Plan.Sliding!=null&&SlidingRoute.Advance(p.Board,result.Plan.Sliding,fresh.Board,out remaining)&&SlidingRoute.Playable(fresh.Board,remaining))
+                            if(fresh!=null&&fresh.Board!=null&&p.Board!=null&&result.Plan.Sliding!=null&&SlidingRoute.Advance(p.Board,result.Plan.Sliding,fresh.Board,out remaining)&&SlidingRoute.Playable(fresh.Board,remaining))
                             {
                                 int consumed=result.Plan.Sliding.Count-remaining.Count;
                                 bool optimal = result.Plan.SlidingOptimal;
@@ -689,7 +694,7 @@ namespace KavrosClueHelper
                 Rectangle body=p.Bounds,grid=p.Grid; body.Offset(job.CaptureOffset); grid.Offset(job.CaptureOffset);
                 DetectedPuzzle puzzle=new DetectedPuzzle { Kind=p.Kind,Bounds=body,Grid=grid,Scale=p.Scale,Board=p.Board,Towers=p.Towers,Knot=p.Knot,Master=p.Master,Compass=p.Compass,Scan=p.Scan,Theme=p.Theme,Message=p.Message,Confidence=p.Confidence };
                 puzzleDetails=puzzle.Kind+"; "+puzzle.Bounds+"; scale "+puzzle.Scale+"; confidence "+puzzle.Confidence.ToString("0.000");
-                if(puzzle.Kind==PuzzleKind.Towers) puzzleDetails+="; clues "+String.Join(",",puzzle.Towers.Top.Concat(puzzle.Towers.Bottom).Concat(puzzle.Towers.Left).Concat(puzzle.Towers.Right));
+                if(puzzle.Kind==PuzzleKind.Towers && puzzle.Towers!=null && puzzle.Towers.Top!=null && puzzle.Towers.Bottom!=null && puzzle.Towers.Left!=null && puzzle.Towers.Right!=null) puzzleDetails+="; clues "+String.Join(",",puzzle.Towers.Top.Concat(puzzle.Towers.Bottom).Concat(puzzle.Towers.Left).Concat(puzzle.Towers.Right));
                 if(puzzle.Kind==PuzzleKind.Compass)puzzleDetails+="; "+puzzle.Compass.Heading+"; arrow pixels "+puzzle.Compass.Pixels+"; error "+(puzzle.Compass.Error*180/Math.PI).ToString("0.000")+" degrees; bearings "+compassSession.Bearings.Count;
                 if(job.Stable && pendingKey!=puzzle.Key && DetectionPolicy.NeedsConfirmation(result.Plan)) { pendingKey=puzzle.Key; status.Text="Puzzle found - confirming the next frame..."; nextRead=DateTime.UtcNow.AddMilliseconds(100); return; }
                 DetectedPuzzle shownClue=retainedClue.Display(current);
@@ -708,6 +713,7 @@ namespace KavrosClueHelper
                 else if(!result.Unchanged || current==null || current.Bounds!=puzzle.Bounds || current.Grid!=puzzle.Grid || current.Key!=puzzle.Key) { current=puzzle; SolveAndShow(puzzle,result.Plan); }
                 else ShowGuidance();
             }
+            catch (Exception ex) { NoteFailure(ex); }
             finally
             {
                 if(result!=null) result.Dispose();
@@ -750,11 +756,16 @@ namespace KavrosClueHelper
                 status.Text=offline ? "Screenshot mode. Clue recognised locally." : "Clue recognised. Guidance switches automatically.";
                 overlay.Hide();ShowGuidance(); return;
             }
-            detected.Text = puzzle.Kind == PuzzleKind.Sliding ? "SLIDING BOX / " + puzzle.Theme.Replace('_', ' ') : puzzle.Kind == PuzzleKind.Knot ? "CELTIC KNOT" : puzzle.Kind.ToString().ToUpperInvariant();
+            detected.Text = puzzle.Kind == PuzzleKind.Sliding ? "SLIDING BOX / " + (puzzle.Theme ?? "").Replace('_', ' ') : puzzle.Kind == PuzzleKind.Knot ? "CELTIC KNOT" : puzzle.Kind.ToString().ToUpperInvariant();
             if (puzzle.Kind != PuzzleKind.Knot) knotHistory = null;
             if (puzzle.Kind == PuzzleKind.Lockbox)
             {
-                Solution result = prepared==null ? LockboxSolver.Solve(puzzle.Board, reverse.Checked ? -1 : 1) : prepared.Lockbox;
+                Solution result = prepared==null ? null : prepared.Lockbox;
+                if (prepared==null && puzzle.Board != null)
+                {
+                    try { result = LockboxSolver.Solve(puzzle.Board, reverse.Checked ? -1 : 1); }
+                    catch (ArgumentException ex) { CrashLog.Write(ex); result = null; }
+                }
                 if (result == null) { overlay.Hide(); summary.Text = "No valid lockbox plan. Check the symbols."; canvas.Invalidate(); return; }
                 canvas.Values = result.Clicks; canvas.Next = Array.FindIndex(result.Clicks, v => v > 0);
                 for (int i = 0; i < 25; i++) if (result.Clicks[i] > 0) marks.Add(new GuidanceMark { Box = Cell(puzzle, i), Text = result.Clicks[i].ToString(), Colour = i == canvas.Next ? Color.Lime : Color.Gold, Corner = true });
@@ -762,20 +773,27 @@ namespace KavrosClueHelper
             }
             else if (puzzle.Kind == PuzzleKind.Towers)
             {
+                if (puzzle.Towers == null || puzzle.Towers.Top == null || puzzle.Towers.Bottom == null || puzzle.Towers.Left == null || puzzle.Towers.Right == null)
+                { overlay.Hide(); summary.Text = "Towers found, but the clue numbers were not readable."; canvas.Invalidate(); return; }
                 int readable=puzzle.Towers.Top.Concat(puzzle.Towers.Bottom).Concat(puzzle.Towers.Left).Concat(puzzle.Towers.Right).Count(v=>v>0);
                 if(readable<20) { overlay.Hide(); summary.Text="Towers found: "+readable+" of 20 clues read. Waiting for a clearer frame."; status.Text="Copy details includes the recognised clue numbers."; canvas.Invalidate(); return; }
-                List<int[]> solutions = prepared==null ? TowerSolver.Solve(puzzle.Towers, false) : prepared.Towers;
+                List<int[]> solutions = prepared==null ? null : prepared.Towers;
+                if (prepared==null)
+                {
+                    try { solutions = TowerSolver.Solve(puzzle.Towers, false); }
+                    catch (ArgumentException ex) { CrashLog.Write(ex); solutions = null; }
+                }
                 if (solutions == null || solutions.Count == 0) { overlay.Hide(); summary.Text = "No valid tower solution. Rescan the clue numbers."; canvas.Invalidate(); return; }
                 canvas.Values = solutions[0];
                 marks = GuidanceDrawing.TowerMarks(puzzle, solutions[0], towerCountdown.Checked);
-                bool complete = puzzle.Towers.Cells.SequenceEqual(solutions[0]);
+                bool complete = puzzle.Towers.Cells!=null && puzzle.Towers.Cells.SequenceEqual(solutions[0]);
                 summary.Text = complete ? "Tower heights match. Press CHECK in the game." : towerCountdown.Checked ? "Corners show clicks left. Green 0 means that square is complete." : "Set each square to its small corner number, then press CHECK.";
             }
             else if (puzzle.Kind == PuzzleKind.Sliding)
             {
                 if (!SlidingSolver.IsSolvable(puzzle.Board)) { overlay.Hide(); summary.Text = "Tile recognition gave an impossible board. Rescan before moving."; canvas.Invalidate(); return; }
                 if (AwaitShortestSlider(puzzle, ref prepared)) return;
-                FollowSlider(puzzle,prepared==null?null:prepared.Sliding);
+                if (!FollowSlider(puzzle,prepared==null?null:prepared.Sliding)) { overlay.Hide(); summary.Text = "Tile recognition gave an impossible board. Rescan before moving."; canvas.Invalidate(); return; }
                 if (slidingMoves==null||slidingMoves.Count == 0) summary.Text = "Sliding puzzle solved.";
                 else
                 {
@@ -812,7 +830,12 @@ namespace KavrosClueHelper
                     canvas.Invalidate();ShowGuidance();return;
                 }
                 if(prepared==null) { puzzle.Knot = KnotImageReader.Merge(puzzle.Knot, knotHistory); knotHistory = puzzle.Knot; }
-                KnotSolution solution = prepared==null ? KnotSolver.Solve(puzzle.Knot) : prepared.Knot;
+                KnotSolution solution = prepared==null ? null : prepared.Knot;
+                if (prepared==null && puzzle.Knot != null)
+                {
+                    try { solution = KnotSolver.Solve(puzzle.Knot); }
+                    catch (ArgumentException ex) { CrashLog.Write(ex); solution = null; }
+                }
                 if (solution == null)
                 {
                     canvas.Lines = new[] { "Some runes are hidden.", "Rotate any ring once,", "then let it scan again." };
@@ -825,8 +848,10 @@ namespace KavrosClueHelper
                     for (int i = 0; i < solution.Offsets.Length; i++)
                     {
                         int amount = solution.Offsets[i];
-                        lines.Add(colourNames[puzzle.Knot.Colours[i]] + ": " + (amount == 0 ? "done" : Math.Abs(amount) + (amount > 0 ? " clockwise" : " counterclockwise")));
-                        if (amount != 0)
+                        int colour = puzzle.Knot.Colours != null && i < puzzle.Knot.Colours.Length ? puzzle.Knot.Colours[i] : -1;
+                        string colourName = colour >= 0 && colour < colourNames.Length ? colourNames[colour] : "Ring";
+                        lines.Add(colourName + ": " + (amount == 0 ? "done" : Math.Abs(amount) + (amount > 0 ? " clockwise" : " counterclockwise")));
+                        if (amount != 0 && puzzle.Knot.Buttons != null && i < puzzle.Knot.Buttons.Length && puzzle.Knot.Buttons[i] != null && puzzle.Knot.Buttons[i].Length > (amount > 0 ? 0 : 1))
                         {
                             Point button = puzzle.Knot.Buttons[i][amount > 0 ? 0 : 1];
                             Rectangle box = new Rectangle(puzzle.Bounds.X + (int)((button.X - 13) * puzzle.Scale), puzzle.Bounds.Y + (int)((button.Y - 13) * puzzle.Scale), (int)(26 * puzzle.Scale), (int)(26 * puzzle.Scale));
@@ -841,26 +866,29 @@ namespace KavrosClueHelper
             status.Text = offline ? "Screenshot mode. The game overlay is disabled." : "Detected automatically. Guidance follows the visible puzzle.";
             ShowGuidance();
         }
-        private void FollowSlider(DetectedPuzzle puzzle,List<int> preparedRoute=null)
+        private bool FollowSlider(DetectedPuzzle puzzle,List<int> preparedRoute=null)
         {
             List<int> remaining;
             if(slidingTheme==puzzle.Theme&&slidingBoard!=null&&slidingMoves!=null)
             {
-                if(slidingBoard.SequenceEqual(puzzle.Board))return;
+                if(slidingBoard.SequenceEqual(puzzle.Board))return true;
                 int oldBlank=Array.IndexOf(slidingBoard,24),nextBlank=Array.IndexOf(puzzle.Board,24);
                 bool adjacent=oldBlank>=0&&SlidingSolver.Neighbours(oldBlank).Contains(nextBlank);
                 if(adjacent&&SlidingRoute.Advance(slidingBoard,slidingMoves,puzzle.Board,out remaining))
                 {
                     int consumed=slidingMoves.Count-remaining.Count;
                     slidingBatchNumber+=SlidingRoute.CompletedClicks(slidingBoard,slidingMoves,consumed);slidingMoves=remaining;
-                    slidingBoard=(int[])puzzle.Board.Clone();return;
+                    slidingBoard=(int[])puzzle.Board.Clone();return true;
                 }
             }
             // The board is not the next step of the cached route. Solve what is on screen.
-            if(!SlidingSolver.IsSolvable(puzzle.Board))return;
+            if(!SlidingSolver.IsSolvable(puzzle.Board))return false;
             preparedRoute=null;
-            slidingMoves=SlidingClickOptimizer.Solve(puzzle.Board).Moves;slidingBatchNumber=1;
+            try { slidingMoves=SlidingClickOptimizer.Solve(puzzle.Board).Moves; }
+            catch (Exception ex) { CrashLog.Write(ex); slidingMoves=null; slidingBoard=null; return false; }
+            slidingBatchNumber=1;
             slidingBoard=(int[])puzzle.Board.Clone();slidingTheme=puzzle.Theme;
+            return true;
         }
         private Rectangle lastClient;
         private string lastMonitor="";
@@ -892,14 +920,36 @@ namespace KavrosClueHelper
         private List<Rectangle> OverlayInk(Point clientOrigin)
         {
             var ink=new List<Rectangle>();
-            if(!overlay.Visible) return ink;
-            foreach(GuidanceMark mark in marks)
+            if(overlay.Visible)
             {
-                int before=ink.Count;
-                GuidanceDrawing.AddOpaque(mark, ink);
-                for(int i=before;i<ink.Count;i++){Rectangle patch=ink[i];patch.Offset(clientOrigin);ink[i]=patch;}
+                foreach(GuidanceMark mark in marks)
+                {
+                    int before=ink.Count;
+                    GuidanceDrawing.AddOpaque(mark, ink);
+                    for(int i=before;i<ink.Count;i++){Rectangle patch=ink[i];patch.Offset(clientOrigin);ink[i]=patch;}
+                }
             }
+            if(notice!=null && notice.Visible) ink.Add(notice.Bounds);
             return ink;
+        }
+        private List<Rectangle> NoticeBlocked()
+        {
+            var blocked=new List<Rectangle>();
+            if(floatingPanel!=null && floatingPanel.Visible) blocked.Add(floatingPanel.Bounds);
+            if(overlay.Visible) blocked.Add(overlay.Bounds);
+            if(current!=null && SelectedWindow!=IntPtr.Zero)
+            {
+                Rectangle puzzle=current.Bounds;
+                puzzle.Offset(Native.ClientBounds(SelectedWindow).Location);
+                blocked.Add(puzzle);
+            }
+            if(!trackedMinimap.IsEmpty && SelectedWindow!=IntPtr.Zero)
+            {
+                Rectangle mini=trackedMinimap;
+                mini.Offset(Native.ClientBounds(SelectedWindow).Location);
+                blocked.Add(mini);
+            }
+            return blocked;
         }
         private void SaveDebug()
         {
@@ -936,7 +986,7 @@ namespace KavrosClueHelper
                 File.WriteAllLines(Path.Combine(folder,"log.txt"), debugLog.ToArray());
                 try { Clipboard.SetText(folder); } catch(Exception) { }
                 try { System.Diagnostics.Process.Start(folder); } catch(Exception) { }
-                if(floatingPanel!=null) floatingPanel.ShowBanner(folder, false);
+                ShowToast("Debug saved.", false, null, null);
                 status.Text="Debug saved.";
             }
             catch(Exception ex) { status.Text="Could not save debug. "+ex.Message; }
@@ -991,16 +1041,22 @@ namespace KavrosClueHelper
         }
         private void OpenScreenshot()
         {
-            using (var dialog = new OpenFileDialog { Filter = "Screenshots|*.png;*.jpg;*.jpeg;*.bmp", Title = "Open a puzzle screenshot" })
-                if (dialog.ShowDialog(this) == DialogResult.OK) OpenImageFile(dialog.FileName);
+            ShowToast("Drop a screenshot here, or press Ctrl+V.", false, null, null);
         }
         private void SaveCapture()
         {
             Image image=diagnosticCapture??preview.Image;
             if(image==null) { status.Text="Capture a puzzle first, then save its image."; return; }
-            using(Bitmap snapshot=(Bitmap)image.Clone())
-            using(SaveFileDialog dialog=new SaveFileDialog { Filter="PNG image|*.png",FileName="Kavros-capture-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".png",Title="Save the last captured puzzle" })
-            { if(dialog.ShowDialog(this)==DialogResult.OK) { snapshot.Save(dialog.FileName,System.Drawing.Imaging.ImageFormat.Png); status.Text="Capture saved. You can attach that file when reporting a reading problem."; } }
+            try
+            {
+                string folder=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"KavrosClueHelper","captures");
+                Directory.CreateDirectory(folder);
+                string file=Path.Combine(folder,"Kavros-capture-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".png");
+                using(Bitmap snapshot=(Bitmap)image.Clone()) snapshot.Save(file,System.Drawing.Imaging.ImageFormat.Png);
+                ShowToast("Capture saved.", false, null, null);
+                status.Text="Capture saved to "+file;
+            }
+            catch(Exception ex) { status.Text="Could not save the capture. "+ex.Message; }
         }
         private void ShowExamples()
         {

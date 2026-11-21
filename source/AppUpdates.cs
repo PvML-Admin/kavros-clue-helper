@@ -17,14 +17,15 @@ namespace KavrosClueHelper
 
         internal static void Start()
         {
-            VelopackApp.Build().OnRestarted(delegate(SemanticVersion version) { RestartedVersion = version == null ? "" : version.ToString(); }).Run();
+            try { VelopackApp.Build().OnRestarted(delegate(SemanticVersion version) { RestartedVersion = version == null ? "" : version.ToString(); }).Run(); }
+            catch (Exception ex) { CrashLog.Write(ex); }
         }
 
         internal static void Check(Form owner, bool interactive)
         {
             if (Interlocked.CompareExchange(ref busy, 1, 0) != 0)
             {
-                if (interactive) Show(owner, "An update check is already running.", MessageBoxIcon.Information);
+                if (interactive) Tell(owner, "An update check is already running.", false, null, null);
                 return;
             }
             if (interactive) SetStatus(owner, "Checking GitHub for updates...");
@@ -57,7 +58,7 @@ namespace KavrosClueHelper
                     return;
                 }
                 string version = info.TargetFullRelease.Version.ToString();
-                Tell(owner, "Version " + version + " is available.", false, "Update now", delegate
+                Tell(owner, "Update ready. Click to restart.", false, "Restart", delegate
                 {
                     ThreadPool.QueueUserWorkItem(delegate
                     {
@@ -125,34 +126,5 @@ namespace KavrosClueHelper
             catch (InvalidOperationException) { }
         }
 
-        private static void Show(Form owner, string message, MessageBoxIcon icon)
-        {
-            Ask(owner, message, MessageBoxButtons.OK, icon);
-        }
-
-        private static DialogResult Ask(Form owner, string message, MessageBoxButtons buttons)
-        {
-            return Ask(owner, message, buttons, MessageBoxIcon.Information);
-        }
-
-        private static DialogResult Ask(Form owner, string message, MessageBoxButtons buttons, MessageBoxIcon icon)
-        {
-            DialogResult result = DialogResult.None;
-            Action ask = delegate
-            {
-                if (owner != null && !owner.IsDisposed && owner.Visible)
-                    result = MessageBox.Show(owner, message, "Kavros Clue Helper", buttons, icon);
-                else
-                    result = MessageBox.Show(message, "Kavros Clue Helper", buttons, icon);
-            };
-            try
-            {
-                if (owner != null && !owner.IsDisposed && owner.InvokeRequired) owner.Invoke(ask);
-                else ask();
-            }
-            catch (ObjectDisposedException) { }
-            catch (InvalidOperationException) { ask(); }
-            return result;
-        }
     }
 }
