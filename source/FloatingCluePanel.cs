@@ -62,28 +62,39 @@ namespace KavrosClueHelper
     {
         public static Rectangle Place(Rectangle game,Size panel,Point offset,Rectangle desktop)
         {
-            Rectangle area=Rectangle.Intersect(game,desktop);if(area.Width<panel.Width||area.Height<panel.Height)area=desktop;
+            // Stay inside the bound client. The desktop is not a fallback, or the
+            // panel can be dragged onto a second Kavros window and left there.
+            Rectangle area=Rectangle.Intersect(game,desktop);
+            if(area.Width<1||area.Height<1)area=game;
             int x=game.Left+offset.X,y=game.Top+offset.Y;
-            return new Rectangle(Math.Max(area.Left,Math.Min(x,area.Right-panel.Width)),Math.Max(area.Top,Math.Min(y,area.Bottom-panel.Height)),panel.Width,panel.Height);
+            int limitX=area.Right-panel.Width,limitY=area.Bottom-panel.Height;
+            if(limitX<area.Left)x=area.Left; else x=Math.Max(area.Left,Math.Min(x,limitX));
+            if(limitY<area.Top)y=area.Top; else y=Math.Max(area.Top,Math.Min(y,limitY));
+            return new Rectangle(x,y,panel.Width,panel.Height);
+        }
+        public static string Header(string client,string heading)
+        {
+            if(string.IsNullOrEmpty(client))return heading??"";
+            if(string.IsNullOrEmpty(heading))return client;
+            return client+"  ·  "+heading;
         }
         public static bool Visible(bool enabled,bool offline,bool gameExists,bool minimised,bool gameForeground,bool panelFocused,bool settingsFocused)
         {
-            // Another application, or this helper, having focus must not hide the panel.
-            // Minimising the chosen client still does.
-            return enabled&&!offline&&!minimised;
+            if(!enabled||offline||!gameExists||minimised||settingsFocused)return false;
+            return gameForeground||panelFocused;
         }
-        // Topmost only while the player is looking at the game, at a Kavros helper
-        // (Companion, AFK Warden, the Slayer helper or this panel), or briefly after
-        // launch. Settings in front, a minimised client, or an unrelated application
-        // drops topmost so the panel stays above the game without covering those apps.
+        public static bool Shown(bool enabled,bool offline,bool gameExists,bool minimised,bool gameForeground,bool panelFocused,bool settingsFocused,bool covered)
+        {
+            return Visible(enabled,offline,gameExists,minimised,gameForeground,panelFocused,settingsFocused)&&!covered;
+        }
+        // Topmost only while this client's own window, or this panel, is in front.
+        // Another client, Companion, or any other window drops it. Launching does
+        // not float the panel over a client it is not reading.
         public static bool WantTopMost(bool gameExists,bool minimised,bool gameForeground,bool helperForeground,bool panelForeground,bool settingsForeground,bool launchGrace)
         {
-            if(minimised)return false;
-            if(settingsForeground)return false;
-            if(launchGrace)return true;
+            if(minimised||settingsForeground||!gameExists)return false;
             if(panelForeground)return true;
-            if(helperForeground)return true;
-            return gameExists&&gameForeground;
+            return gameForeground;
         }
     }
     public sealed class CompassMap : Control
@@ -249,7 +260,7 @@ namespace KavrosClueHelper
         private int floorRegion=-1;private bool changingFloor,changingMeerkat;
         private readonly string assets;
         private readonly OverlayPreferences prefs;
-        private Point dragStart,windowStart;private bool dragging;
+        private Point dragStart,windowStart;private bool dragging;private Rectangle anchor;
         private PuzzleKind mode=PuzzleKind.None;
         private PuzzleKind layoutKind=(PuzzleKind)(-1);
         private bool layoutCollapsed;
@@ -257,6 +268,7 @@ namespace KavrosClueHelper
         public event Action SettingsRequested,ScanRequested,PauseRequested,ExitRequested,UserMoved,ClearRequested,DebugRequested;
         public bool Collapsed {get{return prefs.Collapsed;}}
         public bool IsDragging {get{return dragging;}}
+        public void SetAnchor(Rectangle game){anchor=game;}
         public void PlaceTopMost(bool top)
         {
             if(!IsHandleCreated){if(TopMost!=top)TopMost=top;return;}
@@ -270,9 +282,9 @@ namespace KavrosClueHelper
             FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;
             SetStyle(ControlStyles.UserPaint|ControlStyles.Opaque|ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
             ClientSize=new Size(400,140);BackColor=KavrosTheme.Bg;ForeColor=KavrosTheme.Text;Font=KavrosTheme.Ui(9F,false);
-            title.SetBounds(0,0,294,32);title.TextAlign=ContentAlignment.MiddleLeft;title.Padding=new Padding(10,0,0,0);title.Font=new Font(Font,FontStyle.Bold);title.BackColor=KavrosTheme.BgRaise;Controls.Add(title);
+            title.SetBounds(0,0,294,32);title.TextAlign=ContentAlignment.MiddleLeft;title.Padding=new Padding(10,0,0,0);title.Font=new Font(Font,FontStyle.Bold);title.BackColor=KavrosTheme.BgRaise;title.AutoEllipsis=true;Controls.Add(title);
             title.MouseDown+=delegate(object sender,MouseEventArgs e){if(e.Button!=MouseButtons.Left)return;dragging=true;dragStart=Cursor.Position;windowStart=Location;title.Capture=true;};
-            title.MouseMove+=delegate{if(dragging)Location=new Point(windowStart.X+Cursor.Position.X-dragStart.X,windowStart.Y+Cursor.Position.Y-dragStart.Y);};
+            title.MouseMove+=delegate{if(!dragging)return;Point next=new Point(windowStart.X+Cursor.Position.X-dragStart.X,windowStart.Y+Cursor.Position.Y-dragStart.Y);if(anchor.Width>0&&anchor.Height>0)next=FloatingPanelLayout.Place(anchor,Size,new Point(next.X-anchor.Left,next.Y-anchor.Top),Native.VirtualScreen()).Location;Location=next;};
             title.MouseUp+=delegate{if(!dragging)return;dragging=false;title.Capture=false;if(UserMoved!=null)UserMoved();};
             Button settings=ButtonAt(this,"Settings",298,4,65,delegate{if(SettingsRequested!=null)SettingsRequested();});
             settings.SetBounds(298,4,65,24);
@@ -351,7 +363,7 @@ namespace KavrosClueHelper
         public void SetPaused(bool value){pause.Text=value?"Resume":"Pause";}
         private string cardTitle="MASTER CLUE";
         private bool retained;
-        public void SetRetained(bool value){if(retained!=value){retained=value;title.Invalidate();}if(value)title.Text=mode==PuzzleKind.EmoteClue?cardTitle+" / SAVED":mode==PuzzleKind.Scan?scanSession.Region.Tier.ToUpperInvariant()+" SCAN / SAVED":title.Text;}
+        public void SetRetained(bool value){if(retained!=value){retained=value;title.Invalidate();}if(value)ApplyHeading(mode==PuzzleKind.EmoteClue?cardTitle+" / SAVED":mode==PuzzleKind.Scan?scanSession.Region.Tier.ToUpperInvariant()+" SCAN / SAVED":headingText);}
         public void SetReading(string stage)
         {
             // The stage is still tracked for diagnostics and tests, but the
@@ -361,18 +373,32 @@ namespace KavrosClueHelper
         public void SetWaiting(string text)
         {
             if(session.HasHistory){SetCompass(false);return;}
-            mode=PuzzleKind.None;title.Text="KAVROS / CLUE HELPER";summary.Text=text;LayoutMode();
+            mode=PuzzleKind.None;ApplyHeading("KAVROS / CLUE HELPER");summary.Text=text;LayoutMode();
         }
         public void SetPuzzle(DetectedPuzzle p,string text)
         {
             if(p.Kind==PuzzleKind.Compass){SetCompass(false);return;}
-            if(p.Kind==PuzzleKind.Scan){scanSession.Observe(p.Scan);mode=PuzzleKind.Scan;title.Text=p.Scan.Region.Tier.ToUpperInvariant()+" SCAN";RefreshScan();LayoutMode();return;}
+            if(p.Kind==PuzzleKind.Scan){scanSession.Observe(p.Scan);mode=PuzzleKind.Scan;ApplyHeading(p.Scan.Region.Tier.ToUpperInvariant()+" SCAN");RefreshScan();LayoutMode();return;}
             if(p.Kind==PuzzleKind.EmoteClue)cardTitle=p.Master.Tier.ToUpperInvariant()+" CLUE";
-            mode=p.Kind;title.Text=p.Kind==PuzzleKind.EmoteClue?cardTitle:p.Kind.ToString().ToUpperInvariant();summary.Text=text;
+            mode=p.Kind;ApplyHeading(p.Kind==PuzzleKind.EmoteClue?cardTitle:p.Kind.ToString().ToUpperInvariant());summary.Text=text;
             if(p.Kind==PuzzleKind.Sliding)sliderGuide.SetTheme(p.Theme);
             if(p.Kind==PuzzleKind.EmoteClue){master.SetClue(p.Master,assets);if(displayedMasterId!=p.Master.Id){displayedMasterId=p.Master.Id;Invalidate(true);}}LayoutMode();
         }
-        public void SetCompass(bool fit){mode=PuzzleKind.Compass;title.Text="ELITE COMPASS";RefreshCompass(fit);LayoutMode();}
+        public void SetCompass(bool fit){mode=PuzzleKind.Compass;ApplyHeading("ELITE COMPASS");RefreshCompass(fit);LayoutMode();}
+        private string clientName="",headingText="KAVROS / CLUE HELPER";
+        public void SetClient(string name)
+        {
+            string next=name??"";
+            if(next==clientName)return;
+            clientName=next;
+            ApplyHeading(headingText);
+        }
+        private void ApplyHeading(string heading)
+        {
+            headingText=heading??"";
+            string text=FloatingPanelLayout.Header(clientName,headingText);
+            if(title.Text!=text)title.Text=text;
+        }
         public ScanRegion TrackingRegion {get{return mode==PuzzleKind.Scan&&scanSession.AutoTracking?scanSession.Region:null;}}
         public void RestartTracking(){if(TrackingRegion!=null){scanSession.SetAutomatic(true);RefreshScan();}}
         public void PrepareTrackingRecheck(){scanSession.PrepareRecheck();RefreshScan();}

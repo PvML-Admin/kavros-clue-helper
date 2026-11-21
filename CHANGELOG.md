@@ -1,5 +1,11 @@
 # Kavros Clue Helper
 
+## 0.7.16
+
+**Clients**
+- The floating panel and the puzzle marks stay on the Kavros client the helper is reading. They follow that window, and they hide when it is minimised or when another window is in front. They come back when that client is in front again.
+- The panel header shows the character name from Companion, or Client 1, Client 2, and so on.
+
 ## 0.7.15
 
 **Clients**
