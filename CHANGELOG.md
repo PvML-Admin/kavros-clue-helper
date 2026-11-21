@@ -1,5 +1,11 @@
 # Kavros Clue Helper
 
+## 0.7.17
+
+**Clients**
+- Auto in the capture list names the client it is reading, such as Auto - Client 1 or Auto - the Companion character name. It says Auto - searching... until a client is found, and the name updates when the binding changes.
+- Game found and the panel header use that same name.
+
 ## 0.7.16
 
 **Clients**
