@@ -85,9 +85,9 @@ namespace KavrosClueHelper
             try
             {
                 Bitmap frame=ScreenReader.Capture(screen);if(full)nextFullTracking=now.AddSeconds(6);
-                foreach(System.Windows.Forms.Form surface in new System.Windows.Forms.Form[]{this,floatingPanel})
+                foreach(System.Windows.Forms.Form surface in new System.Windows.Forms.Form[]{this,floatingPanel,notice})
                 {
-                    if(!surface.Visible)continue;
+                    if(surface==null||!surface.Visible)continue;
                     Rectangle cover=Rectangle.Intersect(surface.Bounds,screen);cover.Offset(-screen.X,-screen.Y);
                     if(cover.Width>0&&cover.Height>0)using(Graphics g=Graphics.FromImage(frame))g.FillRectangle(Brushes.Black,cover);
                 }

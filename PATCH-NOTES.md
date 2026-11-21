@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.12
+
+v0.7.12: Nothing pops up over the game. Notices are small, sit off the clue card and the puzzle, and clicks pass through them. An update waits on Restart. A bad frame is logged and skipped, and the helper keeps running.
+
+Settings shows **Made by Zenity · v0.7.12**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.11
 
 v0.7.11: A slide route that does not match the board is solved again instead of closing the helper. A puzzle stays tracked in the area where it was found. Clue cards are shorter, and a fairy ring is a small tip at the bottom of the card.

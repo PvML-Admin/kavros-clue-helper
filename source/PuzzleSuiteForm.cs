@@ -229,35 +229,14 @@ namespace KavrosClueHelper
             automatic.Checked = true;
             InitializeTracking();
             timer.Interval = 50; timer.Tick += delegate { TickReader(); }; timer.Start();
-            FormClosed += delegate { closing=true; CancelAnalysis(); StopTracking(); if(trackingCancellation!=null && !trackingWorker.IsBusy){trackingCancellation.Dispose();trackingCancellation=null;} timer.Stop(); timer.Dispose(); if(toastTimer!=null)toastTimer.Dispose(); sliderTips.Dispose(); overlay.Dispose();floatingPanel.Dispose();tray.Visible=false;tray.Dispose();trayMenu.Dispose();if (Icon != null) Icon.Dispose(); if (preview.Image != null) preview.Image.Dispose(); if(diagnosticCapture!=null) diagnosticCapture.Dispose(); if(offlineSource!=null) offlineSource.Dispose(); Native.UnregisterHotKey(Handle, 11); Native.UnregisterHotKey(Handle, 12); };
+            FormClosed += delegate { closing=true; CancelAnalysis(); StopTracking(); if(trackingCancellation!=null && !trackingWorker.IsBusy){trackingCancellation.Dispose();trackingCancellation=null;} timer.Stop(); timer.Dispose(); if(notice!=null)notice.Dispose(); sliderTips.Dispose(); overlay.Dispose();floatingPanel.Dispose();tray.Visible=false;tray.Dispose();trayMenu.Dispose();if (Icon != null) Icon.Dispose(); if (preview.Image != null) preview.Image.Dispose(); if(diagnosticCapture!=null) diagnosticCapture.Dispose(); if(offlineSource!=null) offlineSource.Dispose(); Native.UnregisterHotKey(Handle, 11); Native.UnregisterHotKey(Handle, 12); };
         }
-        private Panel toastBar; private Label toastText; private Button toastAction; private Timer toastTimer; private TextBox whatsNew; private Panel whatsNewPanel; private Action toastClick;
+        private NoticeToast notice; private TextBox whatsNew; private Panel whatsNewPanel;
         internal void ShowToast(string message, bool error, string action, Action click)
         {
-            if (toastBar == null)
-            {
-                toastBar = new Panel { Name = "UpdateToast", Height = 40, Dock = DockStyle.Bottom, Visible = false };
-                toastText = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0) };
-                toastAction = new Button { Dock = DockStyle.Right, Width = 120, FlatStyle = FlatStyle.Flat, Visible = false };
-                toastAction.Click += delegate { if (toastClick != null) toastClick(); toastBar.Visible = false; if (toastTimer != null) toastTimer.Stop(); };
-                toastBar.Controls.Add(toastText); toastBar.Controls.Add(toastAction);
-                toastTimer = new Timer { Interval = 5000 };
-                toastTimer.Tick += delegate { toastTimer.Stop(); toastBar.Visible = false; };
-                Controls.Add(toastBar);
-            }
-            toastBar.BackColor = error ? KavrosTheme.Danger : KavrosTheme.Panel;
-            toastText.ForeColor = error ? KavrosTheme.GoldInk : KavrosTheme.Text;
-            toastText.Text = message;
-            toastClick = click;
-            toastAction.Text = action ?? "";
-            toastAction.Visible = action != null;
-            toastAction.BackColor = KavrosTheme.Gold;
-            toastAction.ForeColor = KavrosTheme.GoldInk;
-            toastBar.Visible = true; toastBar.BringToFront();
-            toastTimer.Stop();
-            // Everything fades after 5 seconds except the update offer, which waits for a click.
-            if (click == null || action != "Update now") toastTimer.Start();
-            if (floatingPanel != null && !floatingPanel.IsDisposed) floatingPanel.ShowBanner(message, error);
+            if (notice == null || notice.IsDisposed) notice = new NoticeToast();
+            Rectangle game = SelectedWindow != IntPtr.Zero ? Native.ClientBounds(SelectedWindow) : Native.VirtualScreen();
+            notice.Present(message, error, action, click, game, NoticeBlocked(), action == "Restart");
         }
         internal void ShowWhatsNew()
         {
@@ -386,6 +365,7 @@ namespace KavrosClueHelper
         }
         protected override void WndProc(ref Message m)
         {
+            if (m.Msg == Native.NoticeMessage) { try { ShowToast("Already running. Check the tray.", false, null, null); } catch (Exception ex) { NoteFailure(ex); } return; }
             if (m.Msg == 0x312) { try { if (m.WParam.ToInt32() == 11) RequestScan(); if (m.WParam.ToInt32() == 12) draw.Checked = !draw.Checked; } catch (Exception ex) { NoteFailure(ex); } }
             base.WndProc(ref m);
         }
@@ -466,6 +446,11 @@ namespace KavrosClueHelper
             {
                 try
                 {
+                    if (notice != null && notice.Visible)
+                    {
+                        Rectangle game = SelectedWindow != IntPtr.Zero ? Native.ClientBounds(SelectedWindow) : Native.VirtualScreen();
+                        notice.MoveClear(game, NoticeBlocked());
+                    }
                     int interval = IdleTiming.Interval(SelectedWindow != IntPtr.Zero, overlay.Visible, busy);
                     if (timer.Interval != interval) timer.Interval = interval;
                 }
@@ -935,14 +920,36 @@ namespace KavrosClueHelper
         private List<Rectangle> OverlayInk(Point clientOrigin)
         {
             var ink=new List<Rectangle>();
-            if(!overlay.Visible) return ink;
-            foreach(GuidanceMark mark in marks)
+            if(overlay.Visible)
             {
-                int before=ink.Count;
-                GuidanceDrawing.AddOpaque(mark, ink);
-                for(int i=before;i<ink.Count;i++){Rectangle patch=ink[i];patch.Offset(clientOrigin);ink[i]=patch;}
+                foreach(GuidanceMark mark in marks)
+                {
+                    int before=ink.Count;
+                    GuidanceDrawing.AddOpaque(mark, ink);
+                    for(int i=before;i<ink.Count;i++){Rectangle patch=ink[i];patch.Offset(clientOrigin);ink[i]=patch;}
+                }
             }
+            if(notice!=null && notice.Visible) ink.Add(notice.Bounds);
             return ink;
+        }
+        private List<Rectangle> NoticeBlocked()
+        {
+            var blocked=new List<Rectangle>();
+            if(floatingPanel!=null && floatingPanel.Visible) blocked.Add(floatingPanel.Bounds);
+            if(overlay.Visible) blocked.Add(overlay.Bounds);
+            if(current!=null && SelectedWindow!=IntPtr.Zero)
+            {
+                Rectangle puzzle=current.Bounds;
+                puzzle.Offset(Native.ClientBounds(SelectedWindow).Location);
+                blocked.Add(puzzle);
+            }
+            if(!trackedMinimap.IsEmpty && SelectedWindow!=IntPtr.Zero)
+            {
+                Rectangle mini=trackedMinimap;
+                mini.Offset(Native.ClientBounds(SelectedWindow).Location);
+                blocked.Add(mini);
+            }
+            return blocked;
         }
         private void SaveDebug()
         {
@@ -979,7 +986,7 @@ namespace KavrosClueHelper
                 File.WriteAllLines(Path.Combine(folder,"log.txt"), debugLog.ToArray());
                 try { Clipboard.SetText(folder); } catch(Exception) { }
                 try { System.Diagnostics.Process.Start(folder); } catch(Exception) { }
-                if(floatingPanel!=null) floatingPanel.ShowBanner(folder, false);
+                ShowToast("Debug saved.", false, null, null);
                 status.Text="Debug saved.";
             }
             catch(Exception ex) { status.Text="Could not save debug. "+ex.Message; }
@@ -1034,16 +1041,22 @@ namespace KavrosClueHelper
         }
         private void OpenScreenshot()
         {
-            using (var dialog = new OpenFileDialog { Filter = "Screenshots|*.png;*.jpg;*.jpeg;*.bmp", Title = "Open a puzzle screenshot" })
-                if (dialog.ShowDialog(this) == DialogResult.OK) OpenImageFile(dialog.FileName);
+            ShowToast("Drop a screenshot here, or press Ctrl+V.", false, null, null);
         }
         private void SaveCapture()
         {
             Image image=diagnosticCapture??preview.Image;
             if(image==null) { status.Text="Capture a puzzle first, then save its image."; return; }
-            using(Bitmap snapshot=(Bitmap)image.Clone())
-            using(SaveFileDialog dialog=new SaveFileDialog { Filter="PNG image|*.png",FileName="Kavros-capture-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".png",Title="Save the last captured puzzle" })
-            { if(dialog.ShowDialog(this)==DialogResult.OK) { snapshot.Save(dialog.FileName,System.Drawing.Imaging.ImageFormat.Png); status.Text="Capture saved. You can attach that file when reporting a reading problem."; } }
+            try
+            {
+                string folder=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"KavrosClueHelper","captures");
+                Directory.CreateDirectory(folder);
+                string file=Path.Combine(folder,"Kavros-capture-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+".png");
+                using(Bitmap snapshot=(Bitmap)image.Clone()) snapshot.Save(file,System.Drawing.Imaging.ImageFormat.Png);
+                ShowToast("Capture saved.", false, null, null);
+                status.Text="Capture saved to "+file;
+            }
+            catch(Exception ex) { status.Text="Could not save the capture. "+ex.Message; }
         }
         private void ShowExamples()
         {

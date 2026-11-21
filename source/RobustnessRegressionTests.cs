@@ -129,6 +129,21 @@ namespace KavrosClueHelper
                     Check(reader.Read(new Pixels(blank), new Point(20, 20), false) == 0, "a broken digit line does not discard the digit files");
                 Directory.Delete(digits, true);
 
+                Rectangle game = new Rectangle(0, 0, 1000, 800);
+                Size toast = new Size(180, 34);
+                Rectangle open = NoticePlacement.Place(game, toast, null);
+                Check(open == new Rectangle(1000 - 180 - 8, 8, 180, 34), "an empty game keeps the notice in the top-right corner");
+                Rectangle card = new Rectangle(800, 0, 200, 120);
+                Rectangle puzzle = new Rectangle(100, 100, 400, 400);
+                var blocked = new List<Rectangle> { card, puzzle };
+                Rectangle placed = NoticePlacement.Place(game, toast, blocked);
+                Check(game.Contains(placed), "the notice stays inside the game window");
+                Check(!Rectangle.Inflate(placed, 4, 4).IntersectsWith(card), "the notice stays off the clue card");
+                Check(!Rectangle.Inflate(placed, 4, 4).IntersectsWith(puzzle), "the notice stays off the puzzle being read");
+                Rectangle forced = new Rectangle(0, 0, 1000, 800);
+                Rectangle outside = NoticePlacement.Place(game, toast, new List<Rectangle> { forced });
+                Check(!outside.IntersectsWith(game), "a full window moves the notice outside the game");
+
                 log.AppendLine("Robustness checks passed: " + checks);
                 File.AppendAllText(report, log.ToString());
                 return 0;
