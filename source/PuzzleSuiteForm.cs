@@ -220,10 +220,10 @@ namespace KavrosClueHelper
             checkUpdates.Text="Check for updates at startup";checkUpdates.SetBounds(16,972,255,26);checkUpdates.Checked=preferences.CheckForUpdates;Controls.Add(checkUpdates);
             sliderTips.SetToolTip(checkUpdates,"When this is on, startup asks GitHub whether a newer release exists.");
             checkUpdates.CheckedChanged+=delegate{preferences.CheckForUpdates=checkUpdates.Checked;preferences.Save();};
-            blurPreview.Text="Blur live preview";blurPreview.SetBounds(188,1010,210,26);blurPreview.Checked=preferences.BlurPreview;Controls.Add(blurPreview);
+            blurPreview.Text="Blur live preview";blurPreview.SetBounds(16,1010,255,26);blurPreview.Checked=preferences.BlurPreview;Controls.Add(blurPreview);
             blurPreview.CheckedChanged+=delegate{preferences.BlurPreview=blurPreview.Checked;KavrosTheme.BlurPreview=blurPreview.Checked;preferences.Save();PreviewStyle.Release(preview);preview.Invalidate();};
             ButtonAt("Check for updates",305,971,195,delegate{AppUpdates.Check(this,true);});
-            ButtonAt("What's new",16,1012,160,ToggleWhatsNew);
+            ButtonAt("What's new",305,1012,195,ToggleWhatsNew);
             ClientSize=new Size(ClientSize.Width,1048);
             AppUpdates.Present=ShowToast;
             var trayMenu=new ContextMenuStrip();trayMenu.Items.Add("Open panel",null,delegate{OpenPanel();});trayMenu.Items.Add("Settings",null,delegate{ShowSettings();});trayMenu.Items.Add("Exit helper",null,delegate{ExitHelper();});

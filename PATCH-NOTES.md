@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.20
+
+v0.7.20: Blur live preview sits under Check for updates at startup, and What's new sits under Check for updates. The hard cryptic about four blades is the Lumbridge windmill: combat bracelet to the Champions' Guild, then south-west, and search the crates on the top floor.
+
+Settings shows **Made by Zenity · v0.7.20**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.19
 
 v0.7.19: Legacy towers, lockbox, Celtic knot, compass, and scan parchment are read alongside the modern interface. The round legacy minimap is found from its H button. The compass also checks the 1440p size. Celtic knot counts show as soon as the knot is still, and tiles that have not changed are not read again.
