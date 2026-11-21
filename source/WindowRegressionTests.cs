@@ -125,6 +125,33 @@ namespace KavrosClueHelper
                 clientB.Client = new Rectangle(0, 0, 800, 600);
                 List<Rectangle> covers = WindowLocator.CoverRects(new[] { clientB, shell, chip }, new Rectangle(0, 0, 800, 600), 1);
                 Check(covers.Count == 1 && covers[0].Width == 90, "a small helper overlay is masked and the game window is not");
+                clientB.Display = "Zezima";
+                Check(WindowLocator.Choose(new[] { clientA, clientB, clientC }, clientB.Handle, 200, clientC.Handle) == clientB, "a character name does not change the bound client");
+                Check(clientB.ToString() == "Zezima" && clientA.ToString() == clientA.Title, "the picker shows a character name and otherwise the window title");
+                Dictionary<int, string> names = ClientIdentity.ParseShare("[{\"pid\":44,\"name\":\"Zezima\"},{\"pid\":55,\"name\":\"Draken\"},{\"pid\":1}]");
+                Check(names.Count == 2 && names[44] == "Zezima" && names[55] == "Draken", "client names are read from Companion's list");
+                Check(ClientIdentity.ParseShare("not json").Count == 0 && ClientIdentity.ParseShare("").Count == 0, "a broken client-name list is ignored");
+                string nameFile = Path.Combine(Path.GetTempPath(), "kavros-client-names-" + DateTime.UtcNow.Ticks.ToString() + ".json");
+                try
+                {
+                    File.WriteAllText(nameFile, "{\"pid\":44,\"name\":\"Zezima\"}");
+                    DateTime stamp = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                    File.SetLastWriteTimeUtc(nameFile, stamp);
+                    ClientIdentity.ResetShareForTests(nameFile);
+                    Check(ClientIdentity.Label(44, 0, "Kavros 944 | NXT LIVE") == "Zezima", "a saved Companion name is shown for that process");
+                    Check(ClientIdentity.Label(0, 2, "Kavros") == "Client 3", "a client without a process id is Client N");
+                    Check(ClientIdentity.Label(99, 4, "Kavros") == "Client 5", "a client with no saved name is Client N");
+                    File.WriteAllText(nameFile, "{\"pid\":44,\"name\":\"Other\"}");
+                    File.SetLastWriteTimeUtc(nameFile, stamp);
+                    Check(ClientIdentity.Label(44, 0, "Kavros") == "Zezima", "the client-name list is reused until Companion writes it again");
+                    File.SetLastWriteTimeUtc(nameFile, stamp.AddMinutes(1));
+                    Check(ClientIdentity.Label(44, 0, "Kavros") == "Other", "a new client-name list replaces the saved names");
+                }
+                finally
+                {
+                    ClientIdentity.ResetShareForTests(null);
+                    try { if (File.Exists(nameFile)) File.Delete(nameFile); } catch (Exception) { }
+                }
                 File.AppendAllText(report, "\r\nV0.2.1 WINDOW REGRESSIONS PASS: " + assertions + " assertions.\r\nCovers late launch, restart, launcher exclusion, renamed client, multiple windows and stable selection.\r\n");
                 return 0;
             }

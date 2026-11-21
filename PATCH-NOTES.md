@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.14
+
+v0.7.14: The client list shows the character name Companion saved for that client. A client with no saved name is listed as Client 1, Client 2, and so on. Thanks to PvML-Admin.
+
+Settings shows **Made by Zenity · v0.7.14**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.13
 
 v0.7.13: The helper attaches to the Kavros client it was opened from and stays on that client. Each client can run its own helper. Companion, AFK Warden and the Slayer helper are not treated as the game, and the helper does not take the client AFK Warden is using. A small overlay from those apps is covered before the screen is read.

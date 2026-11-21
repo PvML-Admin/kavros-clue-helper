@@ -1,5 +1,11 @@
 # Kavros Clue Helper
 
+## 0.7.14
+
+**Clients**
+- The client list shows the character name Companion saved for that client. A client with no saved name is listed as Client 1, Client 2, and so on.
+- Thanks to PvML-Admin.
+
 ## 0.7.13
 
 **Clients**
