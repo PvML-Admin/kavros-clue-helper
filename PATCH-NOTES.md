@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.18
+
+v0.7.18: A steady compass settles through small jitter, and one missed frame no longer throws the reading away. Record stays available for about two seconds and only lights up when it will take the heading. Settings has Blur live preview, off by default. Scan clues are also recognised with the older brown stone border.
+
+Settings shows **Made by Zenity · v0.7.18**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.17
 
 v0.7.17: Auto in the capture list names the client it is reading, such as Auto - Client 1 or the Companion character name. It says Auto - searching... until a client is found. Game found and the panel header use that same name.

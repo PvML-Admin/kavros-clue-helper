@@ -1,14 +1,14 @@
 # kavros-clue-helper
 
-Clue scroll helper overlay for Kavros. Version 0.7.17 is a Windows .NET Framework 4.8 application. The full guide is in [README.txt](README.txt).
+Clue scroll helper overlay for Kavros. Version 0.7.18 is a Windows .NET Framework 4.8 application. The full guide is in [README.txt](README.txt).
 
-v0.7.17: Auto in the capture list names the client it is reading. See [CHANGELOG.md](CHANGELOG.md).
+v0.7.18: The compass settles through small jitter, and the live preview stays sharp unless you turn blur on. See [CHANGELOG.md](CHANGELOG.md).
 
 The helper reads the game window locally and does not send game input. Maps and clue references are bundled offline. The only runtime network request is to GitHub, for update checks and update downloads, and only when **Check for updates at startup** is enabled or you press **Check for updates** in Settings.
 
 ## Releases
 
-Push a tag that matches the first three parts of the version in `source/app.manifest`. The current release tag is `v0.7.17`. The Windows workflow builds with `source/build.ps1`, packs the executable and the `assets` folder with Velopack, and publishes these files to GitHub Releases:
+Push a tag that matches the first three parts of the version in `source/app.manifest`. The current release tag is `v0.7.18`. The Windows workflow builds with `source/build.ps1`, packs the executable and the `assets` folder with Velopack, and publishes these files to GitHub Releases:
 
 - `KavrosClueHelper-win-Setup.exe`
 - `KavrosClueHelper-win-Portable.zip`

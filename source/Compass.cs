@@ -205,9 +205,16 @@ namespace KavrosClueHelper
         public List<PointF> Candidates {get;private set;}
         public CompassReading Current {get;private set;}
         public PointF? Intersection {get;private set;}
-        private DateTime first,last;
-        private int frames;
-        private double reference;
+        private DateTime last;
+        private const int Ring = 5;
+        private const double OneDegree = Math.PI / 180;
+        private const double MoveLimit = 2 * Math.PI / 180;
+        private readonly double[] ringAngle = new double[Ring];
+        private readonly double[] ringError = new double[Ring];
+        private int ringCount;
+        private bool outlier, haveStable;
+        private double stableAngle, stableError;
+        private DateTime stableAt;
         private List<CompassBearing> prior;
         private bool hidden;
         public bool HasPrevious { get { return prior != null; } }
@@ -343,7 +350,8 @@ namespace KavrosClueHelper
         }
         public void Observe(CompassReading reading,DateTime now)
         {
-            if (reading == null) { hidden = true; Current = null; frames = 0; return; }
+            // A missed frame is not a new heading. One gap keeps the ring and the latch.
+            if (reading == null) { hidden = true; return; }
             if (!reading.Solved && !wasSolved && hidden && (now-last).TotalMilliseconds >= 650 && Bearings.Count > 0 && !HasPrevious)
             {
                 previousTarget = ConfirmedTarget();
@@ -351,17 +359,75 @@ namespace KavrosClueHelper
             }
             hidden = false;
             if(wasSolved&&!reading.Solved){NewClue();wasSolved=false;}
-            bool restart=Current==null||now-last>TimeSpan.FromSeconds(1.5)||reading.Solved!=wasSolved||(!reading.Solved&&Math.Abs(CompassMath.Difference(reference,reading.Angle))>Math.PI/450);
             Current=reading;last=now;
-            if(restart){first=now;frames=0;reference=reading.Angle;wasSolved=reading.Solved;}
-            frames++;
+            if(reading.Solved){wasSolved=true;ringCount=0;outlier=false;haveStable=false;return;}
+            wasSolved=false;
+            if(ringCount>0)
+            {
+                double basis=haveStable?stableAngle:CircularMean();
+                double delta=Math.Abs(CompassMath.Difference(basis,reading.Angle));
+                // A move past about two degrees, and past this reading's own error, starts again.
+                if(delta>MoveLimit&&delta>Tolerance(reading.Error)){ringCount=0;haveStable=false;outlier=false;}
+            }
+            Push(reading.Angle,reading.Error);
+            double agreed;
+            if(RingAgrees(out agreed)){haveStable=true;stableAngle=agreed;stableError=reading.Error;stableAt=now;outlier=false;}
+            else if(ringCount>=3)
+            {
+                // One sample outside the window is dropped. A second one is the arrow turning.
+                if(!outlier){ringCount--;outlier=true;}
+                else
+                {
+                    double angle=reading.Angle,error=reading.Error;
+                    ringCount=0;haveStable=false;outlier=false;Push(angle,error);
+                }
+            }
         }
-        public bool Stable(DateTime now){return Current!=null&&frames>=3&&(last-first).TotalMilliseconds>=180&&(now-last).TotalMilliseconds<=1500;}
+        private static double Tolerance(double error){return Math.Max(OneDegree,2*error);}
+        private double CircularMean()
+        {
+            double sin=0,cos=0;
+            for(int i=0;i<ringCount;i++){sin+=Math.Sin(ringAngle[i]);cos+=Math.Cos(ringAngle[i]);}
+            return CompassMath.Normalize(Math.Atan2(sin,cos));
+        }
+        private void Push(double angle,double error)
+        {
+            if(ringCount==Ring)
+            {
+                for(int i=1;i<Ring;i++){ringAngle[i-1]=ringAngle[i];ringError[i-1]=ringError[i];}
+                ringCount=Ring-1;
+            }
+            ringAngle[ringCount]=angle;ringError[ringCount]=error;ringCount++;
+        }
+        private bool RingAgrees(out double mean)
+        {
+            mean=0;
+            if(ringCount<3)return false;
+            mean=CircularMean();
+            for(int i=0;i<ringCount;i++)if(Math.Abs(CompassMath.Difference(ringAngle[i],mean))>Tolerance(ringError[i]))return false;
+            return true;
+        }
+        public string DirectionText
+        {
+            get
+            {
+                if(Current!=null&&Current.Solved)return Current.Heading;
+                if(ringCount<=0)return null;
+                double angle=haveStable?stableAngle:CircularMean();
+                return CompassMath.Bearing(angle).ToString("0.0",CultureInfo.InvariantCulture)+" degrees";
+            }
+        }
+        public bool Stable(DateTime now){return haveStable&&(now-stableAt).TotalMilliseconds<=2000;}
+        public bool CanRecord(CompassPosition position,DateTime now)
+        {
+            if(!Stable(now)||position==null||position.X<0||position.Y<0||position.X>6400||position.Y>12800||position.Radius<0||position.Radius>32)return false;
+            if(Bearings.Any(b=>CompassMath.Distance(b.Position.Point,position.Point)<0.1&&Math.Abs(CompassMath.Difference(b.Angle,stableAngle))<Math.PI/360))return false;
+            return true;
+        }
         public bool Record(CompassPosition position,DateTime now)
         {
-            if(!Stable(now)||Current.Solved||position==null||position.X<0||position.Y<0||position.X>6400||position.Y>12800||position.Radius<0||position.Radius>32)return false;
-            if(Bearings.Any(b=>CompassMath.Distance(b.Position.Point,position.Point)<0.1&&Math.Abs(CompassMath.Difference(b.Angle,Current.Angle))<Math.PI/360))return false;
-            AddReading(new CompassBearing{Position=new CompassPosition{Name=position.Name,X=position.X,Y=position.Y,Radius=position.Radius},Angle=Current.Angle,Error=Math.Max(Math.PI/240,Current.Error+Math.PI/720)});
+            if(!CanRecord(position,now))return false;
+            AddReading(new CompassBearing{Position=new CompassPosition{Name=position.Name,X=position.X,Y=position.Y,Radius=position.Radius},Angle=stableAngle,Error=Math.Max(Math.PI/240,stableError+Math.PI/720)});
             return true;
         }
         public static bool Matches(PointF spot,CompassBearing b)
@@ -387,7 +453,7 @@ namespace KavrosClueHelper
             if(Bearings.All(b=>Matches(target,b)))Intersection=target;
         }
         public void Undo(){if(Bearings.Count>0)Bearings.RemoveAt(Bearings.Count-1);Recalculate();}
-        public void NewClue(){Generation++;prior=null;previousTarget=null;hidden=false;Bearings.Clear();Current=null;frames=0;wasSolved=false;Recalculate();}
+        public void NewClue(){Generation++;prior=null;previousTarget=null;hidden=false;Bearings.Clear();Current=null;ringCount=0;outlier=false;haveStable=false;wasSolved=false;Recalculate();}
         public string Summary
         {
             get

@@ -1,5 +1,17 @@
 # Kavros Clue Helper
 
+## 0.7.18
+
+**Compass**
+- A steady compass settles even when the arrow jitters by a fraction of a degree. One missed frame no longer throws that reading away.
+- Record stays available for about two seconds after the last steady heading, and the button only lights up when Record will take it.
+
+**Preview**
+- Settings has a Blur live preview checkbox. It starts off, so the capture preview is sharp. Turn it on to dim and soften the preview.
+
+**Scans**
+- Scan clues are also recognised when the window uses the older brown stone border.
+
 ## 0.7.17
 
 **Clients**

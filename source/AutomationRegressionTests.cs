@@ -130,7 +130,7 @@ namespace KavrosClueHelper
                 using(var panel=new FloatingCluePanel(assets,compass,searchPreferences))
                 {
                     panel.SetCompass(false);DateTime stamp=DateTime.UtcNow.AddMilliseconds(-300);
-                    for(int i=0;i<3;i++)compass.Observe(new CompassReading{Angle=0.4,Error=0.01},stamp.AddMilliseconds(i*125));
+                    for(int i=0;i<3;i++)compass.Observe(new CompassReading{Angle=1.1,Error=0.01},stamp.AddMilliseconds(i*125));
                     var controls=panel.Controls.OfType<Panel>().Single(p=>p.Controls.OfType<ComboBox>().Any(c=>c.DropDownStyle!=ComboBoxStyle.DropDownList));
                     ComboBox picker=controls.Controls.OfType<ComboBox>().Single();
                     MethodInfo keyDown=typeof(ComboBox).GetMethod("OnKeyDown",BindingFlags.NonPublic|BindingFlags.Instance);
