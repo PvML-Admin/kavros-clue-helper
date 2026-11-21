@@ -17,7 +17,8 @@ namespace KavrosClueHelper
 
         internal static void Start()
         {
-            VelopackApp.Build().OnRestarted(delegate(SemanticVersion version) { RestartedVersion = version == null ? "" : version.ToString(); }).Run();
+            try { VelopackApp.Build().OnRestarted(delegate(SemanticVersion version) { RestartedVersion = version == null ? "" : version.ToString(); }).Run(); }
+            catch (Exception ex) { CrashLog.Write(ex); }
         }
 
         internal static void Check(Form owner, bool interactive)

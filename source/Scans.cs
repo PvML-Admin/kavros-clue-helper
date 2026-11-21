@@ -38,6 +38,61 @@ namespace KavrosClueHelper
             return reading;
         }
     }
+    internal static class ScanTables
+    {
+        public static bool TryBox(string text, out RectangleF box)
+        {
+            box = RectangleF.Empty;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string[] parts = text.Trim().Split('\t');
+            if (parts.Length < 4) return false;
+            float left, bottom, right, top;
+            if (!float.TryParse(parts[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out left)) return false;
+            if (!float.TryParse(parts[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out bottom)) return false;
+            if (!float.TryParse(parts[2].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out right)) return false;
+            if (!float.TryParse(parts[3].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out top)) return false;
+            box = RectangleF.FromLTRB(left, bottom, right, top);
+            return true;
+        }
+        public static bool TryInts(string text, int count, out int[] values)
+        {
+            values = null;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string[] parts = text.Trim().Split('\t');
+            if (parts.Length < count) return false;
+            values = new int[count];
+            for (int i = 0; i < count; i++) if (!int.TryParse(parts[i].Trim(), out values[i])) { values = null; return false; }
+            return true;
+        }
+        public static List<PointF> ReadSpots(IEnumerable<string> lines)
+        {
+            var spots = new List<PointF>();
+            if (lines == null) return spots;
+            foreach (string line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#")) continue;
+                string[] parts = line.Split('\t');
+                int x, y;
+                if (parts.Length < 2 || !int.TryParse(parts[0].Trim(), out x) || !int.TryParse(parts[1].Trim(), out y)) continue;
+                spots.Add(new PointF(x, y));
+            }
+            return spots;
+        }
+        public static void ApplyRoutes(IList<ScanRegion> regions, IEnumerable<string> lines)
+        {
+            if (regions == null || lines == null) return;
+            foreach (string line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#")) continue;
+                int tab = line.IndexOf('\t');
+                if (tab <= 0) continue;
+                int id;
+                if (!int.TryParse(line.Substring(0, tab).Trim(), out id)) continue;
+                for (int i = 0; i < regions.Count; i++)
+                    if (regions[i] != null && regions[i].Id == id) { regions[i].Route = line.Substring(tab + 1).Replace("\\n", "\n"); break; }
+            }
+        }
+    }
     public sealed class ScanVision
     {
         public Action<string> Progress;
@@ -54,39 +109,55 @@ namespace KavrosClueHelper
             string dir=Path.Combine(assets,"scan");
             foreach(int id in new[]{368,371})
             {
-                string[] map=File.ReadAllText(Path.Combine(dir,id+"-map.tsv")).Trim().Split(new[]{'\t'});
-                float[] box=map.Select(v=>Single.Parse(v,CultureInfo.InvariantCulture)).ToArray();
-                var region=new ScanRegion{Id=id,Name=id==368?"Prifddinas":"Heart of Gielinor",BaseRange=id==368?30:49,Level=1,MapBounds=RectangleF.FromLTRB(box[0],box[1],box[2],box[3]),
-                    Spots=File.ReadAllLines(Path.Combine(dir,id+".tsv")).Select(l=>l.Split(new[]{'\t'})).Select(p=>new PointF(Int32.Parse(p[0]),Int32.Parse(p[1]))).ToList()};
-                Regions.Add(region);
-                int[] meta=File.ReadAllText(Path.Combine(dir,id+"-title.tsv")).Split(new[]{'\t'}).Select(Int32.Parse).ToArray();
-                foreach(float scale in new[]{1F,0.8F,1.05F,0.95F,1.25F,1.5F,2F,0.6F})
-                using(Bitmap original=new Bitmap(Path.Combine(dir,id+"-title.png")))
-                using(Bitmap image=Pixels.Crop(original,new Rectangle(Point.Empty,original.Size),new Size((int)Math.Round(original.Width*scale),(int)Math.Round(original.Height*scale))))
-                using(Bitmap oldLevel=new Bitmap(Path.Combine(dir,id+"-level.png")))
-                using(Bitmap level=Pixels.Crop(oldLevel,new Rectangle(Point.Empty,oldLevel.Size),new Size((int)Math.Round(oldLevel.Width*scale),(int)Math.Round(oldLevel.Height*scale))))
+                try
                 {
-                    Pixels mask=new Pixels(image);var empty=new List<Point>();
-                    for(int yy=0;yy<image.Height;yy+=2)for(int xx=0;xx<image.Width;xx+=2)if(mask.Get(xx,yy).A<5)empty.Add(new Point(xx,yy));
-                    models.Add(new Model{Region=region,Scale=scale,Title=new ImagePattern(image),Level=new ImagePattern(level),Source=new Size(meta[2],meta[3]),TitleOrigin=new Point(meta[0],meta[1]),Empty=empty.Where((q,i)=>i%Math.Max(1,empty.Count/24)==0).Take(24).ToArray()});
+                    RectangleF box; int[] meta;
+                    if(!ScanTables.TryBox(File.ReadAllText(Path.Combine(dir,id+"-map.tsv")), out box)) continue;
+                    if(!ScanTables.TryInts(File.ReadAllText(Path.Combine(dir,id+"-title.tsv")), 4, out meta)) continue;
+                    var region=new ScanRegion{Id=id,Name=id==368?"Prifddinas":"Heart of Gielinor",BaseRange=id==368?30:49,Level=1,MapBounds=box,
+                        Spots=ScanTables.ReadSpots(File.ReadAllLines(Path.Combine(dir,id+".tsv")))};
+                    Regions.Add(region);
+                    foreach(float scale in new[]{1F,0.8F,1.05F,0.95F,1.25F,1.5F,2F,0.6F})
+                    using(Bitmap original=new Bitmap(Path.Combine(dir,id+"-title.png")))
+                    using(Bitmap image=Pixels.Crop(original,new Rectangle(Point.Empty,original.Size),new Size((int)Math.Round(original.Width*scale),(int)Math.Round(original.Height*scale))))
+                    using(Bitmap oldLevel=new Bitmap(Path.Combine(dir,id+"-level.png")))
+                    using(Bitmap level=Pixels.Crop(oldLevel,new Rectangle(Point.Empty,oldLevel.Size),new Size((int)Math.Round(oldLevel.Width*scale),(int)Math.Round(oldLevel.Height*scale))))
+                    {
+                        Pixels mask=new Pixels(image);var empty=new List<Point>();
+                        for(int yy=0;yy<image.Height;yy+=2)for(int xx=0;xx<image.Width;xx+=2)if(mask.Get(xx,yy).A<5)empty.Add(new Point(xx,yy));
+                        models.Add(new Model{Region=region,Scale=scale,Title=new ImagePattern(image),Level=new ImagePattern(level),Source=new Size(meta[2],meta[3]),TitleOrigin=new Point(meta[0],meta[1]),Empty=empty.Where((q,i)=>i%Math.Max(1,empty.Count/24)==0).Take(24).ToArray()});
+                    }
                 }
+                catch(Exception ex){CrashLog.Write(ex);}
             }
             string elite=Path.Combine(assets,"data","elite-scans.xml");
             if(File.Exists(elite))foreach(XElement node in XDocument.Load(elite).Root.Elements("scan"))
             {
-                int id=Int32.Parse((string)node.Attribute("id"));
-                var spots=node.Elements("spot").ToArray();
-                var region=new ScanRegion{Id=id,Tier="elite",Name=(string)node.Attribute("name"),BaseRange=Int32.Parse((string)node.Attribute("range")),
-                    MapBounds=RectangleF.FromLTRB(Single.Parse((string)node.Attribute("left"),CultureInfo.InvariantCulture),Single.Parse((string)node.Attribute("bottom"),CultureInfo.InvariantCulture),Single.Parse((string)node.Attribute("right"),CultureInfo.InvariantCulture),Single.Parse((string)node.Attribute("top"),CultureInfo.InvariantCulture)),
-                    Spots=spots.Select(s=>new PointF(Int32.Parse((string)s.Attribute("x")),Int32.Parse((string)s.Attribute("y")))).ToList(),SpotLevels=spots.Select(s=>Int32.Parse((string)s.Attribute("level"))).ToList()};
-                region.Level=region.Levels[0];region.Aliases=Aliases(id,region.Name);Regions.Add(region);
-            }
-            foreach(string line in File.ReadAllLines(Path.Combine(assets,"data","scan-routes.tsv"))){
-                string[] fields=line.Split('\t');int id;
-                if(fields.Length==2&&Int32.TryParse(fields[0],out id)){
-                    ScanRegion region=Regions.Find(r=>r.Id==id);if(region!=null)region.Route=fields[1].Replace("\\n","\n");
+                try
+                {
+                    int id, range; float left, bottom, right, top;
+                    if(!Int32.TryParse((string)node.Attribute("id"), out id) || !Int32.TryParse((string)node.Attribute("range"), out range)) continue;
+                    if(!Single.TryParse((string)node.Attribute("left"), NumberStyles.Float, CultureInfo.InvariantCulture, out left)) continue;
+                    if(!Single.TryParse((string)node.Attribute("bottom"), NumberStyles.Float, CultureInfo.InvariantCulture, out bottom)) continue;
+                    if(!Single.TryParse((string)node.Attribute("right"), NumberStyles.Float, CultureInfo.InvariantCulture, out right)) continue;
+                    if(!Single.TryParse((string)node.Attribute("top"), NumberStyles.Float, CultureInfo.InvariantCulture, out top)) continue;
+                    var spotNodes=node.Elements("spot").ToArray();
+                    var spots=new List<PointF>(); var levels=new List<int>(); bool spotsOk=spotNodes.Length>0;
+                    foreach(XElement s in spotNodes)
+                    {
+                        int x, y, level;
+                        if(!Int32.TryParse((string)s.Attribute("x"), out x) || !Int32.TryParse((string)s.Attribute("y"), out y) || !Int32.TryParse((string)s.Attribute("level"), out level)) { spotsOk=false; break; }
+                        spots.Add(new PointF(x, y)); levels.Add(level);
+                    }
+                    if(!spotsOk) continue;
+                    var region=new ScanRegion{Id=id,Tier="elite",Name=(string)node.Attribute("name"),BaseRange=range,
+                        MapBounds=RectangleF.FromLTRB(left,bottom,right,top), Spots=spots, SpotLevels=levels};
+                    region.Level=region.Levels[0];region.Aliases=Aliases(id,region.Name);Regions.Add(region);
                 }
+                catch(Exception ex){CrashLog.Write(ex);}
             }
+            try { ScanTables.ApplyRoutes(Regions, File.ReadAllLines(Path.Combine(assets,"data","scan-routes.tsv"))); }
+            catch(Exception ex){CrashLog.Write(ex);}
         }
         private static string[] Aliases(int id,string name)
         {

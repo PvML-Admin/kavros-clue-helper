@@ -32,6 +32,8 @@ namespace KavrosClueHelper
             };
             trackingWorker.RunWorkerCompleted+=delegate(object sender,RunWorkerCompletedEventArgs e)
             {
+                try
+                {
                 if(closing||IsDisposed)return;
                 if(e.Cancelled||e.Error!=null){trackedMinimap=Rectangle.Empty;if(floatingPanel.TrackingRegion!=null)floatingPanel.ApplyTracking(null,floatingPanel.TrackingRegion.Id,DateTime.UtcNow);return;}
                 TrackingJob job=(TrackingJob)e.Result;
@@ -50,6 +52,8 @@ namespace KavrosClueHelper
                 if(job.Match!=null){trackingMisses=0;trackedMinimap=Rectangle.Inflate(job.Match.Viewport,5,5);}
                 else if(++trackingMisses>=2)trackedMinimap=Rectangle.Empty;
                 nextTracking=DateTime.UtcNow.AddMilliseconds(100);
+                }
+                catch(Exception ex){NoteFailure(ex);}
             };
         }
         private void StopTracking(){if(trackingCancellation!=null)trackingCancellation.Cancel();}
@@ -67,7 +71,7 @@ namespace KavrosClueHelper
             if(trackingWorker.IsBusy||now<nextTracking)return;
             if(Native.IsIconic(SelectedWindow))return;
             Rectangle client=Native.ClientBounds(SelectedWindow);
-            Rectangle visible = CaptureSearch.VisibleClient(client, System.Windows.Forms.SystemInformation.VirtualScreen);
+            Rectangle visible = CaptureSearch.VisibleClient(client, Native.VirtualScreen());
             if (visible.Width < 60 || visible.Height < 60) return;
             // Re-reading the clue does not restart tracking. Only a different
             // scan, floor, window or window size starts from scratch.

@@ -51,6 +51,7 @@ namespace KavrosClueHelper
         {
             if (source.Width < 60 || source.Height < 60) throw new ArgumentException("Grid image is too small.");
             Reading result = new Reading();
+            Pixels pixels = new Pixels(source);
             for (int row = 0; row < 5; row++)
                 for (int column = 0; column < 5; column++)
                 {
@@ -58,12 +59,12 @@ namespace KavrosClueHelper
                     int right = (int)Math.Round((column + 0.82) * source.Width / 5.0);
                     int top = (int)Math.Round((row + 0.18) * source.Height / 5.0);
                     int bottom = (int)Math.Round((row + 0.82) * source.Height / 5.0);
-                    int blue = 0, gold = 0, pale = 0, pixels = 0;
+                    int blue = 0, gold = 0, pale = 0, samples = 0;
                     for (int y = top; y < bottom; y++)
                         for (int x = left; x < right; x++)
                         {
-                            Color p = source.GetPixel(x, y);
-                            pixels++;
+                            Color p = pixels.Get(x, y);
+                            samples++;
                             if (p.B > 78 && p.B > p.R * 1.30 && p.B > p.G * 1.14 && p.B - p.R > 28) blue++;
                             if (p.R > 112 && p.G > 62 && p.R > p.G * 1.12 && p.G > p.B * 1.18 && p.R - p.B > 38) gold++;
                             int high = Math.Max(p.R, Math.Max(p.G, p.B));
@@ -71,7 +72,7 @@ namespace KavrosClueHelper
                             if (low > 112 && high - low < 62) pale++;
                         }
                     int index = row * 5 + column;
-                    int threshold = Math.Max(3, (int)(pixels * 0.025));
+                    int threshold = Math.Max(3, (int)(samples * 0.025));
                     if (blue >= threshold && blue > gold * 0.55)
                     { result.Board[index] = 2; result.Certain[index] = true; }
                     else if (gold >= threshold && gold > blue * 1.5)
@@ -149,6 +150,20 @@ namespace KavrosClueHelper
             SetTopMostNoActivate(window, topMost);
             if (!topMost && tuckBehind != IntPtr.Zero && tuckBehind != window)
                 SetWindowPos(window, tuckBehind, 0, 0, 0, 0, TopMostFlags);
+        }
+        [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
+        // Same pixel space as ClientToScreen. WinForms VirtualScreen can disagree
+        // with that space when monitors use different DPI.
+        public static Rectangle VirtualScreen()
+        {
+            try
+            {
+                int width = GetSystemMetrics(78), height = GetSystemMetrics(79);
+                if (width > 0 && height > 0) return new Rectangle(GetSystemMetrics(76), GetSystemMetrics(77), width, height);
+            }
+            catch (DllNotFoundException) { }
+            catch (EntryPointNotFoundException) { }
+            return System.Windows.Forms.SystemInformation.VirtualScreen;
         }
         public static Rectangle ClientBounds(IntPtr window)
         {

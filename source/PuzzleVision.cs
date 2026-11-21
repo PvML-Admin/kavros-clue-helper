@@ -38,12 +38,12 @@ namespace KavrosClueHelper
         {
             get
             {
-                if (Kind == PuzzleKind.Towers) return "T:" + Towers.Key;
-                if (Kind == PuzzleKind.EmoteClue) return "M:" + Master.Id;
-                if (Kind == PuzzleKind.Compass) return "C:"+Compass.Solved+":"+Math.Round(Compass.Angle*10000);
-                if (Kind == PuzzleKind.Scan) return "S:"+Scan.Region.Id;
+                if (Kind == PuzzleKind.Towers) return Towers == null || Towers.Top == null || Towers.Bottom == null || Towers.Left == null || Towers.Right == null ? "T:?" : "T:" + Towers.Key;
+                if (Kind == PuzzleKind.EmoteClue) return Master == null ? "M:?" : "M:" + Master.Id;
+                if (Kind == PuzzleKind.Compass) return Compass == null ? "C:?" : "C:"+Compass.Solved+":"+Math.Round(Compass.Angle*10000);
+                if (Kind == PuzzleKind.Scan) return Scan == null || Scan.Region == null ? "S:?" : "S:"+Scan.Region.Id;
                 if (Board != null) return Kind + ":" + String.Join(",", Board);
-                if (Knot != null) return "K:" + String.Join("/", Knot.Lanes.Select(l => String.Join(",", l.Select(r => (r.IsNot ? "!" : "") + r.Id))));
+                if (Knot != null && Knot.Lanes != null) return "K:" + String.Join("/", Knot.Lanes.Select(l => l == null ? "?" : String.Join(",", l.Select(r => r == null ? "?" : (r.IsNot ? "!" : "") + r.Id))));
                 return Kind.ToString();
             }
         }
@@ -53,15 +53,72 @@ namespace KavrosClueHelper
     {
         public readonly int Width, Height;
         private readonly byte[] data;
-        private List<int>[] colourIndex;
+        private int[] colourHead, colourNext, colourAt;
         public Pixels(Bitmap bitmap)
         {
             Width = bitmap.Width; Height = bitmap.Height;
+            data = new byte[Math.Max(0, Width * Height * 4)];
+            // Screen captures and asset PNGs are already 24-bit or 32-bit. Reading
+            // those bytes avoids a second full-frame bitmap on every scan.
+            if (Width > 0 && Height > 0 && !TryCopyLocked(bitmap)) CopyThroughBitmap(bitmap);
+        }
+        private bool TryCopyLocked(Bitmap bitmap)
+        {
+            PixelFormat format = bitmap.PixelFormat;
+            bool argb = format == PixelFormat.Format32bppArgb;
+            bool opaque32 = format == PixelFormat.Format32bppRgb;
+            bool rgb24 = format == PixelFormat.Format24bppRgb;
+            if (!argb && !opaque32 && !rgb24) return false;
+            BitmapData bits = null;
+            try
+            {
+                bits = bitmap.LockBits(new Rectangle(0, 0, Width, Height), ImageLockMode.ReadOnly, format);
+                if (bits.Stride <= 0) return false;
+                if (rgb24) Expand24(bits);
+                else Copy32(bits, opaque32);
+                return true;
+            }
+            catch (Exception) { return false; }
+            finally { if (bits != null) try { bitmap.UnlockBits(bits); } catch (Exception) { } }
+        }
+        private void Expand24(BitmapData bits)
+        {
+            int stride = bits.Stride;
+            byte[] row = new byte[stride];
+            for (int y = 0; y < Height; y++)
+            {
+                Marshal.Copy(IntPtr.Add(bits.Scan0, y * stride), row, 0, stride);
+                int dst = y * Width * 4, src = 0;
+                for (int x = 0; x < Width; x++)
+                {
+                    data[dst] = row[src]; data[dst + 1] = row[src + 1]; data[dst + 2] = row[src + 2]; data[dst + 3] = 255;
+                    dst += 4; src += 3;
+                }
+            }
+        }
+        private void Copy32(BitmapData bits, bool forceOpaque)
+        {
+            int stride = bits.Stride;
+            if (!forceOpaque && stride == Width * 4)
+            {
+                Marshal.Copy(bits.Scan0, data, 0, data.Length);
+                return;
+            }
+            byte[] row = new byte[stride];
+            for (int y = 0; y < Height; y++)
+            {
+                Marshal.Copy(IntPtr.Add(bits.Scan0, y * stride), row, 0, stride);
+                Buffer.BlockCopy(row, 0, data, y * Width * 4, Width * 4);
+                if (forceOpaque) for (int x = 0; x < Width; x++) data[y * Width * 4 + x * 4 + 3] = 255;
+            }
+        }
+        private void CopyThroughBitmap(Bitmap bitmap)
+        {
             using (Bitmap copy = new Bitmap(Width, Height, PixelFormat.Format32bppArgb))
             {
                 using (Graphics g = Graphics.FromImage(copy)) g.DrawImage(bitmap, new Rectangle(0, 0, Width, Height), new Rectangle(0, 0, Width, Height), GraphicsUnit.Pixel);
                 BitmapData bits = copy.LockBits(new Rectangle(0, 0, Width, Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-                try { data = new byte[Width * Height * 4]; for (int y = 0; y < Height; y++) Marshal.Copy(IntPtr.Add(bits.Scan0, y * bits.Stride), data, y * Width * 4, Width * 4); }
+                try { Copy32(bits, false); }
                 finally { copy.UnlockBits(bits); }
             }
         }
@@ -104,13 +161,24 @@ namespace KavrosClueHelper
                 { if((y&15)==0) SearchCancellation.Check(); for(int x=origins.Left;x<origins.Right;x++) if(Error(x+anchor.X,y+anchor.Y,colour)<=tolerance) yield return new Point(x,y); }
                 yield break;
             }
-            if(colourIndex==null)
+            if(colourHead==null)
             {
-                colourIndex=new List<int>[4096];
+                // One array per channel bucket, filled in scanline order, so a full-window
+                // search does not allocate a list for every occupied colour.
+                colourHead=new int[4096]; colourNext=new int[Width*Height]; colourAt=new int[Width*Height];
+                int[] tail=new int[4096];
+                for(int i=0;i<4096;i++) colourHead[i]=tail[i]=-1;
+                int count=0;
                 for(int y=0;y<Height;y++)
                 {
                     if((y&31)==0) SearchCancellation.Check();
-                    for(int x=0;x<Width;x++) { int p=(y*Width+x)*4,key=((data[p+2]>>4)<<8)|((data[p+1]>>4)<<4)|(data[p]>>4); if(colourIndex[key]==null) colourIndex[key]=new List<int>(); colourIndex[key].Add(p); }
+                    for(int x=0;x<Width;x++)
+                    {
+                        int p=(y*Width+x)*4,key=((data[p+2]>>4)<<8)|((data[p+1]>>4)<<4)|(data[p]>>4),id=count++;
+                        colourAt[id]=p; colourNext[id]=-1;
+                        if(colourHead[key]<0) colourHead[key]=id; else colourNext[tail[key]]=id;
+                        tail[key]=id;
+                    }
                 }
             }
             int visited=0;
@@ -118,9 +186,9 @@ namespace KavrosClueHelper
             for(int g=Math.Max(0,colour.G-tolerance)>>4;g<=Math.Min(255,colour.G+tolerance)>>4;g++)
             for(int b=Math.Max(0,colour.B-tolerance)>>4;b<=Math.Min(255,colour.B+tolerance)>>4;b++)
             {
-                List<int> bucket=colourIndex[(r<<8)|(g<<4)|b]; if(bucket==null) continue;
-                foreach(int p in bucket)
+                for(int id=colourHead[(r<<8)|(g<<4)|b]; id>=0; id=colourNext[id])
                 {
+                    int p=colourAt[id];
                     if((visited++&4095)==0) SearchCancellation.Check();
                     if(Math.Abs(data[p+2]-colour.R)+Math.Abs(data[p+1]-colour.G)+Math.Abs(data[p]-colour.B)>tolerance) continue;
                     int pixel=p/4,x=pixel%Width-anchor.X,y=pixel/Width-anchor.Y;
@@ -265,12 +333,25 @@ namespace KavrosClueHelper
         {
             glyphs = new List<Glyph>();
             foreach (string filename in new[] { "legacy-digits.txt", "digits.txt" })
-                foreach (string line in File.ReadAllLines(Path.Combine(assetDirectory, filename)))
+            {
+                string path = Path.Combine(assetDirectory, filename);
+                if (!File.Exists(path)) continue;
+                foreach (string line in File.ReadAllLines(path))
                 {
-                    string[] parts = line.Split(new[] { '|' }); int[] data = parts[2].Split(new[] { ',' }).Select(Int32.Parse).ToArray();
+                    if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#")) continue;
+                    string[] parts = line.Split(new[] { '|' });
+                    int value, width;
+                    if (parts.Length < 3 || !Int32.TryParse(parts[0].Trim(), out value) || !Int32.TryParse(parts[1].Trim(), out width)) continue;
+                    string[] raw = parts[2].Split(new[] { ',' });
+                    int[] data = new int[raw.Length];
+                    bool parsed = raw.Length > 0;
+                    for (int n = 0; n < raw.Length && parsed; n++) parsed = Int32.TryParse(raw[n].Trim(), out data[n]);
+                    if (!parsed) continue;
                     int[] ys = data.Where((v,i) => i % 3 == 1).ToArray();
-                    glyphs.Add(new Glyph { Value = Int32.Parse(parts[0]), Width = Int32.Parse(parts[1]), Data = data, MinY = ys.Min(), MaxY = ys.Max(), TopOffset = filename.StartsWith("legacy") ? 6 : 8, Expected = data.Where((v,i) => i % 3 == 2).Sum() / 255.0, Energy=data.Where((v,i)=>i%3==2).Sum(v=>v/255.0*(v/255.0)) });
+                    if (ys.Length == 0) continue;
+                    glyphs.Add(new Glyph { Value = value, Width = width, Data = data, MinY = ys.Min(), MaxY = ys.Max(), TopOffset = filename.StartsWith("legacy") ? 6 : 8, Expected = data.Where((v,i) => i % 3 == 2).Sum() / 255.0, Energy=data.Where((v,i)=>i%3==2).Sum(v=>v/255.0*(v/255.0)) });
                 }
+            }
         }
         public int Read(Pixels image, Point centre, bool clue, double minimum = 0.68)
         {

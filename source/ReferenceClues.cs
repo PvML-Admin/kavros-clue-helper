@@ -31,7 +31,14 @@ namespace KavrosClueHelper
         private readonly Queue<ulong> recentOrder=new Queue<ulong>();
         public Action<string> Progress;
         public string LastText,LastError,MapScores;
-        private static int Number(XElement e,string key,int fallback=0){XAttribute a=e.Attribute(key);return a==null?fallback:Int32.Parse(a.Value,CultureInfo.InvariantCulture);}
+        private static int Number(XElement e,string key,int fallback,ref bool ok)
+        {
+            XAttribute a=e.Attribute(key);
+            if(a==null)return fallback;
+            int value;
+            if(Int32.TryParse(a.Value,NumberStyles.Integer,CultureInfo.InvariantCulture,out value))return value;
+            ok=false;return fallback;
+        }
         public ReferenceClueReader(string assets)
         {
             foreach(string row in File.ReadAllLines(Path.Combine(assets,"compass","positions.tsv")))
@@ -41,14 +48,21 @@ namespace KavrosClueHelper
             }
             foreach(XElement e in XDocument.Load(Path.Combine(assets,"data","reference-clues.xml")).Root.Elements("clue"))
             {
-                var card=new MasterClue{Id=Number(e,"id"),Tier=(string)e.Attribute("tier"),Reference=true,Location=(string)e.Attribute("heading"),Emote=(string)e.Attribute("action"),Travel=(string)e.Element("details"),Equipment=new string[0],Floor=Number(e,"level"),Area=new Rectangle(Number(e,"x"),Number(e,"y"),Number(e,"width"),Number(e,"height"))};
-                var c=new ReferenceClue{Card=card,Type=(string)e.Attribute("type"),Text=e.Elements("text").Select(t=>t.Value).ToArray(),Anagrams=e.Elements("anagram").Select(t=>t.Value).ToArray()};Clues.Add(c);
-                string file=Path.Combine(assets,"reference-maps",card.Id+".png");
-                if(c.Type=="map"&&File.Exists(file))using(Bitmap image=new Bitmap(file))
-                {var p=new Pixels(image);Rectangle paper=Papers(p,false).FirstOrDefault();if(!paper.IsEmpty){MapSignature s=MapSignature.Read(p,paper);if(s!=null)maps[card.Id]=s;}}
-                string variant=Path.Combine(assets,"reference-map-variants",card.Id+".png");
-                if(c.Type=="map"&&File.Exists(variant))using(Bitmap image=new Bitmap(variant))
-                {MapSignature s=MapSignature.Read(new Pixels(image),new Rectangle(Point.Empty,image.Size));if(s!=null)variants[card.Id]=s;}
+                try
+                {
+                    bool ok=true;
+                    int id=Number(e,"id",0,ref ok),floor=Number(e,"level",0,ref ok),x=Number(e,"x",0,ref ok),y=Number(e,"y",0,ref ok),width=Number(e,"width",0,ref ok),height=Number(e,"height",0,ref ok);
+                    if(!ok)throw new InvalidDataException("Skipped a reference clue with an unreadable number.");
+                    var card=new MasterClue{Id=id,Tier=(string)e.Attribute("tier"),Reference=true,Location=(string)e.Attribute("heading"),Emote=(string)e.Attribute("action"),Travel=(string)e.Element("details"),Equipment=new string[0],Floor=floor,Area=new Rectangle(x,y,width,height)};
+                    var c=new ReferenceClue{Card=card,Type=(string)e.Attribute("type"),Text=e.Elements("text").Select(t=>t.Value).ToArray(),Anagrams=e.Elements("anagram").Select(t=>t.Value).ToArray()};Clues.Add(c);
+                    string file=Path.Combine(assets,"reference-maps",card.Id+".png");
+                    if(c.Type=="map"&&File.Exists(file))using(Bitmap image=new Bitmap(file))
+                    {var p=new Pixels(image);Rectangle paper=Papers(p,false).FirstOrDefault();if(!paper.IsEmpty){MapSignature s=MapSignature.Read(p,paper);if(s!=null)maps[card.Id]=s;}}
+                    string variant=Path.Combine(assets,"reference-map-variants",card.Id+".png");
+                    if(c.Type=="map"&&File.Exists(variant))using(Bitmap image=new Bitmap(variant))
+                    {MapSignature s=MapSignature.Read(new Pixels(image),new Rectangle(Point.Empty,image.Size));if(s!=null)variants[card.Id]=s;}
+                }
+                catch(Exception ex){CrashLog.Write(ex);}
             }
         }
         private static List<Rectangle> Papers(Pixels p,bool trim=true)

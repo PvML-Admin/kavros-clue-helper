@@ -62,7 +62,12 @@ namespace KavrosClueHelper
                 Release();
                 var job = new Job { Board = (int[])board.Clone(), Theme = theme, Lines = lines };
                 var upper = seed == null ? null : new List<int>(seed);
-                if (upper != null) job.Upper = lines ? SlidingRoute.ClickRoute(board, upper).Count : upper.Count;
+                if (upper != null)
+                {
+                    List<int> clicks;
+                    // A route that is not a straight click still has a length. Counting it must not throw on the UI thread.
+                    job.Upper = lines && SlidingRoute.TryClickRoute(board, upper, out clicks) ? clicks.Count : upper.Count;
+                }
                 active = job;
                 ThreadPool.QueueUserWorkItem(delegate
                 {

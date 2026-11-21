@@ -43,15 +43,29 @@ namespace KavrosClueHelper
                 for(int y=0;y<image.Height;y++)for(int x=0;x<image.Width;x++)if(pixels.Get(x,y).A<5)empty.Add(new Point(x,y));
                 paperProbes[scale]=empty.Where((p,i)=>i%Math.Max(1,empty.Count/8)==0).Take(8).ToArray();
             }
-            off=ReadTable(Path.Combine(dir,"calibration-off.csv"));
-            double[][] raw=ReadTable(Path.Combine(dir,"calibration-msaa.csv"));
+            off=ReadTable(Path.Combine(dir,"calibration-off.csv")).Where(p=>p.Length>=4).ToArray();
+            double[][] raw=ReadTable(Path.Combine(dir,"calibration-msaa.csv")).Where(p=>p.Length>=3).ToArray();
+            if (off.Length==0 || raw.Length==0) throw new InvalidDataException("Compass calibration is empty.");
             msaa=raw.Select(p=>new[]{p[0],CompassMath.Difference(Math.Atan2(-p[2],-p[1]),p[0])}).OrderBy(p=>p[0]).ToArray();
             double max=msaa.Max(p=>p[1]),min=msaa.Min(p=>p[1]);amplitude=(max-min)/2;offset=(max+min)/2;
             double[] hills=msaa.Where(p=>Math.Abs(max-p[1])<amplitude/10).Select(p=>p[0]%(Math.PI/2)).ToArray();
             phase=Math.Atan2(hills.Sum(v=>Math.Sin(v)),hills.Sum(v=>Math.Cos(v)));
             foreach(double[] p in msaa) p[1]-=Baseline(p[0]);
         }
-        private static double[][] ReadTable(string file) { return File.ReadAllLines(file).Where(l=>l.Trim().Length>0).Select(l=>l.Split(new[] { ',' }).Select(v=>Double.Parse(v,CultureInfo.InvariantCulture)).ToArray()).ToArray(); }
+        private static double[][] ReadTable(string file)
+        {
+            var rows = new List<double[]>();
+            foreach (string line in File.ReadAllLines(file))
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#")) continue;
+                string[] parts = line.Split(',');
+                double[] row = new double[parts.Length];
+                bool ok = parts.Length > 0;
+                for (int i = 0; i < parts.Length && ok; i++) ok = Double.TryParse(parts[i].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out row[i]);
+                if (ok) rows.Add(row);
+            }
+            return rows.ToArray();
+        }
         private double Baseline(double a) { return amplitude*Math.Cos(4*(a-phase))+offset; }
         public CompassReading Calibrate(double raw,bool antialiasing)
         {
@@ -294,9 +308,38 @@ namespace KavrosClueHelper
         public CompassSession(string assets)
         {
             string dir=Path.Combine(assets,"compass");
-            AllSpots=File.ReadAllLines(Path.Combine(dir,"elite-spots.csv")).Select(l=>l.Split(new[] { ',' })).Select(p=>new PointF(Int32.Parse(p[0]),Int32.Parse(p[1]))).ToList();
-            Positions=File.ReadAllLines(Path.Combine(dir,"positions.tsv")).Select(l=>l.Split(new[] { '\t' })).Select(p=>new CompassPosition{Name=LodestoneNames.Clean(p[0]),X=Int32.Parse(p[1]),Y=Int32.Parse(p[2]),Radius=Double.Parse(p[3],CultureInfo.InvariantCulture)}).ToList();
+            AllSpots=ReadSpots(File.ReadAllLines(Path.Combine(dir,"elite-spots.csv")));
+            Positions=ReadPositions(File.ReadAllLines(Path.Combine(dir,"positions.tsv")));
             Candidates=new List<PointF>(AllSpots);
+        }
+        internal static List<PointF> ReadSpots(IEnumerable<string> lines)
+        {
+            var spots = new List<PointF>();
+            if (lines == null) return spots;
+            foreach (string line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#")) continue;
+                string[] p = line.Split(',');
+                int x, y;
+                if (p.Length < 2 || !Int32.TryParse(p[0].Trim(), out x) || !Int32.TryParse(p[1].Trim(), out y)) continue;
+                spots.Add(new PointF(x, y));
+            }
+            return spots;
+        }
+        internal static List<CompassPosition> ReadPositions(IEnumerable<string> lines)
+        {
+            var list = new List<CompassPosition>();
+            if (lines == null) return list;
+            foreach (string line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#")) continue;
+                string[] p = line.Split('\t');
+                int x, y; double radius;
+                if (p.Length < 4 || !Int32.TryParse(p[1].Trim(), out x) || !Int32.TryParse(p[2].Trim(), out y)) continue;
+                if (!Double.TryParse(p[3].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out radius)) continue;
+                list.Add(new CompassPosition { Name = LodestoneNames.Clean(p[0]), X = x, Y = y, Radius = radius });
+            }
+            return list;
         }
         public void Observe(CompassReading reading,DateTime now)
         {
