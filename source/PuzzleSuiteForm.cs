@@ -277,18 +277,41 @@ namespace KavrosClueHelper
         internal void CheckForUpdatesOnStartup(){if(preferences.CheckForUpdates)AppUpdates.Check(this,false);}
         internal void PrepareForUpdate(){closing=true;}
         internal void SetUpdateStatus(string message){status.Text=message;}
-        private void OpenPanel(){draw.Checked=true;floatingEnabled.Checked=true;UpdateFloatingPanel();if(SelectedWindow==IntPtr.Zero||!Native.IsIconic(SelectedWindow))floatingPanel.Show();}
+        private void OpenPanel(){draw.Checked=true;floatingEnabled.Checked=true;UpdateFloatingPanel();}
         private void ExitHelper(){closing=true;Close();}
+        private bool trackedVisible;
         private void UpdateFloatingPanel()
         {
             if(closing||floatingPanel==null||floatingPanel.IsDisposed)return;
             bool exists=SelectedWindow!=IntPtr.Zero&&Native.IsWindow(SelectedWindow);
+            // Owner is only the client this helper is reading. Dragging onto another
+            // client does not move the owner.
             IntPtr owner=exists?SelectedWindow:IntPtr.Zero;
             if(floatingPanel.IsHandleCreated&&owner!=panelOwner)try{Native.SetOwner(floatingPanel.Handle,owner);panelOwner=owner;}catch(System.DllNotFoundException){}catch(EntryPointNotFoundException){}
             if(overlay.IsHandleCreated&&owner!=overlayOwner)try{Native.SetOwner(overlay.Handle,owner);overlayOwner=owner;}catch(System.DllNotFoundException){}catch(EntryPointNotFoundException){}
             bool minimised=exists&&Native.IsIconic(SelectedWindow);
             bool foreground=exists&&WindowLocator.IsForeground(SelectedWindow);
-            if(!draw.Checked||!FloatingPanelLayout.Visible(floatingEnabled.Checked,offline,exists,minimised,foreground,floatingPanel.ContainsFocus,ContainsFocus)){floatingPanel.Hide();panelTopKnown=false;return;}
+            IntPtr front=IntPtr.Zero;
+            try{front=Native.GetForegroundWindow();}catch(System.DllNotFoundException){}catch(EntryPointNotFoundException){}
+            bool settingsFront=front!=IntPtr.Zero&&(front==Handle||(IsHandleCreated&&Native.GetAncestor(front,2)==Handle));
+            bool panelFront=floatingPanel.IsHandleCreated&&(front==floatingPanel.Handle||floatingPanel.ContainsFocus);
+            bool overlayFront=overlay!=null&&overlay.IsHandleCreated&&front==overlay.Handle;
+            Rectangle game=exists?Native.ClientBounds(SelectedWindow):Rectangle.Empty;
+            if(exists)floatingPanel.SetAnchor(game);
+            bool covered=false;
+            if(exists&&!minimised&&(foreground||panelFront)&&game.Width>0&&game.Height>0)
+            {
+                try{covered=!GameVisibility.Clear(game,delegate(Point point){return WindowLocator.BelongsTo(SelectedWindow,point,OwnSurfaces());});}
+                catch(System.DllNotFoundException){}catch(EntryPointNotFoundException){}
+            }
+            trackedVisible=FloatingPanelLayout.Shown(draw.Checked&&floatingEnabled.Checked,offline,exists,minimised,foreground,panelFront||overlayFront,settingsFront,covered);
+            floatingPanel.SetClient(ClientLabel());
+            if(!trackedVisible)
+            {
+                if(floatingPanel.Visible)floatingPanel.Hide();
+                if(overlay!=null&&overlay.Visible)overlay.Hide();
+                panelTopKnown=false;overlayTopKnown=false;return;
+            }
             floatingPanel.SetPaused(!automatic.Checked);
             DetectedPuzzle displayed=retainedClue.Display(current);
             bool saved = current == null && displayed != null;
@@ -304,12 +327,27 @@ namespace KavrosClueHelper
                 panelPuzzle = displayed; panelText = message; panelSaved = saved; panelStage = stage;
             }
             floatingPanel.RefreshCompass(false);
-            Rectangle game=exists?Native.ClientBounds(SelectedWindow):Rectangle.Empty;
             Rectangle desktop=exists?Screen.FromRectangle(game).WorkingArea:Screen.PrimaryScreen.WorkingArea;
             Rectangle placement=FloatingPanelLayout.Place(game,floatingPanel.Size,preferences.Offset,desktop);
             if(!floatingPanel.IsDragging&&floatingPanel.Bounds!=placement)floatingPanel.Bounds=placement;
             if(!floatingPanel.Visible)floatingPanel.Show();
-            KeepSurfacesOnTop(exists,minimised,foreground);
+            KeepSurfacesOnTop(exists,minimised,foreground||panelFront);
+        }
+        private string ClientLabel()
+        {
+            if(attachedWindow==null)return "";
+            if(!string.IsNullOrEmpty(attachedWindow.Display))return attachedWindow.Display;
+            List<GameWindow> clients=WindowLocator.Clients(availableWindows);
+            int index=0;
+            for(int i=0;i<clients.Count;i++)if(clients[i].Handle==attachedWindow.Handle){index=i;break;}
+            return ClientIdentity.Label(attachedWindow.ProcessId,index,attachedWindow.Title);
+        }
+        private IntPtr[] OwnSurfaces()
+        {
+            IntPtr panel=floatingPanel!=null&&floatingPanel.IsHandleCreated?floatingPanel.Handle:IntPtr.Zero;
+            IntPtr marks=overlay!=null&&overlay.IsHandleCreated?overlay.Handle:IntPtr.Zero;
+            IntPtr toast=notice!=null&&notice.IsHandleCreated?notice.Handle:IntPtr.Zero;
+            return new IntPtr[]{panel,marks,toast};
         }
         // Keep the panel and puzzle overlays above the game without taking focus.
         // Topmost is set only while the game or a Kavros helper is in front, and for a
@@ -327,7 +365,9 @@ namespace KavrosClueHelper
             bool overlayFront=overlay!=null&&overlay.IsHandleCreated&&front==overlay.Handle;
             bool helperFront=!settingsFront&&WindowLocator.IsHelperWindow(front);
             bool want=FloatingPanelLayout.WantTopMost(exists,minimised,gameForeground,helperFront,panelFront||overlayFront,settingsFront,DateTime.UtcNow<raiseUntil);
-            IntPtr tuck=(!want&&front!=IntPtr.Zero&&!panelFront&&!overlayFront)?front:IntPtr.Zero;
+            // Do not tuck the panel under whichever window is in front. That window
+            // may be a different Kavros client.
+            IntPtr tuck=IntPtr.Zero;
             if(floatingPanel!=null&&floatingPanel.IsHandleCreated&&floatingPanel.Visible)
                 ApplySurfaceOrder(floatingPanel.Handle,want,tuck,ref panelTop,ref panelTopKnown);
             else panelTopKnown=false;
@@ -1022,10 +1062,9 @@ namespace KavrosClueHelper
         {
             if (floatingPanel != null) floatingPanel.SetQuickOption(waitingSlider != null && current != null && current.Kind == PuzzleKind.Sliding);
             UpdateFloatingPanel();
-            // Stay on the puzzle when another Kavros helper is in front, and stay
-            // owned by the game when an unrelated application is in front, so the
-            // marks do not float over Discord or the browser.
-            if (offline || !draw.Checked || current == null || marks.Count == 0 || SelectedWindow == IntPtr.Zero || !Native.IsWindow(SelectedWindow) || Native.IsIconic(SelectedWindow))
+            // Marks stay on the client this helper is reading. Another window in
+            // front, or covering that client, hides them.
+            if (!trackedVisible || offline || !draw.Checked || current == null || marks.Count == 0 || SelectedWindow == IntPtr.Zero || !Native.IsWindow(SelectedWindow) || Native.IsIconic(SelectedWindow))
             { if(overlay.Visible) overlay.Hide(); return; }
             Rectangle client = Native.ClientBounds(SelectedWindow);
             Rectangle screen = current.Bounds; screen.Offset(client.Location);

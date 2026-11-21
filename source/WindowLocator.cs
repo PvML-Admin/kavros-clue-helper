@@ -190,7 +190,24 @@ namespace KavrosClueHelper
             if (game == IntPtr.Zero) return false;
             IntPtr foreground = Native.GetForegroundWindow();
             if (foreground == IntPtr.Zero) return false;
-            return foreground == game || Native.GetAncestor(foreground, 2) == game || (Native.GetAncestor(foreground, 3) == Native.GetAncestor(game, 3) && Native.GetAncestor(game, 3) != IntPtr.Zero);
+            // Only this window or a child of it. Another Kavros client that shares
+            // an owner is a different window and is not this client.
+            return foreground == game || Native.GetAncestor(foreground, 2) == game;
+        }
+        public static bool BelongsTo(IntPtr game, Point point, IntPtr[] own)
+        {
+            if (game == IntPtr.Zero) return false;
+            IntPtr hit = Native.WindowFromPoint(new Native.PointStruct { X = point.X, Y = point.Y });
+            if (hit == IntPtr.Zero) return false;
+            if (hit == game || Native.GetAncestor(hit, 2) == game) return true;
+            if (own == null) return false;
+            for (int i = 0; i < own.Length; i++)
+            {
+                IntPtr window = own[i];
+                if (window == IntPtr.Zero) continue;
+                if (hit == window || Native.GetAncestor(hit, 2) == window) return true;
+            }
+            return false;
         }
         // Companion, AFK Warden, the Slayer helper and this helper. Not the launcher
         // and not the game itself (the game is handled by IsForeground).

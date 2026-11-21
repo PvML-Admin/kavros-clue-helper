@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.16
+
+v0.7.16: The floating panel and the puzzle marks stay on the Kavros client the helper is reading. They follow that window, and they hide when it is minimised or when another window is in front. The panel header shows the character name from Companion, or Client 1, Client 2, and so on.
+
+Settings shows **Made by Zenity · v0.7.16**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.15
 
 v0.7.15: The client list shows only your Kavros clients. Client 1, Client 2, and Client 3 match the clients you have open. A name saved by Companion is still shown.

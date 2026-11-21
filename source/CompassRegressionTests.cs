@@ -101,8 +101,8 @@ namespace KavrosClueHelper
                 Check(FloatingPanelLayout.Place(new Rectangle(-1920,0,1920,1080),new Size(400,556),new Point(12,72),new Rectangle(-1920,0,3840,1080)).Location==new Point(-1908,72),"floating panel follows client coordinates on a negative monitor");
                 Rectangle clamp=FloatingPanelLayout.Place(new Rectangle(0,0,800,600),new Size(400,556),new Point(900,900),new Rectangle(0,0,1920,1080));Check(clamp.Right<=800&&clamp.Bottom<=600,"panel is kept on the visible game area");
                 Check(!FloatingPanelLayout.Visible(true,false,true,true,true,false,false),"minimising the game hides the panel");
-                Check(FloatingPanelLayout.Visible(true,false,true,false,false,false,false),"another app in front leaves the panel visible");
-                Check(FloatingPanelLayout.Visible(true,false,false,false,false,false,false),"panel stays visible while the helper waits for a client");
+                Check(!FloatingPanelLayout.Visible(true,false,true,false,false,false,false),"another window in front hides the panel");
+                Check(!FloatingPanelLayout.Visible(true,false,false,false,false,false,false),"the panel stays hidden until its client is in front");
                 Check(FloatingPanelLayout.Visible(true,false,true,false,false,true,false),"panel remains usable while its controls have focus");
                 Check(!FloatingPanelLayout.Visible(true,true,true,false,true,false,false),"offline screenshot mode never overlays the live game");
                 string prefFile=Path.Combine(dir,"test-overlay-preferences.txt");
