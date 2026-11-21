@@ -130,29 +130,51 @@ namespace KavrosClueHelper
             }
         }
 
+        private static int ClickCount(int[] board,IList<int> moves)
+        {
+            List<int> clicks;
+            return SlidingRoute.TryClickRoute(board,moves,out clicks)?clicks.Count:int.MaxValue;
+        }
+        private static bool Solves(int[] initial,IList<int> moves)
+        {
+            if(!SlidingRoute.Playable(initial,moves))return false;
+            int[] board=(int[])initial.Clone();
+            foreach(int next in moves){int blank=Array.IndexOf(board,24);board[blank]=board[next];board[next]=24;}
+            return board.SequenceEqual(Enumerable.Range(0,25));
+        }
+        private static SlidingOptimization Fresh(int[] initial)
+        {
+            if(!SlidingSolver.IsSolvable(initial))return new SlidingOptimization{Moves=new List<int>(),LowerBound=0,Optimal=false};
+            return new SlidingOptimization{Moves=SlidingSolver.Solve(initial),LowerBound=LowerBound(initial),Optimal=false};
+        }
         internal static List<int> Prove(int[] initial, List<int> seed)
         {
-            int cost = SlidingRoute.ClickRoute(initial, seed).Count;
+            if(!SlidingSolver.IsSolvable(initial))return new List<int>();
+            List<int> clicks;
+            if(!SlidingRoute.TryClickRoute(initial,seed,out clicks))return SlidingSolver.Solve(initial);
+            int cost=clicks.Count;
             var proof = new LineProof(initial, cost);
-            return proof.Search(cost) ? Expand(initial, proof.Result) : seed;
+            List<int> proven=proof.Search(cost)?Expand(initial, proof.Result):seed;
+            return Solves(initial,proven)?proven:SlidingSolver.Solve(initial);
         }
 
         public static SlidingOptimization Solve(int[] initial,int milliseconds=2500)
         {
-            var clock=Stopwatch.StartNew();SlidingOptimization seed=SlidingOptimizer.Solve(initial,Math.Min(1000,milliseconds/2));List<int> best=seed.Moves;int clicks=SlidingRoute.ClickRoute(initial,best).Count,lower=LowerBound(initial);
-            if(clicks==lower)return new SlidingOptimization{Moves=best,LowerBound=lower,Optimal=true};
-            best=SlidingClickRefiner.Refine(initial,best,Math.Min(350,Math.Max(0,milliseconds-(int)clock.ElapsedMilliseconds)));clicks=SlidingRoute.ClickRoute(initial,best).Count;
+            if(!SlidingSolver.IsValid(initial)||!SlidingSolver.IsSolvable(initial))return new SlidingOptimization{Moves=new List<int>(),LowerBound=0,Optimal=false};
+            var clock=Stopwatch.StartNew();SlidingOptimization seed=SlidingOptimizer.Solve(initial,Math.Min(1000,milliseconds/2));List<int> best=seed.Moves;int clicks=ClickCount(initial,best),lower=LowerBound(initial);
+            if(clicks==lower&&Solves(initial,best))return new SlidingOptimization{Moves=best,LowerBound=lower,Optimal=true};
+            if(clicks==int.MaxValue){best=Fresh(initial).Moves;clicks=ClickCount(initial,best);}
+            best=SlidingClickRefiner.Refine(initial,best,Math.Min(350,Math.Max(0,milliseconds-(int)clock.ElapsedMilliseconds)));clicks=ClickCount(initial,best);
             int[] weights={5000,3500,2500,1800,1000};
             for(int i=0;i<weights.Length;i++)
             {
                 int budget=(int)Math.Max(0,(milliseconds-200-clock.ElapsedMilliseconds)/(weights.Length-i));if(budget<1)break;
-                SearchResult result=Search(initial,clicks,weights[i],budget);
-                if(result.Moves!=null){int count=SlidingRoute.ClickRoute(initial,result.Moves).Count;if(count<clicks){best=result.Moves;clicks=count;}if(weights[i]==1000)return new SlidingOptimization{Moves=best,LowerBound=clicks,Optimal=true};}
-                else if(result.Exhausted)return new SlidingOptimization{Moves=best,LowerBound=clicks,Optimal=true};
+                SearchResult result=Search(initial,clicks==int.MaxValue?lower+8:clicks,weights[i],budget);
+                if(result.Moves!=null){int count=ClickCount(initial,result.Moves);if(count<clicks){best=result.Moves;clicks=count;}if(weights[i]==1000&&Solves(initial,best))return new SlidingOptimization{Moves=best,LowerBound=clicks,Optimal=true};}
+                else if(result.Exhausted&&Solves(initial,best))return new SlidingOptimization{Moves=best,LowerBound=clicks,Optimal=true};
             }
-            best=SlidingClickRefiner.Refine(initial,best,(int)Math.Max(0,milliseconds-clock.ElapsedMilliseconds));clicks=SlidingRoute.ClickRoute(initial,best).Count;
-            int[] board=(int[])initial.Clone();foreach(int next in best){int blank=Array.IndexOf(board,24);if(!SlidingSolver.Neighbours(blank).Contains(next))throw new InvalidOperationException("Invalid click route");board[blank]=board[next];board[next]=24;}
-            if(!board.SequenceEqual(Enumerable.Range(0,25)))throw new InvalidOperationException("Click route did not solve the board");
+            best=SlidingClickRefiner.Refine(initial,best,(int)Math.Max(0,milliseconds-clock.ElapsedMilliseconds));clicks=ClickCount(initial,best);
+            if(!Solves(initial,best))return Fresh(initial);
             return new SlidingOptimization{Moves=best,LowerBound=lower,Optimal=clicks==lower};
         }
     }

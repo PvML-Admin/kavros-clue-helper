@@ -71,9 +71,12 @@ namespace KavrosClueHelper
                         using(AnalysisResult missed=engine.Analyze(oldArea,3102,false,CancellationToken.None,true))
                         {
                             Check(missed.Plan==null,"old puzzle area contains only scenery after puzzle moves");
-                            Check(search.Complete(true,false),"a missed region requires an immediate full-window retry");
+                            Check(!search.Complete(true,false),"one confident miss keeps the known puzzle region");
                         }
-                        Check(search.Choose(moved.Size,previous)==full,"stale coordinates cannot keep the next capture in the wrong spot");
+                        Check(search.Choose(moved.Size,previous)!=full,"one miss does not abandon the puzzle region");
+                        for(int i=1;i<CaptureSearch.MissesBeforeSearch-1;i++)Check(!search.Complete(true,false),"miss "+(i+1)+" still watches the puzzle region");
+                        Check(search.Complete(true,false),"several confident misses return to a full-window search");
+                        Check(search.Choose(moved.Size,previous)==full,"after several misses the next capture searches the whole window");
                         using(AnalysisResult reacquired=engine.Analyze(moved,3102,false,CancellationToken.None,true))
                         {
                             Check(reacquired.Plan!=null && reacquired.Plan.Puzzle.Kind==PuzzleKind.Lockbox,"moved puzzle is found on the immediate full-window retry");

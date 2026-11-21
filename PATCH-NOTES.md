@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.11
+
+v0.7.11: A slide route that does not match the board is solved again instead of closing the helper. A puzzle stays tracked in the area where it was found. Clue cards are shorter, and a fairy ring is a small tip at the bottom of the card.
+
+Settings shows **Made by Zenity · v0.7.11**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.10
 
 v0.7.10: Rescan reads the puzzle that is on screen again. A slide route is solved from the current tiles, including when a move does not match the old route. The hard cryptic about four blades is the Lumbridge windmill, top floor. A Dave's spellbook step notes that it is bought from the Vote shop.

@@ -60,7 +60,9 @@ namespace KavrosClueHelper
                 bool lunar = LodestoneIcons.InView(box, 3212, 3219, span, 0, 0, 2088, 3911, out screen);
                 Check(!lunar, "Lunar Isle lodestone is outside the Lumbridge Castle grounds view");
                 MasterClue charm = MasterClues.ById(240);
-                Check(charm.Travel.Contains("Fastest:") && charm.Travel.Contains("Gnome Course") && charm.Travel.Contains("Alternatively:") && !charm.Travel.Contains("[VERIFY]"), "charm sprite route");
+                Check(charm.Travel.StartsWith("Fastest: Traveller's necklace > The Outpost") && charm.Travel.Contains("Ctrl+T > Monsters > Rune dragons") && charm.Travel.Contains("Ctrl+T > Skilling > Agility > 1/85 - Gnome Course") && charm.Travel.IndexOf("farming", StringComparison.OrdinalIgnoreCase) < 0 && charm.Travel.IndexOf("surge", StringComparison.OrdinalIgnoreCase) < 0 && charm.Travel.IndexOf("bladed dive", StringComparison.OrdinalIgnoreCase) < 0, "charm sprite route");
+                string pit = MasterClues.ById(233).Travel;
+                Check(pit.StartsWith("Fastest: Ctrl+T > Locations > Fight Caves") && pit.Contains("Final step: Run south") && pit.Contains("Clue: Cheer. Wear Fire cape, Toktz-ket-xil, Spork.") && pit.IndexOf("Alternatively:", StringComparison.Ordinal) < 0 && pit.IndexOf("fairy", StringComparison.OrdinalIgnoreCase) < 0, "sulphur pit route");
                 using (MasterClueView view = new MasterClueView())
                 {
                     view.SetBounds(0, 0, 460, 480);
@@ -70,19 +72,20 @@ namespace KavrosClueHelper
                 }
                 var routes = File.ReadAllLines(Path.Combine(assets, "data", "scan-routes.tsv")).Select(l => l.Split('\t')).Where(f => f.Length == 2).ToDictionary(f => int.Parse(f[0]), f => f[1]);
                 Check(routes[358] == "Not available on Kavros.", "Mos Le'Harmless is not available on Kavros");
+                Check(routes[371].Contains("Fastest: Beast tab (F3, or click the Adventures tab) > Telos") && routes[371].Contains("Alternatively: Ctrl+T > Locations > Nardah") && routes[371].Contains("Third option: Fairy ring DLQ") && routes[371].Contains("Tip: make a portable fairy ring in ;;ig, or buy an unlimited one for 5 Kavros dollars."), "Heart of Gielinor route");
                 Check(routes[363].Contains("Monsters > Yaks") && routes[363].Contains("rope bridge") && routes[363].IndexOf("boat", StringComparison.OrdinalIgnoreCase) < 0, "Jatizso route uses the yak pen");
                 foreach (MasterClue clue in MasterClues.All)
                 {
                     Check(clue.Travel.Contains("Fastest:") && !clue.Travel.Contains("[VERIFY]") && !clue.Travel.Contains("Note:"), "master route " + clue.Id);
                     if (clue.Travel.IndexOf("Fairy ring", StringComparison.OrdinalIgnoreCase) >= 0)
-                        Check(clue.Travel.Contains("Portable fairy ring can be made in ;;ig. An unlimited version can be bought for 5 Kavros dollars."), "fairy tooltip on master " + clue.Id);
+                        Check(clue.Travel.Contains("Tip: make a portable fairy ring in ;;ig, or buy an unlimited one for 5 Kavros dollars."), "fairy tooltip on master " + clue.Id);
                 }
                 foreach (var pair in routes)
                 {
                     if (pair.Key == 358) continue;
                     Check(pair.Value.Contains("Fastest:") && !pair.Value.Contains("[VERIFY]") && !pair.Value.Contains("Note:"), "scan route " + pair.Key);
                     if (pair.Value.IndexOf("Fairy ring", StringComparison.OrdinalIgnoreCase) >= 0 || pair.Value.IndexOf("fairy ring", StringComparison.OrdinalIgnoreCase) >= 0)
-                        Check(pair.Value.Contains("Portable fairy ring can be made in ;;ig. An unlimited version can be bought for 5 Kavros dollars."), "fairy tooltip on scan " + pair.Key);
+                        Check(pair.Value.Contains("Tip: make a portable fairy ring in ;;ig, or buy an unlimited one for 5 Kavros dollars."), "fairy tooltip on scan " + pair.Key);
                 }
                 var vision = new ScanVision(assets);
                 ScanRegion mos = vision.Regions.Single(r => r.Id == 358);
