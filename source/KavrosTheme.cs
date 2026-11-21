@@ -42,8 +42,8 @@ namespace KavrosClueHelper
         public static readonly Color TitleBar = Color.FromArgb(13, 22, 32);    // #0d1620
         public static readonly Color Frame = Color.FromArgb(36, 56, 74);       // #24384a
 
-        // Set to false to show the live capture preview sharp instead of dimmed.
-        public static readonly bool BlurPreview = true;
+        // The player turns this on from Settings. Off leaves the preview sharp.
+        public static bool BlurPreview;
 
         private const string DisplayResource = "CinzelKavros-Regular.ttf";
         private static FontFamily display;
@@ -507,10 +507,10 @@ namespace KavrosClueHelper
                         g.PixelOffsetMode = PixelOffsetMode.Half;
                         g.DrawImage(h.Blur, fit);
                     }
-                    else g.DrawImage(image, fit);
+                    else DrawSharp(g, image, fit);
                     using (Brush dim = new SolidBrush(Color.FromArgb(110, KavrosTheme.BgDeep))) g.FillRectangle(dim, fit);
                 }
-                else g.DrawImage(image, fit);
+                else DrawSharp(g, image, fit);
             }
             else
                 TextRenderer.DrawText(g, "No capture yet", KavrosTheme.Ui(8.5F, false), client, KavrosTheme.TextFaint, KavrosTheme.BgDeep, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
@@ -521,6 +521,14 @@ namespace KavrosClueHelper
             KavrosTheme.FillRounded(g, chip, 3, Color.FromArgb(7, 13, 19), KavrosTheme.LineSoft);
             TextRenderer.DrawText(g, tag, KavrosTheme.Ui(7F, true), chip, KavrosTheme.TextSoft, Color.FromArgb(7, 13, 19), TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             using (Pen edge = new Pen(KavrosTheme.LineSoft)) g.DrawRectangle(edge, 0, 0, client.Width - 1, client.Height - 1);
+        }
+
+        internal static void DrawSharp(Graphics g, Image image, Rectangle fit)
+        {
+            bool pixels = image.Width > 0 && image.Height > 0 && Math.Min(fit.Width / (double)image.Width, fit.Height / (double)image.Height) >= 2;
+            g.InterpolationMode = pixels ? InterpolationMode.NearestNeighbor : InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = pixels ? PixelOffsetMode.Half : PixelOffsetMode.HighQuality;
+            g.DrawImage(image, fit);
         }
 
         private static Rectangle Fit(Size image, Rectangle box)

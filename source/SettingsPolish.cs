@@ -27,7 +27,7 @@ namespace KavrosClueHelper
             body.Cards.Add(new MainSurface.Card { Label = "DETECTION OPTIONS", Bounds = new Rectangle(16, 216, 484, 80) });
             body.Cards.Add(new MainSurface.Card { Label = "SOLUTION", Bounds = new Rectangle(16, 346, 484, 503) });
             foreach (CheckBox c in body.Controls.OfType<CheckBox>())
-                if (c != floatingEnabled && c != checkUpdates) c.BackColor = KavrosTheme.Panel;
+                if (c != floatingEnabled && c != checkUpdates && c != blurPreview) c.BackColor = KavrosTheme.Panel;
             instructions.BackColor = KavrosTheme.Panel;
         }
     }

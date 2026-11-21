@@ -15,6 +15,7 @@ namespace KavrosClueHelper
         public bool ShortestSlider = true;
         public bool WholeRowClicks=true;
         public bool CheckForUpdates = true;
+        public bool BlurPreview;
         public Point Offset=new Point(12,72);
         public readonly List<CompassPosition> SavedPositions=new List<CompassPosition>();
         private readonly string path;
@@ -32,6 +33,7 @@ namespace KavrosClueHelper
                     if(p.Length==2&&p[0]=="shortest-slider"&&Boolean.TryParse(p[1],out b))ShortestSlider=b;
                     if(p.Length==2&&p[0]=="whole-row-clicks")WholeRowClicks=true;
                     if(p.Length==2&&p[0]=="check-updates"&&Boolean.TryParse(p[1],out b))CheckForUpdates=b;
+                    if(p.Length==2&&p[0]=="blur-preview"&&Boolean.TryParse(p[1],out b))BlurPreview=b;
                     if(p.Length==3&&p[0]=="offset"&&Int32.TryParse(p[1],out x)&&Int32.TryParse(p[2],out y))Offset=new Point(x,y);
                     if(p.Length==5&&p[0]=="spot"&&Int32.TryParse(p[2],out x)&&Int32.TryParse(p[3],out y))
                     {
@@ -52,6 +54,7 @@ namespace KavrosClueHelper
                 lines.Add("shortest-slider\t"+ShortestSlider);
                 lines.Add("whole-row-clicks\t"+WholeRowClicks);
                 lines.Add("check-updates\t"+CheckForUpdates);
+                lines.Add("blur-preview\t"+BlurPreview);
                 lines.AddRange(SavedPositions.Select(p=>"spot\t"+Uri.EscapeDataString(p.Name)+"\t"+p.X+"\t"+p.Y+"\t"+p.Radius.ToString(CultureInfo.InvariantCulture)));
                 File.WriteAllLines(path,lines);
             }
@@ -443,7 +446,15 @@ namespace KavrosClueHelper
             }
             if(undoOrContinue!=null)undoOrContinue.Text=session.HasPrevious?"Continue":"Undo";
             bool stable=session.Stable(DateTime.UtcNow);
-            if(mode==PuzzleKind.Compass)heading.Text=session.Current==null?"Waiting for a visible compass...":session.Current.Heading+(stable?" | stable":" | waiting for a stable reading");
+            if(mode==PuzzleKind.Compass)
+            {
+                if(session.Current!=null&&session.Current.Solved)heading.Text=session.Current.Heading;
+                else
+                {
+                    string live=session.DirectionText;
+                    heading.Text=live==null?"Waiting for a visible compass...":live+(stable?" | stable":" | waiting for a stable reading");
+                }
+            }
             if(mode==PuzzleKind.Compass)heading.ForeColor=KavrosTheme.Ice;
             if(mode==PuzzleKind.Compass)summary.Text=session.Summary;
             if(mode==PuzzleKind.Compass&&session.Candidates.Count==1&&session.Bearings.Count>=2&&!(session.Current!=null&&session.Current.Solved))
@@ -452,7 +463,7 @@ namespace KavrosClueHelper
                 if(nearby!=null)summary.Text="Matching spot: "+target.X+", "+target.Y+". Verify X before digging.\nClosest listed: "+nearby.Name+" ("+Math.Round(CompassMath.Distance(nearby.Point,target))+" tiles).";
             }
             if(mode==PuzzleKind.Compass)originStatus.Text=originSelected?"Start: "+positions.Text:"Type a lodestone name or click its map icon.";
-            record.Enabled=originSelected&&stable&&session.Current!=null&&!session.Current.Solved;
+            record.Enabled=originSelected&&session.CanRecord(SelectedPosition(),DateTime.UtcNow);
             if(mode==PuzzleKind.Compass)map.SetSession(session,fit);
         }
         private void LayoutMode()

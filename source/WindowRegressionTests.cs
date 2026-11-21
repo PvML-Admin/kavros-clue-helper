@@ -9,6 +9,21 @@ namespace KavrosClueHelper
     {
         private static int assertions;
         private static void Check(bool condition, string message) { assertions++; if (!condition) throw new Exception("FAILED: " + message); }
+        private static bool BorderedScan(Color border)
+        {
+            using (Bitmap image = new Bitmap(320, 360))
+            {
+                using (Graphics g = Graphics.FromImage(image))
+                using (Brush frame = new SolidBrush(border))
+                using (Brush paper = new SolidBrush(Color.FromArgb(210, 168, 110)))
+                {
+                    g.Clear(Color.FromArgb(24, 24, 26));
+                    g.FillRectangle(frame, 30, 20, 180, 240);
+                    g.FillRectangle(paper, 50, 40, 140, 200);
+                }
+                return ScrollAreas.Find(new Pixels(image), true).Count > 0;
+            }
+        }
         private static GameWindow Window(int handle, string title, string process, string className)
         { return new GameWindow { Handle = new IntPtr(handle), Title = title, ProcessName = process, ClassName = className, Client = new Rectangle(0, 0, 1920, 1080) }; }
         public static int Run(string report)
@@ -182,6 +197,7 @@ namespace KavrosClueHelper
                     ClientIdentity.ResetShareForTests(null);
                     try { if (File.Exists(pickerFile)) File.Delete(pickerFile); } catch (Exception) { }
                 }
+                Check(BorderedScan(Color.FromArgb(28, 48, 86)) && BorderedScan(Color.FromArgb(96, 68, 38)) && !BorderedScan(Color.FromArgb(180, 30, 30)), "a scan accepts a modern blue border and a legacy brown border");
                 File.AppendAllText(report, "\r\nV0.2.1 WINDOW REGRESSIONS PASS: " + assertions + " assertions.\r\nCovers late launch, restart, launcher exclusion, renamed client, multiple windows and stable selection.\r\n");
                 return 0;
             }

@@ -79,7 +79,7 @@ namespace KavrosClueHelper
                 Check(session.Candidates.Contains(target),"first bearing keeps the true target");
                 Check(!session.Record(a,now.AddMilliseconds(400)),"same position and direction cannot be duplicated");
                 session.Observe(null,now.AddMilliseconds(500));
-                Check(!session.Stable(now.AddMilliseconds(500)),"a concealed or closed compass cannot be recorded");
+                Check(session.Stable(now.AddMilliseconds(500)),"one missed frame keeps the stable reading");
                 for(int i=0;i<3;i++)session.Observe(new CompassReading{Angle=CompassMath.Direction(b.Point,target),Error=0.002},now.AddMilliseconds(600+i*200));
                 Check(session.Record(b,now.AddMilliseconds(1000)),"second stable reading can be recorded");
                 Check(session.Candidates.Contains(target)&&session.Candidates.Count<10,"two independent rays narrow the elite locations and retain the correct target");
@@ -90,6 +90,21 @@ namespace KavrosClueHelper
                 session.Observe(null,now);
                 for(int i=0;i<3;i++)session.Observe(new CompassReading{Angle=0,Error=0.002},now.AddMilliseconds(i*200));
                 Check(!session.Record(a,now.AddSeconds(3)),"stale readings cannot be recorded");
+                session.NewClue();
+                DateTime steady=new DateTime(2026,1,1,0,0,0,DateTimeKind.Utc);
+                double centre=1.2,step=0.6*Math.PI/180;
+                for(int i=0;i<5;i++)session.Observe(new CompassReading{Angle=centre+(i%2==0?step:-step),Error=0.002},steady.AddMilliseconds(i*120));
+                Check(session.Stable(steady.AddMilliseconds(480)),"+-0.6 deg jitter becomes stable");
+                Check(session.Record(a,steady.AddMilliseconds(480))&&Math.Abs(CompassMath.Difference(session.Bearings[session.Bearings.Count-1].Angle,centre))<step,"record stores the circular mean of a jittered heading");
+                session.NewClue();
+                for(int i=0;i<2;i++)session.Observe(new CompassReading{Angle=0.4,Error=0.002},steady.AddMilliseconds(i*120));
+                session.Observe(null,steady.AddMilliseconds(240));
+                session.Observe(new CompassReading{Angle=0.4,Error=0.002},steady.AddMilliseconds(360));
+                Check(session.Stable(steady.AddMilliseconds(360)),"one null frame doesn't reset");
+                session.NewClue();
+                for(int i=0;i<3;i++)session.Observe(new CompassReading{Angle=0.8,Error=0.002},steady.AddMilliseconds(i*120));
+                Check(session.Stable(steady.AddMilliseconds(240+2000))&&!session.Stable(steady.AddMilliseconds(240+2100))&&!session.Record(a,steady.AddMilliseconds(240+2100)),"latch expires after about 2 seconds");
+                Check(session.CanRecord(a,steady.AddMilliseconds(240))==session.Stable(steady.AddMilliseconds(240)),"Record accepts the same heading the button calls stable");
                 var engine=new PuzzleAnalysisEngine(assets);
                 using(Bitmap arrow=Fixture(assets,Math.PI/4))
                 using(Bitmap game=new Bitmap(Path.Combine(assets,"test_assets","capture","reported-full-game.png")))
@@ -106,8 +121,13 @@ namespace KavrosClueHelper
                 Check(FloatingPanelLayout.Visible(true,false,true,false,false,true,false),"panel remains usable while its controls have focus");
                 Check(!FloatingPanelLayout.Visible(true,true,true,false,true,false,false),"offline screenshot mode never overlays the live game");
                 string prefFile=Path.Combine(dir,"test-overlay-preferences.txt");
-                var preferences=new OverlayPreferences(prefFile);preferences.Offset=new Point(-45,106);preferences.SavedPositions.Add(new CompassPosition{Name="Kavros test",X=3000,Y=3300,Radius=2});preferences.Save();
-                var loaded=new OverlayPreferences(prefFile);Check(loaded.Offset==preferences.Offset&&loaded.SavedPositions.Single().Name=="Kavros test","panel position and custom Kavros coordinates persist");File.Delete(prefFile);
+                Check(!new OverlayPreferences(prefFile).BlurPreview,"live preview blur is off until the player turns it on");
+                var preferences=new OverlayPreferences(prefFile);preferences.Offset=new Point(-45,106);preferences.BlurPreview=true;preferences.SavedPositions.Add(new CompassPosition{Name="Kavros test",X=3000,Y=3300,Radius=2});preferences.Save();
+                var loaded=new OverlayPreferences(prefFile);Check(loaded.Offset==preferences.Offset&&loaded.SavedPositions.Single().Name=="Kavros test"&&loaded.BlurPreview,"panel position, blur and custom Kavros coordinates persist");File.Delete(prefFile);
+                using(Bitmap small=new Bitmap(10,10))using(Bitmap grown=new Bitmap(40,40))using(Graphics up=Graphics.FromImage(grown))
+                {PreviewStyle.DrawSharp(up,small,new Rectangle(0,0,40,40));Check(up.InterpolationMode==InterpolationMode.NearestNeighbor,"a sharp preview keeps pixels when scaling up");}
+                using(Bitmap large=new Bitmap(80,80))using(Bitmap shrunk=new Bitmap(40,40))using(Graphics down=Graphics.FromImage(shrunk))
+                {PreviewStyle.DrawSharp(down,large,new Rectangle(0,0,30,30));Check(down.InterpolationMode==InterpolationMode.HighQualityBicubic&&down.PixelOffsetMode==PixelOffsetMode.HighQuality,"a sharp preview stays smooth when scaling down");}
                 File.AppendAllText(report,"V0.4.0 COMPASS / FLOATING PANEL CORE PASS: "+assertions+" assertions.\r\nSynthetic reader fixtures, both calibration tables, candidate filtering, stable-frame gating, resets, layout and persistence checked. Live Kavros compass pixels are not available in this test run.\r\n");return 0;
             }
             catch(Exception e){File.AppendAllText(report,e+"\r\n");return 1;}

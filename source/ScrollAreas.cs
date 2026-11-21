@@ -6,10 +6,13 @@ namespace KavrosClueHelper
 {
     public static class ScrollAreas
     {
+        private static bool ModernBorder(Color c){return c.R<65&&c.G<100&&c.B<110&&c.G>=c.R&&c.B>=c.R;}
+        // Legacy interface mode draws the same window in brown stone instead of slate blue.
+        private static bool LegacyBorder(Color c){return c.R>=55&&c.R<=160&&c.G>=35&&c.G<=130&&c.B>=15&&c.B<=90&&c.R>=c.G-8&&c.G>=c.B&&(c.R-c.B)>=20&&(c.G-c.B)>=8;}
         private static bool ScanBorder(Pixels p,Rectangle r)
         {
             int dark=0;foreach(double f in new[]{0.25,0.5,0.75})foreach(int side in new[]{-1,1})
-            {int x=side<0?r.Left-12:r.Right+12,y=r.Top+(int)(r.Height*f);Color c=p.Get(x,y);if(c.R<65&&c.G<100&&c.B<110&&c.G>=c.R&&c.B>=c.R)dark++;}
+            {int x=side<0?r.Left-12:r.Right+12,y=r.Top+(int)(r.Height*f);Color c=p.Get(x,y);if(ModernBorder(c)||LegacyBorder(c))dark++;}
             return dark>=3;
         }
         // Locate tall parchment before searching glyphs. This avoids treating
