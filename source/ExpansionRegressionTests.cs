@@ -66,8 +66,8 @@ namespace KavrosClueHelper
                     var engine=new PuzzleAnalysisEngine(assets);
                     using(Bitmap settled=TestFixtures.KnotModal())
                     {
-                        using(AnalysisResult first=engine.Analyze(settled,6000,false,CancellationToken.None,true)){}
-                        using(AnalysisResult next=engine.Analyze(settled,6000,false,CancellationToken.None,true))check(next.Plan!=null&&!next.Plan.KnotMoving,"Knot acquires settled counts");
+                        KnotSpeedTests.Verify(check,assets,settled,clean.Bounds);
+                        using(AnalysisResult next=engine.Analyze(settled,6000,false,CancellationToken.None,true))check(next.Plan!=null&&!next.Plan.KnotMoving,"Knot keeps settled counts");
                         using(Bitmap moving=(Bitmap)settled.Clone())
                         {
                             using(Graphics g=Graphics.FromImage(moving))using(Brush bg=new SolidBrush(Color.FromArgb(159,145,86)))g.FillRectangle(bg,clean.Bounds);

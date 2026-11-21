@@ -208,10 +208,14 @@ namespace KavrosClueHelper
                         cached=null;solveKey=null;
                     }
                 }
-                if(livePolling&&cached!=null&&last!=null&&SteadyPolicy.HoldsThroughMisses(last.Kind)&&puzzle.Kind==last.Kind&&puzzle.Bounds.IntersectsWith(last.Bounds))
+                bool confidentKnot=puzzle.Kind==PuzzleKind.Knot&&puzzle.Knot!=null&&puzzle.Knot.Reliable;
+                if(confidentKnot)boardChange.Reset();
+                else if(livePolling&&cached!=null&&last!=null&&SteadyPolicy.HoldsThroughMisses(last.Kind)&&puzzle.Kind==last.Kind&&puzzle.Bounds.IntersectsWith(last.Bounds))
                 {
                     // A click changes the board for good; a misread lasts one
                     // frame. Show the new board only once it is read twice.
+                    // A confident knot is not held here. Its own tracker shows
+                    // the first still reading and waits only while a ring is turning.
                     if(!boardChange.Accept(last.Key,puzzle.Key)){boardHold.Seen();return Held(timer.ElapsedMilliseconds);}
                 }
                 else boardChange.Reset();

@@ -134,6 +134,13 @@ namespace KavrosClueHelper
             int i = (y * Width + x) * 4;
             return Math.Abs(data[i + 2] - b.R) + Math.Abs(data[i + 1] - b.G) + Math.Abs(data[i] - b.B);
         }
+        public static bool TowerCell(Color c)
+        {
+            // Modern cells are dark slate, with blue at least as strong as red.
+            if (c.R < 80 && c.G < 100 && c.B < 110 && c.G >= c.R && c.B >= c.R) return true;
+            // Legacy cells are dark brown stone. Red leads and blue stays behind it.
+            return c.R >= 45 && c.R <= 100 && c.G >= 35 && c.G <= 90 && c.B >= 18 && c.B <= 75 && c.R >= c.G - 4 && c.G + 8 >= c.B && c.R - c.B >= 12 && c.R - c.B <= 45;
+        }
         public bool GridPixel(int x, int y)
         {
             if (x < 0 || y < 0 || x >= Width || y >= Height) return false;
@@ -830,7 +837,7 @@ namespace KavrosClueHelper
                 for(int cell=0;cell<25;cell++) foreach(Point offset in new[]{new Point(10,10),new Point(8,21),new Point(10,31),new Point(31,31)})
                 {
                     Color colour=p.Get(35+cell%5*44+offset.X,35+cell/5*44+offset.Y);
-                    if(colour.R<80 && colour.G<100 && colour.B<110 && colour.G>=colour.R && colour.B>=colour.R) dark++;
+                    if(Pixels.TowerCell(colour)) dark++;
                 }
                 if(dark<85) return null;
                 TowerPuzzle puzzle = new TowerPuzzle { Top = new int[5], Bottom = new int[5], Left = new int[5], Right = new int[5] };
@@ -875,7 +882,7 @@ namespace KavrosClueHelper
                 for(int cell=0;cell<25;cell++)
                 {
                     Color colour=p.Get(35+cell%5*44+21, 35+cell/5*44+21);
-                    if(colour.R<80&&colour.G<100&&colour.B<110&&colour.G>=colour.R&&colour.B>=colour.R)dark++;
+                    if(Pixels.TowerCell(colour))dark++;
                 }
                 if(dark<8)return null;
                 return new DetectedPuzzle{Kind=PuzzleKind.Towers,Bounds=area,Grid=previous.Grid,Scale=previous.Scale,Towers=previous.Towers,TowerSolutions=previous.TowerSolutions,Confidence=previous.Confidence};
@@ -905,7 +912,7 @@ namespace KavrosClueHelper
                             {
                                   int blue=0;
                                   foreach(int cell in new[]{0,4,12,20,24})
-                                  {Color c=pixels.Get(grid.X+(int)Math.Round((cell%5*44+10)*scale),grid.Y+(int)Math.Round((cell/5*44+10)*scale));if(c.R<80&&c.G<100&&c.B<110&&c.G>=c.R&&c.B>=c.R)blue++;}
+                                  {Color c=pixels.Get(grid.X+(int)Math.Round((cell%5*44+10)*scale),grid.Y+(int)Math.Round((cell/5*44+10)*scale));if(Pixels.TowerCell(c))blue++;}
                                   if(blue<3){start=-1;continue;}
                                 bool lines = true;
                                 for (int row = 0; row <= 5 && lines; row++)

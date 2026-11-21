@@ -1,5 +1,18 @@
 # Kavros Clue Helper
 
+## 0.7.19
+
+**Legacy interface**
+- Tower clues are read on the older brown stone grid as well as the dark blue one.
+- The lockbox, the Celtic knot, and the compass arrow are read on the legacy window.
+- The compass also looks at the in-between size a 1440p client uses.
+- A scan clue on the legacy side parchment is read, including when you are too far away and nothing scans.
+- Minimap tracking can lock onto the round legacy orb from its H button.
+
+**Celtic knot**
+- Ring counts show as soon as a still knot is read clearly. A ring that is still turning waits until it stops, so a half-turned frame cannot change the numbers.
+- Tiles that have not changed are not read again.
+
 ## 0.7.18
 
 **Compass**

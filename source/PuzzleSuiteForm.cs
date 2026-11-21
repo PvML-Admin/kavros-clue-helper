@@ -670,7 +670,10 @@ namespace KavrosClueHelper
                 if(result.Pending&&current!=null&&DetectionPolicy.IsBoardPuzzle(current.Kind)&&current.Kind!=PuzzleKind.Knot&&current.Kind!=PuzzleKind.Sliding)
                 {status.Text="Puzzle covered. Keeping the last reading.";nextRead=DateTime.UtcNow.AddMilliseconds(120);ShowGuidance();return;}
                 if(result.Pending&&current!=null&&current.Kind==PuzzleKind.Knot)
-                {marks=marks.Select(m=>new GuidanceMark{Box=m.Box,Text=m.Text,Colour=Color.Silver,Corner=m.Corner,Compact=m.Compact,Outline=m.Outline}).ToList();summary.Text="Updating counts - grey numbers show the last confirmed reading.";nextRead=DateTime.UtcNow.AddMilliseconds(75);ShowGuidance();return;}
+                {
+                    // A missed frame is not a turn. Keep the counts that are already up.
+                    status.Text="Reading the knot again.";nextRead=DateTime.UtcNow.AddMilliseconds(75);ShowGuidance();return;
+                }
                 if(!job.Offline&&result.Plan==null&&result.TowerGrid.HasValue)
                 {
                     // The towers grid is open but its edge clues are still

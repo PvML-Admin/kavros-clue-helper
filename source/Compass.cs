@@ -32,7 +32,7 @@ namespace KavrosClueHelper
         private readonly Dictionary<float,Point[]> paperProbes=new Dictionary<float,Point[]>();
         private readonly double[][] off,msaa;
         private readonly double amplitude,phase,offset;
-        private readonly float[] scales={0.8F,1F,8F/9F,1.25F,1.5F,2F};
+        private readonly float[] scales={0.8F,1F,8F/9F,1.25F,4F/3F,1.5F,2F};
         public CompassVision(string assets)
         {
             string dir=Path.Combine(assets,"compass");

@@ -11,10 +11,11 @@ namespace KavrosClueHelper
     {
         private sealed class Glyphs
         {
-            public int Width, Height;
+            public int Width, Height, Count;
             public bool[] Ink;
         }
         private readonly Dictionary<int,Glyphs> titles = new Dictionary<int,Glyphs>();
+        private readonly List<Glyphs> outside = new List<Glyphs>();
         private Glyphs different;
         public ScanTitleReader(string assets)
         {
@@ -25,8 +26,10 @@ namespace KavrosClueHelper
             {
                 var mask = Extract(new Pixels(image), new Rectangle(Point.Empty,image.Size));
                 int id;
-                if (Int32.TryParse(Path.GetFileNameWithoutExtension(file),out id)) titles[id]=mask;
-                else if (Path.GetFileNameWithoutExtension(file)=="different") different=mask;
+                string name=Path.GetFileNameWithoutExtension(file);
+                if (Int32.TryParse(name,out id)) titles[id]=mask;
+                else if (name=="different") different=mask;
+                else if ((name=="too-far"||name=="nothing-scans")&&mask!=null) outside.Add(mask);
             }
         }
         private static bool White(Color c)
@@ -39,8 +42,8 @@ namespace KavrosClueHelper
             if(x1<x0||y1<y0)return null;
             int w=x1-x0+1,h=y1-y0+1;
             var g=new Glyphs{Width=w,Height=h,Ink=new bool[w*h]};
-            for(int y=0;y<h;y++)for(int x=0;x<w;x++)g.Ink[y*w+x]=White(p.Get(x0+x,y0+y));
-            return g;
+            for(int y=0;y<h;y++)for(int x=0;x<w;x++)if(g.Ink[y*w+x]=White(p.Get(x0+x,y0+y)))g.Count++;
+            return g.Count<8?null:g;
         }
         private static double Score(Glyphs a,Glyphs b)
         {
@@ -77,7 +80,31 @@ namespace KavrosClueHelper
             ScanRegion region=regions.Find(r=>r.Id==winner);
             if(region==null)return null;
             Glyphs message=Extract(pixels,Rectangle.FromLTRB(left,body,right,body+Math.Max(5,(int)Math.Round(paper.Height*8.0/276))));
-            return new ScanReading{Region=region,DifferentLevel=Score(message,different)>.73};
+            return new ScanReading{Region=region,DifferentLevel=Score(message,different)>.73,Outside=Outside(pixels,paper)};
+        }
+        // Legacy scan text sits on the side parchment, under the place name.
+        // The phrases are matched as white ink, the same way as the title.
+        public bool Outside(Pixels pixels, Rectangle paper)
+        {
+            if(outside.Count==0||paper.Width<30||paper.Height<30)return false;
+            foreach(Glyphs mask in outside)
+            {
+                if(mask==null||mask.Width>paper.Width||mask.Height>paper.Height)continue;
+                for(int y=paper.Top;y+mask.Height<=paper.Bottom;y++)
+                for(int x=paper.Left;x+mask.Width<=paper.Right;x++)
+                    if(Place(pixels,mask,x,y)>=0.72)return true;
+            }
+            return false;
+        }
+        private static double Place(Pixels pixels, Glyphs mask, int x, int y)
+        {
+            int both=0,white=0;
+            for(int yy=0;yy<mask.Height;yy++)for(int xx=0;xx<mask.Width;xx++)
+            {
+                bool ink=mask.Ink[yy*mask.Width+xx], on=White(pixels.Get(x+xx,y+yy));
+                if(on)white++; if(ink&&on)both++;
+            }
+            return 2.0*both/Math.Max(1,mask.Count+white);
         }
     }
 }
