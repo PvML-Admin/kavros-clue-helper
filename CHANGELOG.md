@@ -1,5 +1,15 @@
 # Kavros Clue Helper
 
+## 0.7.20
+
+**Settings**
+- Blur live preview sits in the left column, under Check for updates at startup.
+- What's new sits on the right, under Check for updates.
+
+**Clues**
+- The hard cryptic "Four blades I have, yet draw no blood" is the Lumbridge windmill (Mill Lane Mill, between Lumbridge and Draynor). Search the crates on the top floor.
+- Fastest is a combat bracelet to the Champions' Guild, then run south-west. Draynor Village lodestone, then east, is the other way. A quest cape to the Champions' Guild, then south-west, is the third. Wrapped lines and small reading mistakes still match the clue.
+
 ## 0.7.19
 
 **Legacy interface**

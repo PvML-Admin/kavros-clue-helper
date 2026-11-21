@@ -104,8 +104,12 @@ namespace KavrosClueHelper
                 string blades = "Four blades I have, yet draw no blood; Still I turn my prey to powder. If you are brave, come search my roof; It is there my blades are louder.";
                 Check(clues.MatchText(blades).Card.Id == 173, "four blades is the Lumbridge windmill");
                 Check(clues.MatchText("Four blades I have, yet draw no blood, Still I turn my prey to powder. If you are brave, come search my roof, It is there my blades are louder.").Card.Id == 173, "comma wording still matches the windmill");
+                string wrapped = "MYSTERIOUS CLUE SCROLL\nFour blades I have, yet draw no\nblood; Still I turn my prey to powder.\nIf you are brave, come search my roof;\nIt is there my blades are louder.";
+                Check(clues.MatchText(wrapped).Card.Id == 173, "wrapped windmill lines and the scroll title still match");
+                string noisy = "Four biades I have, yet draw no b1ood; Still I turn my prey to powder. If you are brave, come search my roof; It is there my blades are louder.";
+                Check(clues.MatchText(noisy).Card.Id == 173, "ocr noise still matches the windmill");
                 string mill = clues.Clues.Single(c => c.Card.Id == 173).Card.Travel;
-                Check(mill.Contains("Fastest: Draynor Village lodestone, run east") && mill.Contains("Combat bracelet > Champions' Guild, run south-west") && mill.Contains("search the crates") && mill.IndexOf("bought from the Vote shop", StringComparison.OrdinalIgnoreCase) < 0, "windmill card");
+                Check(mill.Contains("Fastest: Combat bracelet > Champions' Guild, then run south-west to the windmill.") && mill.Contains("Alternatively: Draynor Village lodestone, then run east to the windmill.") && mill.Contains("Third option: Quest cape > Champions' Guild, then run south-west to the windmill.") && mill.Contains("Final step: Climb to the top floor and search the crates.") && mill.Contains("Mill Lane Mill, between Lumbridge and Draynor") && mill.IndexOf("Tile ", StringComparison.Ordinal) < 0 && mill.IndexOf("boat", StringComparison.OrdinalIgnoreCase) < 0 && mill.IndexOf("RuneApps", StringComparison.OrdinalIgnoreCase) < 0 && mill.IndexOf("Jagex", StringComparison.OrdinalIgnoreCase) < 0, "windmill card");
                 string dave = clues.Clues.Single(c => c.Card.Id == 174).Card.Travel;
                 Check(dave.Contains("Dave's spellbook > Varrock (Museum)") && dave.IndexOf("bought from the Vote shop", StringComparison.OrdinalIgnoreCase) < 0, "Dave's spellbook note is not written into the card");
                 File.AppendAllText(report, "Map icon checks passed: " + assertions + "\n");
