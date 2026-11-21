@@ -31,6 +31,7 @@ namespace KavrosClueHelper
                 if(args.Length>1&&args[0]=="--paint-test")return PaintingRegressionTests.Run(args[1]);
                 if(args.Length>0 && args[0]=="--map-test") return MapIconRegressionTests.Run(args.Length>1 ? args[1] : "map-test-results.txt");
                 if(args.Length>0 && args[0]=="--countdown-test") return CountdownRegressionTests.Run(args.Length>1 ? args[1] : "countdown-test-results.txt");
+                if(args.Length>0 && args[0]=="--capture-test") return CaptureRegressionTests.Run(args.Length>1 ? args[1] : "capture-test-results.txt");
                 try { Native.SetProcessDpiAwarenessContext(new IntPtr(-4)); }
                 catch (EntryPointNotFoundException) { Native.SetProcessDPIAware(); }
                 Application.EnableVisualStyles();
@@ -44,7 +45,6 @@ namespace KavrosClueHelper
                     return 0;
                 }
                 if(args.Length>0 && args[0]=="--master-test") return MasterRegressionTests.Run(args.Length>1 ? args[1] : "master-test-results.txt");
-                if(args.Length>0 && args[0]=="--capture-test") return CaptureRegressionTests.Run(args.Length>1 ? args[1] : "capture-test-results.txt");
                 if(args.Length>0 && args[0]=="--discovery-test") return DiscoveryRegressionTests.Run(args.Length>1 ? args[1] : "discovery-test-results.txt");
                 if(args.Length>0 && args[0]=="--compass-test") return CompassRegressionTests.Run(args.Length>1 ? args[1] : "compass-test-results.txt");
                 if (args.Length > 0 && args[0] == "--self-test")

@@ -232,8 +232,12 @@ namespace KavrosClueHelper
                     {
                         List<int> remaining;
                         plan.SlidingWholeRows=wholeRows;
-                        if(cached!=null&&cached.Puzzle.Kind==PuzzleKind.Sliding&&cached.SlidingWholeRows==wholeRows&&cached.Puzzle.Theme==puzzle.Theme&&SlidingRoute.Advance(cached.Puzzle.Board,cached.Sliding,puzzle.Board,out remaining))
-                        {plan.Sliding=remaining;int consumed=cached.Sliding.Count-remaining.Count;plan.SlidingOptimal=cached.SlidingOptimal&&(!wholeRows||SlidingRoute.CompletedClicks(cached.Puzzle.Board,cached.Sliding,consumed)==SlidingRoute.ClickRoute(cached.Puzzle.Board,cached.Sliding.Take(consumed).ToList()).Count);SlidingRouteReuses++;}
+                        if(cached!=null&&cached.Puzzle.Kind==PuzzleKind.Sliding&&cached.SlidingWholeRows==wholeRows&&cached.Puzzle.Theme==puzzle.Theme&&SlidingRoute.Advance(cached.Puzzle.Board,cached.Sliding,puzzle.Board,out remaining)&&SlidingRoute.Playable(puzzle.Board,remaining))
+                        {
+                            plan.Sliding=remaining;int consumed=cached.Sliding.Count-remaining.Count;List<int> spent;bool clicksMatch=false;
+                            if(SlidingRoute.TryClickRoute(cached.Puzzle.Board,cached.Sliding.Take(consumed).ToList(),out spent))clicksMatch=SlidingRoute.CompletedClicks(cached.Puzzle.Board,cached.Sliding,consumed)==spent.Count;
+                            plan.SlidingOptimal=cached.SlidingOptimal&&(!wholeRows||clicksMatch);SlidingRouteReuses++;
+                        }
                         else {if(Progress!=null)Progress("Optimising slider route...");SlidingOptimization route=wholeRows?SlidingClickOptimizer.Solve(puzzle.Board):SlidingOptimizer.Solve(puzzle.Board,SliderBudget.Milliseconds);plan.Sliding=route.Moves;plan.SlidingOptimal=route.Optimal;plan.SlidingLowerBound=route.LowerBound;}
                     }
                     if(puzzle.Kind==PuzzleKind.Knot&&!knotMoving)plan.Knot=KnotSolver.Solve(puzzle.Knot);

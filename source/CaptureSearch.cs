@@ -6,7 +6,9 @@ namespace KavrosClueHelper
 {
     public sealed class CaptureSearch
     {
+        public const int MissesBeforeSearch=4;
         private bool wide=true;
+        private int misses;
         private Size size;
         public static Rectangle VisibleClient(Rectangle client, Rectangle desktop)
         {
@@ -15,20 +17,24 @@ namespace KavrosClueHelper
             visible.Offset(-client.X, -client.Y);
             return visible;
         }
-        public void Reset() { wide=true; size=Size.Empty; }
-        public void ForceFullWindow() { wide=true; }
+        public void Reset() { wide=true; misses=0; size=Size.Empty; }
+        public void ForceFullWindow() { wide=true; misses=0; }
         public Rectangle Choose(Size client, Rectangle? located)
         {
             Rectangle full=new Rectangle(Point.Empty,client);
-            bool resized=size!=client; size=client;
-            if(wide || resized || !located.HasValue) { wide=false; return full; }
-            Rectangle roi=Rectangle.Intersect(Rectangle.Inflate(located.Value,40,40),full);
+            bool resized=size.Width>0&&size!=client; size=client;
+            if(resized){wide=true;misses=0;}
+            if(wide || !located.HasValue) { wide=false; return full; }
+            Rectangle roi=Rectangle.Intersect(Rectangle.Inflate(located.Value,80,80),full);
             return roi.Width>=100 && roi.Height>=100 ? roi : full;
         }
+        // A cropped miss keeps the known puzzle region. Only several confident
+        // misses, with the puzzle actually gone, go back to the full window.
         public bool Complete(bool cropped,bool found)
         {
-            if(!cropped || found) return false;
-            wide=true; return true;
+            if(!cropped||found){if(found)misses=0;return false;}
+            if(++misses<MissesBeforeSearch)return false;
+            misses=0;wide=true;return true;
         }
     }
     public static class GameVisibility

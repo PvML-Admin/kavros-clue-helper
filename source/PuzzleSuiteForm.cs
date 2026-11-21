@@ -456,7 +456,9 @@ namespace KavrosClueHelper
         {
             CancelAnalysis(); nextRead=DateTime.MinValue;
             if(analysisEngine!=null)analysisEngine.Reset();
-            captureSearch.ForceFullWindow(); lastLocated=null;current=null;marks.Clear();canvas.Puzzle=null;canvas.Invalidate();ShowMasterView(false);
+            bool keepRegion=lastLocated!=null&&DetectionPolicy.IsBoardPuzzle(lastLocated.Kind);
+            if(!keepRegion){captureSearch.ForceFullWindow();lastLocated=null;}
+            current=null;marks.Clear();canvas.Puzzle=null;canvas.Invalidate();ShowMasterView(false);
             knotHistory=null;slidingMoves=null;slidingBoard=null;slidingTheme=null;slidingBatchNumber=1;
             if (offlineSource != null) { offlineSource.Dispose(); offlineSource = null; }
             offline = false; RefreshWindows();
@@ -591,14 +593,25 @@ namespace KavrosClueHelper
                     Rectangle hint=result.TowerGrid.Value;hint.Offset(job.CaptureOffset);
                     towerHint=hint;nextRead=DateTime.MinValue;return;
                 }
-                if(!job.Offline && captureSearch.Complete(job.Cropped,DetectionPolicy.CanTrack(result.Plan)))
+                if(!job.Offline && job.Cropped && !DetectionPolicy.CanTrack(result.Plan))
                 {
-                    compassSession.Observe(null,DateTime.UtcNow);
-                    lastLocated=null;current=null;pendingKey=null;marks.Clear();canvas.Puzzle=null;canvas.Invalidate();ShowMasterView(false);overlay.Hide();
-                    captureSearch.ForceFullWindow();requestedScan=true;nextRead=DateTime.MinValue;
-                    detected.Text="Rechecking the full game window";
-                    status.Text="The previous puzzle area changed. Searching the whole window now.";
-                    return;
+                    bool confidentMiss=result.Plan==null;
+                    if(confidentMiss&&captureSearch.Complete(true,false))
+                    {
+                        compassSession.Observe(null,DateTime.UtcNow);
+                        lastLocated=null;current=null;pendingKey=null;marks.Clear();canvas.Puzzle=null;canvas.Invalidate();ShowMasterView(false);overlay.Hide();
+                        captureSearch.ForceFullWindow();requestedScan=true;nextRead=DateTime.MinValue;
+                        detected.Text="Rechecking the full game window";
+                        status.Text="The puzzle left its area. Searching the whole window now.";
+                        return;
+                    }
+                    if(lastLocated!=null&&DetectionPolicy.IsBoardPuzzle(lastLocated.Kind))
+                    {
+                        status.Text="Reading the puzzle area again.";
+                        nextRead=DateTime.UtcNow.AddMilliseconds(80);
+                        if(current!=null)ShowGuidance();
+                        return;
+                    }
                 }
                 if(!job.Offline && result.Plan!=null)
                 {
@@ -615,6 +628,8 @@ namespace KavrosClueHelper
                     {
                         if(current!=null&&DetectionPolicy.IsBoardPuzzle(current.Kind))
                         {status.Text="Puzzle covered. Keeping the last reading.";nextRead=DateTime.UtcNow.AddMilliseconds(120);ShowGuidance();return;}
+                        if(lastLocated!=null&&DetectionPolicy.IsBoardPuzzle(lastLocated.Kind))
+                        {status.Text="Puzzle covered. Keeping its area.";nextRead=DateTime.UtcNow.AddMilliseconds(120);return;}
                         compassSession.Observe(null,DateTime.UtcNow);
                         lastLocated=null;current=null;marks.Clear();overlay.Hide();captureSearch.ForceFullWindow();
                         detected.Text="Keep the puzzle fully visible";
@@ -652,16 +667,20 @@ namespace KavrosClueHelper
                         if(fresh==null||!fresh.Board.SequenceEqual(p.Board))
                         {
                             List<int> remaining;
-                            if(fresh!=null&&SlidingRoute.Advance(p.Board,result.Plan.Sliding,fresh.Board,out remaining))
+                            if(fresh!=null&&result.Plan.Sliding!=null&&SlidingRoute.Advance(p.Board,result.Plan.Sliding,fresh.Board,out remaining)&&SlidingRoute.Playable(fresh.Board,remaining))
                             {
                                 int consumed=result.Plan.Sliding.Count-remaining.Count;
                                 bool optimal = result.Plan.SlidingOptimal;
-                                if(result.Plan.SlidingWholeRows&&SlidingRoute.CompletedClicks(p.Board,result.Plan.Sliding,consumed)!=SlidingRoute.ClickRoute(p.Board,result.Plan.Sliding.Take(consumed).ToList()).Count)optimal=false;
+                                List<int> spentClicks;
+                                bool spentOk=SlidingRoute.TryClickRoute(p.Board,result.Plan.Sliding.Take(consumed).ToList(),out spentClicks);
+                                if(result.Plan.SlidingWholeRows&&(!spentOk||SlidingRoute.CompletedClicks(p.Board,result.Plan.Sliding,consumed)!=spentClicks.Count))optimal=false;
                                 p.Board=fresh.Board;result.Plan=new PuzzlePlan { Puzzle=p, Sliding=remaining, SlidingWholeRows=result.Plan.SlidingWholeRows, SlidingOptimal=optimal };
                             }
                             else
                             {
-                                retainedClue.Reset();current=null;lastLocated=null;marks.Clear();canvas.Puzzle=null;canvas.Invalidate();ShowMasterView(false);overlay.Hide();captureSearch.ForceFullWindow();requestedScan=true;nextRead=DateTime.MinValue;
+                                Note("Slide board changed before the route was ready. Reading the same area again.");
+                                slidingMoves=null;slidingBoard=null;slidingTheme=null;
+                                retainedClue.Reset();current=null;marks.Clear();canvas.Puzzle=null;canvas.Invalidate();ShowMasterView(false);overlay.Hide();requestedScan=true;nextRead=DateTime.MinValue;
                                 status.Text="Tiles changed while finding the route. Reading the latest board...";return;
                             }
                         }
@@ -677,6 +696,7 @@ namespace KavrosClueHelper
                 if(!job.Offline&&shownClue!=null&&shownClue.Kind==PuzzleKind.Scan&&!scanChange.Accept(shownClue.Key,puzzle.Key))
                 {nextRead=DateTime.UtcNow.AddMilliseconds(100);return;}
                 lastLocated=puzzle;
+                if(DetectionPolicy.IsBoardPuzzle(puzzle.Kind))captureSearch.Complete(true,true);
                 retainedClue.Accept(puzzle);
                 if(puzzle.Kind==PuzzleKind.Compass){compassSession.Observe(puzzle.Compass,job.Offline?DateTime.UtcNow:job.CapturedAt);compassLeave.Reset();}
                 else if((compassSession.HasHistory||compassSession.Current!=null) && !compassLeave.Accept("compass", puzzle.Key))
@@ -756,10 +776,27 @@ namespace KavrosClueHelper
                 if (!SlidingSolver.IsSolvable(puzzle.Board)) { overlay.Hide(); summary.Text = "Tile recognition gave an impossible board. Rescan before moving."; canvas.Invalidate(); return; }
                 if (AwaitShortestSlider(puzzle, ref prepared)) return;
                 FollowSlider(puzzle,prepared==null?null:prepared.Sliding);
-                if (slidingMoves.Count == 0) summary.Text = "Sliding puzzle solved.";
+                if (slidingMoves==null||slidingMoves.Count == 0) summary.Text = "Sliding puzzle solved.";
                 else
                 {
-                    List<int> clicks=SlidingRoute.ClickRoute(puzzle.Board,slidingMoves);
+                    List<int> clicks;
+                    if(!SlidingRoute.TryClickRoute(puzzle.Board,slidingMoves,out clicks))
+                    {
+                        Note("Invalid slider route. Checking parity and solving the board again.");
+                        clicks=null;slidingMoves=null;
+                        if(SlidingSolver.IsSolvable(puzzle.Board))
+                        {
+                            SlidingOptimization again=SlidingClickOptimizer.Solve(puzzle.Board);
+                            if(SlidingRoute.TryClickRoute(puzzle.Board,again.Moves,out clicks)){slidingMoves=again.Moves;slidingBoard=(int[])puzzle.Board.Clone();slidingTheme=puzzle.Theme;slidingBatchNumber=1;}
+                        }
+                        if(clicks==null)
+                        {
+                            Note("Slider route could not be rebuilt. Reading the same area again.");
+                            requestedScan=true;nextRead=DateTime.MinValue;overlay.Hide();
+                            summary.Text="Reading the slide puzzle again.";status.Text="The slide route did not match the board. Reading it again.";
+                            canvas.Invalidate();return;
+                        }
+                    }
                     canvas.Next=clicks[0];
                     marks=GuidanceDrawing.SliderMarks(puzzle,clicks,slidingBatchNumber,1);
                     if(marks.Count>0){marks[0].Colour=KavrosTheme.Gold;marks[0].Pulse=true;int gap=Array.IndexOf(puzzle.Board,24);marks[0].ArrowX=gap%5-clicks[0]%5;marks[0].ArrowY=gap/5-clicks[0]/5;}

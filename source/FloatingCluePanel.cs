@@ -447,7 +447,7 @@ namespace KavrosClueHelper
                 master.Visible=expanded&&emote;sliderGuide.Visible=expanded&&sliding;map.Visible=compassControls.Visible=expanded&&compass;
                 scanMap.Visible=scanControls.Visible=expanded&&scan;heading.Visible=expanded&&(compass||scan);
                 summary.Visible=expanded&&!emote;footer.Visible=expanded;
-                summary.Top=compass||scan?330:38;summary.Height=scan?90:56;footer.Top=bottom;footer.BringToFront();
+                summary.Top=compass||scan?330:38;summary.Height=scan?176:56;footer.Top=bottom;footer.BringToFront();
                 if(banner!=null){banner.SetBounds(1,wanted.Height-BannerHeight-1,wanted.Width-2,BannerHeight);banner.Visible=bannerShown;if(bannerShown)banner.BringToFront();}
                 layoutKind=mode;layoutCollapsed=prefs.Collapsed;layoutBanner=bannerShown;
             }

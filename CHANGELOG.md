@@ -1,5 +1,16 @@
 # Kavros Clue Helper
 
+## 0.7.11
+
+**Puzzles**
+- A bad slide route no longer closes the helper. The route is checked against the tiles and their parity, and a route that does not fit is thrown away, logged, and solved again from the board on screen.
+- Once a slide, lockbox, tower or knot is found, the helper keeps reading that area through moves and rescans. It leaves the area only after several reads in a row show the puzzle is gone.
+
+**Clues**
+- Cards use one short line per step: Fastest, Alternatively, Third option, Final step, then the clue. A fairy ring is a small dim tip at the bottom of the card.
+- The charm sprite card uses Traveller's necklace to the Outpost, then Rune dragons, then the Gnome course.
+- The Heart of Gielinor scan starts at Telos from the Beast tab. The TzHaar sulphur pit starts at the Fight Caves entrance.
+
 ## 0.7.10
 
 **Puzzles**

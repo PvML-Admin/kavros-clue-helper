@@ -5,6 +5,25 @@ namespace KavrosClueHelper
 {
     public static class SlidingRoute
     {
+        public static bool Playable(int[] board,IList<int> route)
+        {
+            if(!SlidingSolver.IsValid(board)||route==null)return false;
+            int blank=Array.IndexOf(board,24);
+            for(int i=0;i<route.Count;i++)
+            {
+                int next=route[i];
+                if(next<0||next>=25||!SlidingSolver.Neighbours(blank).Contains(next))return false;
+                blank=next;
+            }
+            return true;
+        }
+        public static bool TryClickRoute(int[] initial,IList<int> route,out List<int> clicks)
+        {
+            clicks=null;
+            if(!Playable(initial,route))return false;
+            clicks=ClickRoute(initial,route);
+            return true;
+        }
         public static List<int> ClickRoute(int[] initial,IList<int> route)
         {
             var clicks=new List<int>();int blank=Array.IndexOf(initial,24),i=0;
