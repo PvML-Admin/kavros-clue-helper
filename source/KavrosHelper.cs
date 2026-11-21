@@ -338,29 +338,10 @@ namespace KavrosClueHelper
         private void RefreshWindows()
         {
             IntPtr previous = SelectedWindow;
-            List<GameWindow> found = new List<GameWindow>();
-            Native.EnumWindows(delegate(IntPtr handle, IntPtr parameter)
-            {
-                if (!Native.IsWindowVisible(handle) || handle == Handle || handle == overlay.Handle) return true;
-                StringBuilder text = new StringBuilder(512);
-                Native.GetWindowText(handle, text, text.Capacity);
-                if (text.Length > 0)
-                {
-                    uint pid;
-                    Native.GetWindowThreadProcessId(handle, out pid);
-                    found.Add(new GameWindow { Handle = handle, Title = text.ToString(), ProcessId = pid });
-                }
-                return true;
-            }, IntPtr.Zero);
-            found = found.Where(w => w.Title.IndexOf("Kavros", StringComparison.OrdinalIgnoreCase) >= 0).OrderBy(w => w.Title).ToList();
+            List<GameWindow> found = WindowLocator.Clients(WindowLocator.Enumerate(System.Diagnostics.Process.GetCurrentProcess().Id));
             windows.Items.Clear();
-            int n = 0;
-            foreach (GameWindow window in found)
-            {
-                window.Display = ClientIdentity.Label(window.ProcessId, n, window.Title);
-                n++;
-                windows.Items.Add(window);
-            }
+            WindowLocator.NameClients(found);
+            foreach (GameWindow window in found) windows.Items.Add(window);
             int selected = found.FindIndex(w => w.Handle == previous);
             if (selected >= 0) windows.SelectedIndex = selected;
             else if (previous == IntPtr.Zero && found.Count == 1) windows.SelectedIndex = 0;

@@ -1,5 +1,10 @@
 # Kavros Clue Helper
 
+## 0.7.15
+
+**Clients**
+- The client list shows only your Kavros clients. Client 1, Client 2, and Client 3 match the clients you have open. A name saved by Companion is still shown.
+
 ## 0.7.14
 
 **Clients**

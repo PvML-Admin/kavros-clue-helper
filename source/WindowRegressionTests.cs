@@ -152,6 +152,22 @@ namespace KavrosClueHelper
                     ClientIdentity.ResetShareForTests(null);
                     try { if (File.Exists(nameFile)) File.Delete(nameFile); } catch (Exception) { }
                 }
+                GameWindow[] mix = new GameWindow[] { browser, discord, archive, folder, launcher, oldHelper, companionWindow, wardenWindow, slayerWindow, clientA, clientB, clientC };
+                List<GameWindow> shown = WindowLocator.Clients(mix);
+                Check(shown.Count == 3 && shown[0] == clientA && shown[1] == clientB && shown[2] == clientC, "the picker lists only the Kavros clients");
+                string pickerFile = Path.Combine(Path.GetTempPath(), "kavros-picker-names-" + DateTime.UtcNow.Ticks.ToString() + ".json");
+                try
+                {
+                    File.WriteAllText(pickerFile, "{\"pid\":200,\"name\":\"Zezima\"}");
+                    ClientIdentity.ResetShareForTests(pickerFile);
+                    WindowLocator.NameClients(shown);
+                    Check(shown[0].Display == "Client 1" && shown[1].Display == "Zezima" && shown[2].Display == "Client 3", "Client N counts only real clients and keeps a Companion name");
+                }
+                finally
+                {
+                    ClientIdentity.ResetShareForTests(null);
+                    try { if (File.Exists(pickerFile)) File.Delete(pickerFile); } catch (Exception) { }
+                }
                 File.AppendAllText(report, "\r\nV0.2.1 WINDOW REGRESSIONS PASS: " + assertions + " assertions.\r\nCovers late launch, restart, launcher exclusion, renamed client, multiple windows and stable selection.\r\n");
                 return 0;
             }
