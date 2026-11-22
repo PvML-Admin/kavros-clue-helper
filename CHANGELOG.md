@@ -1,5 +1,12 @@
 # Kavros Clue Helper
 
+## 0.7.21
+
+**Clues**
+- Twenty-four cards use the routes checked in-game. Each card still has at most three ways: Fastest, Alternatively, and Third option.
+- A teleport that lands on the spot no longer tells you to run from a lodestone that is not on the card.
+- The portable fairy ring tip stays only on cards that still list a fairy ring.
+
 ## 0.7.20
 
 **Settings**

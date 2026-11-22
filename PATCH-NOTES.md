@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.21
+
+v0.7.21: Twenty-four clue cards use the travel routes checked in-game. A teleport that lands on the spot no longer sends you off from a lodestone that is not on the card, and the fairy ring tip stays only where a fairy ring is still listed.
+
+Settings shows **Made by Zenity · v0.7.21**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.20
 
 v0.7.20: Blur live preview sits under Check for updates at startup, and What's new sits under Check for updates. The hard cryptic about four blades is the Lumbridge windmill: combat bracelet to the Champions' Guild, then south-west, and search the crates on the top floor.

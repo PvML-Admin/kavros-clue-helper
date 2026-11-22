@@ -110,6 +110,56 @@ namespace KavrosClueHelper
                 Check(clues.MatchText(noisy).Card.Id == 173, "ocr noise still matches the windmill");
                 string mill = clues.Clues.Single(c => c.Card.Id == 173).Card.Travel;
                 Check(mill.Contains("Fastest: Combat bracelet > Champions' Guild, then run south-west to the windmill.") && mill.Contains("Alternatively: Draynor Village lodestone, then run east to the windmill.") && mill.Contains("Third option: Quest cape > Champions' Guild, then run south-west to the windmill.") && mill.Contains("Final step: Climb to the top floor and search the crates.") && mill.Contains("Mill Lane Mill, between Lumbridge and Draynor") && mill.IndexOf("Tile ", StringComparison.Ordinal) < 0 && mill.IndexOf("boat", StringComparison.OrdinalIgnoreCase) < 0 && mill.IndexOf("RuneApps", StringComparison.OrdinalIgnoreCase) < 0 && mill.IndexOf("Jagex", StringComparison.OrdinalIgnoreCase) < 0, "windmill card");
+                string[] routeChecks = new[] {
+                    "293|Amulet of farming > Brimhaven fruit tree patch|Karamja lodestone, run north-east|",
+                    "423|Ctrl+T > Skilling > Woodcutting > Overgrown Idol (Karamja)|Amulet of glory > Karamja, walk south down the east coast|",
+                    "418|Enlightened amulet > Bandit Camp, run north-west|Bandit Camp teleport scroll (from clues or the GE)|Fairy ring",
+                    "32|Combat bracelet > Ranging Guild|Enter the guild and search the large haystack by the southern fence|",
+                    "296|Modern spellbook > Watchtower Teleport, run south-east to the guild|3. Yanille Hops Patch, run south-east|Yanille lodestone",
+                    "229|Ctrl+T > Slayer > Corrupted creatures, run north|Menaphos lodestone, run north-east|",
+                    "458|Amulet of farming > Wilderness herb patch|Carrallangar Teleport (Graveyard of Shadows), run north|Annakarl",
+                    "292|right-click the beam and choose bottom floor|Fairy ring DIS (Wizards' Tower)|Traveller's necklace",
+                    "235|Ancient spellbook > Dareeyak Teleport, run east|3. Level 27|Wilderness Crater",
+                    "169|Ring of respawn > Lumbridge|Talk to Hans as he walks around the castle|",
+                    "216|Wilderness herb patch, run north|Ctrl+T > Slayer > Abyssal Lords, run north-east|Annakarl|Wilderness Course",
+                    "161|Ring of respawn > Lumbridge|Search the crate in the south-east corner of the cellar|",
+                    "156|Clocktower teleport (from clue scrolls only), run north a few steps|Fairy ring BIS (Ardougne Zoo)|Ardougne lodestone|GE",
+                    "433|Modern spellbook > Taverley Teleport, run south-east|Taverley lodestone, run south-east|",
+                    "39|Attuned crystal teleport seed > Iorwerth|Use the stairs to floor 1 above ground|",
+                    "153|Ctrl+T > Skilling > Mining > Necrite (70), run south-east|Fairy ring DLQ|Dominion Tower",
+                    "162|Bandit Camp teleport scroll (from clues or the GE), run north-west|Enter the general store and search the crates inside|",
+                    "450|Modern spellbook > Trollheim Teleport|Dig immediately south of Mad Eadgar's cave entrance|Burthorpe",
+                    "147|Ctrl+T > Skilling > Mining > Coal|Skills necklace > Mining Guild, run north-east|Dungeoneering",
+                    "141|Dig site pendant > Exam Centre|Senntisten Teleport (Dig Site temple), run east|",
+                    "451|Modern spellbook > Trollheim Teleport|Dig on the south side of the entrance|Burthorpe",
+                    "149|right-click the beam and choose bottom floor|Fairy ring DIS (Wizards' Tower), run north|",
+                    "148|Ctrl+T > Skilling > Archaeology > Stormguard Citadel|Elder tree (Legends' Guild), run north-west|Fairy ring",
+                    "165|Amulet of glory > Draynor Village, run north-east|Ctrl+T > Skilling > Woodcutting > Willow|Falador Herb"
+                };
+                foreach (string row in routeChecks)
+                {
+                    string[] part = row.Split('|');
+                    string travel = clues.Clues.Single(c => c.Card.Id == Int32.Parse(part[0])).Card.Travel;
+                    int ways = 0;
+                    bool fairy = false;
+                    foreach (string line in travel.Replace("\r", "").Split('\n'))
+                    {
+                        string trimmed = line.Trim();
+                        if (trimmed.StartsWith("Fastest:") || trimmed.StartsWith("Alternatively:") || trimmed.StartsWith("Third option:")) ways++;
+                        if (trimmed.StartsWith("Fastest:"))
+                        {
+                            Check(trimmed.Contains(part[1]), "updated fastest " + part[0]);
+                            Check(trimmed.IndexOf("Hazelmere", StringComparison.OrdinalIgnoreCase) < 0 && trimmed.IndexOf("120 ", StringComparison.Ordinal) < 0, "fastest is not a ring or 120 cape " + part[0]);
+                        }
+                        if (!trimmed.StartsWith("Tip:") && trimmed.IndexOf("fairy ring", StringComparison.OrdinalIgnoreCase) >= 0) fairy = true;
+                    }
+                    if (part[2].Length > 0) Check(travel.Contains(part[2]), "updated route detail " + part[0]);
+                    Check(ways >= 1 && ways <= 3, "at most three ways on " + part[0]);
+                    bool tip = travel.Contains("Tip: make a portable fairy ring in ;;ig, or buy an unlimited one for 5 Kavros dollars.");
+                    Check(fairy == tip, "fairy tip only while a fairy ring remains on " + part[0]);
+                    Check(travel.IndexOf("Tile ", StringComparison.Ordinal) < 0 && travel.IndexOf("boat", StringComparison.OrdinalIgnoreCase) < 0 && travel.IndexOf("RuneApps", StringComparison.OrdinalIgnoreCase) < 0 && travel.IndexOf("Jagex", StringComparison.OrdinalIgnoreCase) < 0 && travel.IndexOf("Alt1", StringComparison.OrdinalIgnoreCase) < 0, "plain card " + part[0]);
+                    for (int banned = 3; banned < part.Length; banned++) if (part[banned].Length > 0) Check(travel.IndexOf(part[banned], StringComparison.OrdinalIgnoreCase) < 0, "removed " + part[banned] + " from " + part[0]);
+                }
                 string dave = clues.Clues.Single(c => c.Card.Id == 174).Card.Travel;
                 Check(dave.Contains("Dave's spellbook > Varrock (Museum)") && dave.IndexOf("bought from the Vote shop", StringComparison.OrdinalIgnoreCase) < 0, "Dave's spellbook note is not written into the card");
                 File.AppendAllText(report, "Map icon checks passed: " + assertions + "\n");
