@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 
 namespace KavrosClueHelper
@@ -90,9 +91,15 @@ namespace KavrosClueHelper
         // That frame can be shown without waiting for a second read.
         public static bool SkipConfirm(DetectedPuzzle shown, DetectedPuzzle next)
         {
+            return SkipConfirm(shown, next, null);
+        }
+        public static bool SkipConfirm(DetectedPuzzle shown, DetectedPuzzle next, IList<int> route)
+        {
             if (shown == null || next == null || shown.Kind != PuzzleKind.Sliding || next.Kind != PuzzleKind.Sliding) return false;
             if (!SteadyPolicy.Near(shown.Bounds, next.Bounds, 8) || !SteadyPolicy.Near(shown.Grid, next.Grid, 8)) return false;
-            return OneLegalMove(shown.Board, next.Board);
+            if (OneLegalMove(shown.Board, next.Board)) return true;
+            List<int> remaining;
+            return SlidingRoute.Advance(shown.Board, route, next.Board, out remaining);
         }
         // 0 = the fresh read matches or continues the route.
         // 1 = keep the last board and try again.

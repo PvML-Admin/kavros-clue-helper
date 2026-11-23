@@ -16,32 +16,167 @@ namespace KavrosClueHelper
         }
         public static bool Ink(Color p)
         { return p.R>40&&p.R<164&&p.G>25&&p.G<148&&p.B>15&&p.B<125&&p.R>p.G&&p.R-p.G<55&&p.G>p.B&&p.G-p.B<55; }
+        static bool Beige(Color c)
+        { return c.R>155&&c.G>115&&c.B>65&&c.R-c.G>5&&c.R-c.G<90&&c.G-c.B>12&&c.G-c.B<100; }
+        static bool Dark(Color c,int limit)
+        { return (c.R+c.G+c.B)/3<limit; }
+        static bool DarkAt(Pixels p,int x,int y)
+        {
+            if(x<0||y<0||x>=p.Width||y>=p.Height)return false;
+            return Dark(p.Get(x,y),70);
+        }
         public static List<Rectangle> FindPapers(Pixels p)
         {
             var regions=new List<Rectangle>();
+            int columns=p.Width/4+2;
+            bool[] prevDark=new bool[columns],rowDark=new bool[columns];
             for(int y=8;y<p.Height-8;y+=12)
             {
                 SearchCancellation.Check();
-                int start=-1,last=-1,hits=0;
+                Array.Clear(rowDark,0,rowDark.Length);
+                int start=-1,last=-1,hits=0,gapDark=-1;
                 for(int x=0;x<p.Width+40;x+=4)
                 {
                     Color c=p.Get(x,y);
-                    if(x<p.Width&&c.R>155&&c.G>115&&c.B>65&&c.R-c.G>5&&c.R-c.G<90&&c.G-c.B>12&&c.G-c.B<100)
-                    {if(start<0)start=x;last=x;hits++;}
-                    if(start>=0&&x-last>=36)
+                    bool paper=x<p.Width&&Beige(c);
+                    bool dark=x<p.Width&&Dark(c,70);
+                    int col=x/4;
+                    if(dark&&col>=0&&col<rowDark.Length)rowDark[col]=true;
+                    // A 7-10px frame is darker than the parchment and lines up
+                    // on the row above. Sand on either side is the same beige
+                    // as the sheet, so the old 36px gap never split them.
+                    bool column=dark&&col>=0&&col<prevDark.Length&&prevDark[col];
+                    if(paper)
                     {
-                        int width=last-start+4;
-                        if(width>=180&&width<=1400&&hits*4>=width*0.6)
+                        if(start>=0&&gapDark>=0&&x-last>=4&&x-last<=20)
                         {
-                            Rectangle run=Rectangle.FromLTRB(Math.Max(0,start-4),Math.Max(0,y-12),Math.Min(p.Width,last+8),Math.Min(p.Height,y+12));
-                            int existing=regions.FindIndex(r=>y<=r.Bottom+12&&Rectangle.Intersect(new Rectangle(r.X,0,r.Width,1),new Rectangle(run.X,0,run.Width,1)).Width>=Math.Min(r.Width,run.Width)*0.85);
-                            if(existing<0)regions.Add(run);else regions[existing]=Rectangle.Union(regions[existing],run);
+                            KeepRun(regions,p,y,start,last,hits);
+                            start=x;last=x;hits=1;gapDark=-1;
                         }
+                        else { if(start<0)start=x;last=x;hits++;gapDark=-1; }
+                    }
+                    else
+                    {
+                        if(column)gapDark=x;
+                        if(start>=0&&x-last>=36)
+                        {
+                            KeepRun(regions,p,y,start,last,hits);
+                            start=-1;last=-1;hits=0;gapDark=-1;
+                        }
+                    }
+                }
+                bool[] swap=prevDark;prevDark=rowDark;rowDark=swap;
+            }
+            return regions.Where(r=>r.Height>=90&&r.Width>=180).OrderByDescending(r=>r.Width*r.Height).Take(8).ToList();
+        }
+        static void KeepRun(List<Rectangle> regions,Pixels p,int y,int start,int last,int hits)
+        {
+            int width=last-start+4;
+            if(width>1400){SplitWide(regions,p,y,start,last);return;}
+            if(width>=180&&hits*4>=width*0.6)AddRun(regions,p,y,start,last);
+        }
+        // A beach-wide beige strip can still hide a framed scroll. Pull the
+        // sheet out between its two dark sides instead of dropping the row.
+        static void SplitWide(List<Rectangle> regions,Pixels p,int y,int start,int last)
+        {
+            var borders=new List<int>();
+            for(int x=start;x<=last;x+=4)
+                if(DarkAt(p,x,y)&&DarkAt(p,x,y-12))
+                    if(borders.Count==0||x-borders[borders.Count-1]>16)borders.Add(x);
+            for(int i=0;i<borders.Count;i++)for(int j=i+1;j<borders.Count;j++)
+            {
+                int inner=borders[i]+4,outer=borders[j]-4,width=outer-inner+4;
+                if(width<180||width>1400)continue;
+                int hits=0,samples=0;
+                for(int x=inner;x<=outer;x+=4){samples++;if(Beige(p.Get(x,y)))hits++;}
+                if(samples>0&&hits*4>=width*0.6){AddRun(regions,p,y,inner,outer);return;}
+            }
+        }
+        static void AddRun(List<Rectangle> regions,Pixels p,int y,int start,int last)
+        {
+            Rectangle run=Rectangle.FromLTRB(Math.Max(0,start-4),Math.Max(0,y-12),Math.Min(p.Width,last+8),Math.Min(p.Height,y+12));
+            int existing=regions.FindIndex(r=>y<=r.Bottom+12&&Rectangle.Intersect(new Rectangle(r.X,0,r.Width,1),new Rectangle(run.X,0,run.Width,1)).Width>=Math.Min(r.Width,run.Width)*0.85);
+            if(existing<0)regions.Add(run);else regions[existing]=Rectangle.Union(regions[existing],run);
+        }
+        // The mysterious-scroll title is a solid dark bar with parchment
+        // directly under it and a thin dark border down both sides. Sand and
+        // sandstone pass the beige test, so this is what finds the sheet.
+        public static List<Rectangle> FindScrolls(Pixels p)
+        {
+            var found=new List<Rectangle>();
+            if(p==null||p.Width<200||p.Height<160)return found;
+            for(int y=16;y<p.Height-80&&found.Count==0;y+=12)
+            {
+                SearchCancellation.Check();
+                int start=-1,last=-1,hits=0;
+                for(int x=0;x<=p.Width;x+=8)
+                {
+                    bool ink=false;
+                    if(x<p.Width)ink=Dark(p.Get(x,y),52);
+                    if(ink){if(start<0)start=x;last=x;hits++;}
+                    if(start>=0&&(x>=p.Width||(!ink&&x-last>=16)))
+                    {
+                        int width=last-start;
+                        if(width>=340&&width<=680&&hits*8>=width*0.7)ConsiderScroll(p,y,start,last,found);
                         start=-1;last=-1;hits=0;
                     }
                 }
             }
-            return regions.Where(r=>r.Height>=90&&r.Width>=180).OrderByDescending(r=>r.Width*r.Height).Take(8).ToList();
+            for(int i=0;i<found.Count;i++)for(int j=i+1;j<found.Count;j++)
+            {
+                Rectangle a=found[i],b=found[j];
+                int overlap=Rectangle.Intersect(new Rectangle(a.X,0,a.Width,1),new Rectangle(b.X,0,b.Width,1)).Width;
+                if(overlap>=Math.Min(a.Width,b.Width)*0.75&&Math.Abs(a.Top-b.Top)<80){found[i]=Rectangle.Union(a,b);found.RemoveAt(j--);}
+            }
+            return found;
+        }
+        static double PaperBand(Pixels p,int x0,int x1,int y)
+        {
+            if(y<0||y>=p.Height||x1<=x0)return 0;
+            int good=0,n=0,left=x0+(x1-x0)/6,right=x1-(x1-x0)/6;
+            for(int x=left;x<right;x+=8){n++;if(Beige(p.Get(x,y)))good++;}
+            return n==0?0:good/(double)n;
+        }
+        static bool EdgeDark(Pixels p,int edge,int y,bool left)
+        {
+            if(y<0||y>=p.Height)return false;
+            // The measured bar can sit a few pixels outside the thin frame.
+            int x0=left?Math.Max(0,edge-18):Math.Max(0,edge-24);
+            int x1=left?Math.Min(p.Width-1,edge+24):Math.Min(p.Width-1,edge+18);
+            int dark=0;
+            for(int x=x0;x<=x1;x+=2)if(Dark(p.Get(x,y),80))dark++;
+            return dark>=2;
+        }
+        static bool DarkBand(Pixels p,int x0,int x1,int y)
+        {
+            if(y<0||y>=p.Height)return false;
+            int dark=0,n=0,left=x0+(x1-x0)/8,right=x1-(x1-x0)/8;
+            for(int x=left;x<right;x+=6){n++;if(Dark(p.Get(x,y),55))dark++;}
+            return n>0&&dark*1.0/n>=0.55;
+        }
+        static void ConsiderScroll(Pixels p,int y,int x0,int x1,List<Rectangle> found)
+        {
+            double above=PaperBand(p,x0,x1,y-28),below=PaperBand(p,x0,x1,y+32);
+            if(above>=0.45)return;
+            if(below<0.55)return;
+            int sideRows=0,sideHit=0;
+            for(int dy=40;dy<=160;dy+=60)
+            {
+                int yy=y+dy;if(yy>=p.Height)break;
+                sideRows++;
+                if(EdgeDark(p,x0,yy,true)&&EdgeDark(p,x1,yy,false))sideHit++;
+            }
+            if(sideRows==0||sideHit*2<sideRows)return;
+            int bottom=-1,inside=-1;
+            for(int yy=y+16;yy<Math.Min(p.Height,y+460);yy+=8)
+            {
+                bool sides=EdgeDark(p,x0,yy,true)&&EdgeDark(p,x1,yy,false);
+                if(PaperBand(p,x0,x1,yy)>=0.45&&sides){inside=yy;continue;}
+                if(inside>0&&DarkBand(p,x0,x1,yy)){bottom=yy;break;}
+                if(inside>0){bottom=inside;break;}
+            }
+            if(bottom<0||bottom-y<150||bottom-y>450)return;
+            found.Add(Rectangle.FromLTRB(Math.Max(0,x0-6),Math.Max(0,y-6),Math.Min(p.Width,x1+10),Math.Min(p.Height,bottom+10)));
         }
         public static List<Line> Template(Bitmap image)
         {

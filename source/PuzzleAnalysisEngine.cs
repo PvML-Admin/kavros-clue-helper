@@ -44,6 +44,9 @@ namespace KavrosClueHelper
         public Bitmap DiagnosticImage;
         public long Milliseconds;
         public bool Unchanged,Pending;
+        // The slider frame is still up, but the last grid could not be read.
+        // The next capture should be the whole window.
+        public bool SearchWindow;
         // A towers grid is on screen but its edge clues are not readable yet.
         public Rectangle? TowerGrid;
         public void Dispose() { if (Preview != null) { Preview.Dispose(); Preview = null; } if(DiagnosticImage!=null) { DiagnosticImage.Dispose(); DiagnosticImage=null; } }
@@ -58,6 +61,8 @@ namespace KavrosClueHelper
         private readonly KnotFrameTracker knotFrames=new KnotFrameTracker();
         private ulong lastHash;
         private Color[] sliderFrame;
+        private bool[] sliderMasked;
+        private int sliderSearches;
         private Size lastSize;
         private Point? previousOrigin;
         private DateTime knotConfirmed;
@@ -81,25 +86,61 @@ namespace KavrosClueHelper
         public int UnchangedFrames { get; private set; }
         public Action<string> Progress;
         public PuzzleAnalysisEngine(string assets) { detector = new PuzzleDetector(assets);detector.Progress=message=>{if(Progress!=null)Progress(message);}; }
-        public DetectedPuzzle ReadOnlySlider(Bitmap image,DetectedPuzzle previous){return detector.ReadAgain(image,previous);}
+        public DetectedPuzzle ReadOnlySlider(Bitmap image,DetectedPuzzle previous,GuideInk ink=null){return detector.ReadAgain(image,previous,null,-1,ink);}
         // Rescan starts from the tiles on screen. The previous route must not be replayed.
         public void Reset()
         {
-            last=null;cached=null;solveKey=null;sliderFrame=null;lastHash=0;towerWaits=0;
+            last=null;cached=null;solveKey=null;sliderFrame=null;sliderMasked=null;lastHash=0;towerWaits=0;sliderSearches=0;
             boardHold.Reset();boardChange.Reset();knotFrames.Reset();
         }
-        private Color[] SliderFrame(Pixels pixels,DetectedPuzzle puzzle)
-        {return Enumerable.Range(0,16).Select(i=>{
-            int side=i/4;double along=(i%4+1)/5.0;int x=side<2?(side==0?puzzle.Grid.Left-(int)Math.Round(10*puzzle.Scale):puzzle.Grid.Right+(int)Math.Round(10*puzzle.Scale)):puzzle.Grid.Left+(int)Math.Round(puzzle.Grid.Width*along);
-            int y=side>=2?(side==2?puzzle.Grid.Top-(int)Math.Round(10*puzzle.Scale):puzzle.Grid.Bottom+(int)Math.Round(10*puzzle.Scale)):puzzle.Grid.Top+(int)Math.Round(puzzle.Grid.Height*along);return pixels.Get(x,y);}).ToArray();}
-        private bool VisibleSlider(Bitmap image,Pixels pixels)
+        private Point SliderSample(DetectedPuzzle puzzle,int i)
+        {
+            int side=i/4;double along=(i%4+1)/5.0;
+            int x=side<2?(side==0?puzzle.Grid.Left-(int)Math.Round(10*puzzle.Scale):puzzle.Grid.Right+(int)Math.Round(10*puzzle.Scale)):puzzle.Grid.Left+(int)Math.Round(puzzle.Grid.Width*along);
+            int y=side>=2?(side==2?puzzle.Grid.Top-(int)Math.Round(10*puzzle.Scale):puzzle.Grid.Bottom+(int)Math.Round(10*puzzle.Scale)):puzzle.Grid.Top+(int)Math.Round(puzzle.Grid.Height*along);
+            return new Point(x,y);
+        }
+        private Color[] SliderFrame(Pixels pixels,DetectedPuzzle puzzle,GuideInk ink)
+        {
+            var colors=new Color[16];
+            sliderMasked=new bool[16];
+            for(int i=0;i<16;i++)
+            {
+                Point sample=SliderSample(puzzle,i);
+                if(ink!=null&&ink.Ignores(sample.X,sample.Y)){sliderMasked[i]=true;colors[i]=Color.Black;continue;}
+                colors[i]=pixels.Get(sample.X,sample.Y);
+            }
+            return colors;
+        }
+        private bool VisibleSlider(Bitmap image,Pixels pixels,GuideInk ink)
         {
             if(last==null||cached==null||last.Kind!=PuzzleKind.Sliding||sliderFrame==null||!detector.SliderFrameVisible(image,last))return false;
-            Color[] fresh=SliderFrame(pixels,last);return fresh.Where((c,i)=>Math.Abs(c.R-sliderFrame[i].R)+Math.Abs(c.G-sliderFrame[i].G)+Math.Abs(c.B-sliderFrame[i].B)<60).Count()>=13;
+            int seen=0,matched=0;
+            for(int i=0;i<16;i++)
+            {
+                Point sample=SliderSample(last,i);
+                if((sliderMasked!=null&&sliderMasked[i])||(ink!=null&&ink.Ignores(sample.X,sample.Y)))continue;
+                seen++;
+                Color fresh=pixels.Get(sample.X,sample.Y);
+                if(Math.Abs(fresh.R-sliderFrame[i].R)+Math.Abs(fresh.G-sliderFrame[i].G)+Math.Abs(fresh.B-sliderFrame[i].B)<60)matched++;
+            }
+            return seen==0||matched*16>=seen*13;
+        }
+        private DetectedPuzzle ReadSliderNear(Bitmap image,DetectedPuzzle previous,int badge,GuideInk guide)
+        {
+            int[] delta={-4,-2,2,4};
+            for(int axis=0;axis<2;axis++)for(int n=0;n<delta.Length;n++)
+            {
+                DetectedPuzzle shifted=previous.OffsetBy(new Point(axis==0?delta[n]:0,axis==1?delta[n]:0));
+                if(!new Rectangle(Point.Empty,image.Size).Contains(shifted.Grid))continue;
+                DetectedPuzzle read=detector.ReadAgain(image,shifted,null,badge,guide);
+                if(read!=null&&SlidingSolver.IsSolvable(read.Board))return read;
+            }
+            return null;
         }
         private AnalysisResult PendingSlider(long elapsed)
         {return new AnalysisResult{Plan=cached,Pending=true,Unchanged=true,Milliseconds=elapsed};}
-        public AnalysisResult Analyze(Bitmap image, int source, bool reverse, CancellationToken cancellation, bool livePolling = false,bool wholeRows=false, Point? captureOrigin=null, int dpi=96)
+        public AnalysisResult Analyze(Bitmap image, int source, bool reverse, CancellationToken cancellation, bool livePolling = false,bool wholeRows=false, Point? captureOrigin=null, int dpi=96, GuideInk guide=null)
         {
             Stopwatch timer = Stopwatch.StartNew();
             SearchCancellation.Token = cancellation;
@@ -138,7 +179,7 @@ namespace KavrosClueHelper
                 lastSize = image.Size;
                 Pixels pixels = new Pixels(image);
                 bool sameSolve = last != null && DetectionPolicy.CanTrack(cached) && solveKey == cached.Puzzle.Key + ":" + reverse+(cached.Puzzle.Kind==PuzzleKind.Knot?":"+cached.KnotMoving:"")+":"+wholeRows && !cached.KnotMoving && new Rectangle(Point.Empty,image.Size).Contains(last.Bounds);
-                bool hashUnchanged = sameSolve && pixels.Hash(last.Bounds) == lastHash;
+                bool hashUnchanged = sameSolve && pixels.Hash(last.Bounds, guide) == lastHash;
                 bool trackingBoard = last != null && DetectionPolicy.IsBoardPuzzle(last.Kind);
                 // A stable board frame can be reused. A tracked text clue must
                 // still run the cheap board search, because a puzzle can open
@@ -147,14 +188,29 @@ namespace KavrosClueHelper
                 { boardSeen=DateTime.UtcNow; boardHold.Seen(); boardChange.Reset(); UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
                 int sliderBadge=-1;
                 if(cached!=null&&cached.Sliding!=null&&cached.Sliding.Count>0&&last!=null&&last.Kind==PuzzleKind.Sliding)sliderBadge=cached.Sliding[0];
-                DetectedPuzzle puzzle = trackingBoard ? detector.ReadAgain(image,last,pixels,sliderBadge) : null;
+                DetectedPuzzle puzzle = trackingBoard ? detector.ReadAgain(image,last,pixels,sliderBadge,guide) : null;
                 bool sliderLive=livePolling&&last!=null&&last.Kind==PuzzleKind.Sliding;
                 bool sliderSeen=sliderLive&&(DateTime.UtcNow-boardSeen).TotalMilliseconds<1500;
-                bool frameVisible=sliderLive&&VisibleSlider(image,pixels);
+                bool frameVisible=sliderLive&&VisibleSlider(image,pixels,guide);
                 // The frame is still there and the board was read moments ago.
                 // Keep the step on screen. Do not spend this frame on a board
                 // search or the clue readers.
                 if(puzzle==null&&frameVisible&&sliderSeen)return PendingSlider(timer.ElapsedMilliseconds);
+                // The hold has expired and the frame is still there. Look a few
+                // pixels either side at this scale before any full search, and
+                // keep the board for two more misses after that.
+                if(puzzle==null&&frameVisible&&!sliderSeen)
+                {
+                    puzzle=ReadSliderNear(image,last,sliderBadge,guide);
+                    if(puzzle==null)
+                    {
+                        sliderSearches++;
+                        if(sliderSearches<3)return PendingSlider(timer.ElapsedMilliseconds);
+                        sliderSearches=0;
+                        return new AnalysisResult{Plan=cached,Pending=true,SearchWindow=true,Milliseconds=timer.ElapsedMilliseconds};
+                    }
+                    sliderSearches=0;
+                }
                 if (puzzle == null)
                 {
                     bool broad=!livePolling || DateTime.UtcNow>=nextBroadSearch;
@@ -271,7 +327,7 @@ namespace KavrosClueHelper
                     last = null; cached = null; solveKey = null; knotFrames.Missing(DateTime.UtcNow);
                     return new AnalysisResult { Preview = MakePreview(image,new Rectangle(Point.Empty,image.Size)), Milliseconds = timer.ElapsedMilliseconds };
                 }
-                last = puzzle; cached = plan; solveKey = key;if(puzzle.Kind==PuzzleKind.Sliding)sliderFrame=SliderFrame(pixels,puzzle);else sliderFrame=null; lastHash = pixels.Hash(puzzle.Bounds);
+                last = puzzle; cached = plan; solveKey = key;sliderSearches=0;if(puzzle.Kind==PuzzleKind.Sliding)sliderFrame=SliderFrame(pixels,puzzle,guide);else {sliderFrame=null;sliderMasked=null;} lastHash = pixels.Hash(puzzle.Bounds, guide);
                 if(puzzle.Kind==PuzzleKind.Knot&&!knotMoving)knotConfirmed=DateTime.UtcNow;
                 if(DetectionPolicy.IsBoardPuzzle(puzzle.Kind))boardSeen=DateTime.UtcNow;
                 boardHold.Seen();

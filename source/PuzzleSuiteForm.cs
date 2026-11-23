@@ -31,7 +31,7 @@ namespace KavrosClueHelper
         protected override bool ShowWithoutActivation { get { return true; } }
         protected override CreateParams CreateParams { get { CreateParams p = base.CreateParams; p.ExStyle |= 0x00080000 | 0x00000020 | 0x08000000 | 0x80; return p; } }
         protected override void WndProc(ref Message m) { if (m.Msg == 0x84) { m.Result = new IntPtr(-1); return; } base.WndProc(ref m); }
-        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Native.ExcludeFromCapture(Handle); }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); }
         public void UpdateGuidance(Rectangle bounds, List<GuidanceMark> next)
         {
             bool show,hide,move,paint; Rectangle nextPlaced; bool nextKnown;
@@ -136,6 +136,7 @@ namespace KavrosClueHelper
             public Size ClientSize;
             public DateTime CapturedAt;
             public int Dpi;
+            public GuideInk Guide;
         }
 
         public PuzzleSuiteForm(bool startWithPanel=true)
@@ -585,6 +586,7 @@ namespace KavrosClueHelper
                 if (captureArea.Width < 60 || captureArea.Height < 60) captureArea = visible;
                 Rectangle screenArea=captureArea; screenArea.Offset(bounds.Location);
                 Bitmap screenshot=ScreenReader.Capture(screenArea);
+                GuideInk guide=GuideInk.ForSlider(screenshot.Width, screenshot.Height, marks, captureArea.Location);
                 ScreenReader.Cover(screenshot, screenArea, CaptureInk(bounds.Location, screenArea));
                 // Never detect a puzzle in this helper's own screenshot preview
                 // when the panel is sitting above the game.
@@ -606,7 +608,7 @@ namespace KavrosClueHelper
                 try{uint raw=Native.GetDpiForWindow(window);if(raw>=96)dpi=(int)raw;}
                 catch(DllNotFoundException){}
                 catch(EntryPointNotFoundException){}
-                QueueAnalysis(new AnalysisJob { Image=screenshot,Generation=sourceGeneration,Window=window,CaptureOffset=captureArea.Location,Cropped=cropped,ClientSize=bounds.Size,CapturedAt=DateTime.UtcNow,Stable=stable,Offline=false,Reverse=reverse.Checked,WholeRows=true,Dpi=dpi });
+                QueueAnalysis(new AnalysisJob { Image=screenshot,Generation=sourceGeneration,Window=window,CaptureOffset=captureArea.Location,Cropped=cropped,ClientSize=bounds.Size,CapturedAt=DateTime.UtcNow,Stable=stable,Offline=false,Reverse=reverse.Checked,WholeRows=true,Dpi=dpi,Guide=guide });
                 ShowGuidance();
             }
             catch (Exception ex) { ClearUnreadableFrame(); status.Text = ex.Message; }
@@ -650,7 +652,7 @@ namespace KavrosClueHelper
                 PuzzleAnalysisEngine engine=EnsureEngine();
                 engine.Progress=message=>analysisStage=message;
                 analysisStage=null;
-                AnalysisResult result=engine.Analyze(job.Image,job.Generation,job.Reverse,analysisCancellation.Token,!job.Offline,job.WholeRows, job.Offline ? (Point?)null : job.CaptureOffset, job.Dpi);
+                AnalysisResult result=engine.Analyze(job.Image,job.Generation,job.Reverse,analysisCancellation.Token,!job.Offline,job.WholeRows, job.Offline ? (Point?)null : job.CaptureOffset, job.Dpi, job.Guide);
                 if(result.Plan==null || (result.Plan.Puzzle.Kind==PuzzleKind.Towers && result.Plan.Towers==null))
                 { result.DiagnosticImage=job.Image; retained=true; }
                 args.Result=result;
@@ -673,6 +675,13 @@ namespace KavrosClueHelper
                 diagnosticCapture=result.DiagnosticImage; result.DiagnosticImage=null;
                 nextRead=job.CapturedAt.AddMilliseconds(result.Plan==null?75:125);
                 captureDetails += "; last analysis "+result.Milliseconds+" ms"+(result.Unchanged?"; cached":"");
+                if(result.SearchWindow&&!job.Offline)
+                {
+                    captureSearch.ForceFullWindow();requestedScan=true;nextRead=DateTime.MinValue;
+                    status.Text="Searching the full Kavros window...";
+                    if(current!=null)ShowGuidance();
+                    return;
+                }
                 if(result.Pending&&current!=null&&current.Kind==PuzzleKind.Sliding)
                 {
                     sliderRereadMisses++;
@@ -766,7 +775,8 @@ namespace KavrosClueHelper
                     using(Bitmap freshImage=ScreenReader.Capture(screen))
                     {
                         ScreenReader.Cover(freshImage, screen, CaptureInk(Native.ClientBounds(job.Window).Location, screen));
-                        DetectedPuzzle fresh=analysisEngine.ReadOnlySlider(freshImage,new DetectedPuzzle{Kind=PuzzleKind.Sliding,Bounds=new Rectangle(Point.Empty,freshImage.Size),Grid=localGrid,Scale=p.Scale});
+                        GuideInk freshInk=GuideInk.ForSlider(freshImage.Width,freshImage.Height,marks,p.Bounds.Location);
+                        DetectedPuzzle fresh=analysisEngine.ReadOnlySlider(freshImage,new DetectedPuzzle{Kind=PuzzleKind.Sliding,Bounds=new Rectangle(Point.Empty,freshImage.Size),Grid=localGrid,Scale=p.Scale},freshInk);
                         bool matched=fresh!=null&&fresh.Board!=null&&p.Board!=null&&fresh.Board.SequenceEqual(p.Board);
                         List<int> remaining=null;
                         bool advanced=!matched&&fresh!=null&&fresh.Board!=null&&p.Board!=null&&result.Plan.Sliding!=null&&SlidingRoute.Advance(p.Board,result.Plan.Sliding,fresh.Board,out remaining)&&SlidingRoute.Playable(fresh.Board,remaining);
@@ -806,7 +816,7 @@ namespace KavrosClueHelper
                 puzzleDetails=puzzle.Kind+"; "+puzzle.Bounds+"; scale "+puzzle.Scale+"; confidence "+puzzle.Confidence.ToString("0.000");
                 if(puzzle.Kind==PuzzleKind.Towers && puzzle.Towers!=null && puzzle.Towers.Top!=null && puzzle.Towers.Bottom!=null && puzzle.Towers.Left!=null && puzzle.Towers.Right!=null) puzzleDetails+="; clues "+String.Join(",",puzzle.Towers.Top.Concat(puzzle.Towers.Bottom).Concat(puzzle.Towers.Left).Concat(puzzle.Towers.Right));
                 if(puzzle.Kind==PuzzleKind.Compass)puzzleDetails+="; "+puzzle.Compass.Heading+"; arrow pixels "+puzzle.Compass.Pixels+"; error "+(puzzle.Compass.Error*180/Math.PI).ToString("0.000")+" degrees; bearings "+compassSession.Bearings.Count;
-                if(job.Stable && pendingKey!=puzzle.Key && DetectionPolicy.NeedsConfirmation(result.Plan) && !SliderStep.SkipConfirm(current,puzzle)) { pendingKey=puzzle.Key; status.Text="Puzzle found - confirming the next frame..."; nextRead=DateTime.UtcNow.AddMilliseconds(100); return; }
+                if(job.Stable && pendingKey!=puzzle.Key && DetectionPolicy.NeedsConfirmation(result.Plan) && !SliderStep.SkipConfirm(current,puzzle,slidingMoves)) { pendingKey=puzzle.Key; status.Text="Puzzle found - confirming the next frame..."; nextRead=DateTime.UtcNow.AddMilliseconds(100); return; }
                 DetectedPuzzle shownClue=retainedClue.Display(current);
                 if(!job.Offline&&shownClue!=null&&shownClue.Kind==PuzzleKind.Scan&&!scanChange.Accept(shownClue.Key,puzzle.Key))
                 {nextRead=DateTime.UtcNow.AddMilliseconds(100);return;}
@@ -1055,6 +1065,7 @@ namespace KavrosClueHelper
             {
                 foreach(GuidanceMark mark in marks)
                 {
+                    if(mark.Sliding)continue;
                     int before=ink.Count;
                     GuidanceDrawing.AddOpaque(mark, ink);
                     for(int i=before;i<ink.Count;i++){Rectangle patch=ink[i];patch.Offset(clientOrigin);ink[i]=patch;}

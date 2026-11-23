@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.25
+
+v0.7.25: The slider guide stays in your own screenshots. Capture no longer paints over the tiles; the reader ignores the ring, arrow and badge and keeps using the clean pixels. A click that slides a whole row is shown immediately when it matches the route. If a read misses, the last grid is tried again a few pixels either way before the whole window is searched. Mysterious clue scrolls on sand, including the Hamid cryptic, are found from the dark title bar.
+
+Settings shows **Made by Zenity · v0.7.25**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.24
 
 v0.7.24: Clicking a slider tile shows the next step again. The guide is left out of the capture on Windows 10 2004 and later, and the fallback paint covers the pulse ring and the arrow. A missed read keeps the last step for about a second and a half, then reads the board again. After three misses the status asks you to move the mouse off the puzzle.

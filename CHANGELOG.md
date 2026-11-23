@@ -1,5 +1,16 @@
 # Kavros Clue Helper
 
+## 0.7.25
+
+**Slider**
+- The guide is visible in your own screenshots again. It is no longer excluded from capture.
+- Capture does not paint over slider tiles. The reader skips the pixels of the pulse ring, the outline, the arrow and the badge, including in the frame-edge check, and scores the remaining tile pixels.
+- A whole-row click skips the confirm wait when the new board is the next step of the known route.
+- When the short hold expires, the last grid is read again a few pixels either way at the current scale. The board is kept for two more tries before the search falls back to the full window.
+
+**Clues**
+- A mysterious clue scroll on sand or sandstone is found from its dark title bar and thin border. The Hamid cryptic (Speak to Hamid, Menaphos beach) is one of these. The card has three ways and a final step, and no tile coordinates.
+
 ## 0.7.24
 
 **Slider**
