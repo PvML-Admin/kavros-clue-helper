@@ -530,6 +530,8 @@ Tile 2790, 3181 | level 0</details>
 Alternatively: Ctrl+T &gt; Skilling &gt; Agility &gt; 1/85 - Gnome Course, run north-west to the referee.
 Final step: Run north-east to the Gnomeball field gate.
 Clue: Talk to Gnome ball referee at the gate of the Gnomeball Field.
+Challenge: What is 57 x 89 + 23?
+Answer: 5096
 Tile 2384, 3487 | level 0</details>
   </clue>
   <clue id="128" tier="medium" type="simple" heading="Talk to Hazelmere east of Yanille" action="Talk to Hazelmere" x="2675" y="3085" width="5" height="5" level="1">

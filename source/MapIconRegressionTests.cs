@@ -93,7 +93,40 @@ namespace KavrosClueHelper
                 Check(vision.MatchEliteText("Scan this area. The orb is in range. 27 paces around Mos Le'Harmless.") == null, "the reader does not offer Mos Le'Harmless");
                 ScanRegion falador = vision.MatchEliteText("Scan this area. The orb is in range. 22 paces around Falador.");
                 Check(falador != null && falador.Id == 364, "other elite scans are still offered");
+                string scroll = "MYSTERIOUS CLUE SCROLL This scroll will work in Prifddinas. Orb scan range: 30 paces.";
+                string parchment = "Prifddinas / The orb glows as you scan. You are in range of the coordinate! The coordinate is 26 paces away.";
+                ScanRegion prifScroll = vision.MatchEliteText(scroll);
+                Check(prifScroll != null && prifScroll.Id == 368 && vision.MatchScrollTranscript(scroll).Id == 368, "mysterious clue scroll text is Prifddinas at 30 paces");
+                Check(vision.MatchEliteText(parchment) == null && vision.MatchScrollTranscript(parchment) != null && vision.MatchScrollTranscript(parchment).Id == 368, "side parchment text is Prifddinas");
+                ScanRegion prifMeerkat = vision.MatchEliteText("This scroll will work in Prifddinas. Orb scan range: 35 paces.");
+                Check(prifMeerkat != null && prifMeerkat.Id == 368 && ScanReading.FromText(prifMeerkat, "Orb scan range: 35 paces.").Meerkat, "Prifddinas meerkats use 35 paces");
+                ScanRegion heart = vision.MatchEliteText("This scroll will work in the Heart of Gielinor. Orb scan range: 49 paces.");
+                Check(heart != null && heart.Id == 371, "Heart of Gielinor scroll text is 49 paces");
+                ScanRegion heartMeerkat = vision.MatchEliteText("Scan the Heart of Gielinor. The orb is in range. 54 paces.");
+                Check(heartMeerkat != null && heartMeerkat.Id == 371 && ScanReading.FromText(heartMeerkat, "54 paces").Meerkat, "Heart of Gielinor meerkats use 54 paces");
+                Check(vision.MatchScrollTranscript("Heart of Gielinor. The orb glows as you scan. You are in range of the coordinate! The coordinate is 12 paces away.").Id == 371, "Heart of Gielinor side parchment is recognised");
+                Check(vision.MatchEliteText("This scroll will work in Prifddinas.") == null && vision.MatchScrollTranscript("This scroll will work in Prifddinas.") == null, "a place name without paces is not a scan");
+                Check(vision.MatchEliteText("Orb scan range: 30 paces.") == null && vision.MatchScrollTranscript("The orb glows as you scan. Orb scan range: 30 paces.") == null, "paces without a place name are not a scan");
+                ScanRegion menaphos = vision.MatchEliteText("Scan this area. The orb is in range. 30 paces around Menaphos.");
+                Check(menaphos != null && menaphos.Id == 354, "Menaphos keeps the 30 pace elite scan");
+                foreach (string shot in new[] { "prif-scan-small-window.png", "prif-scan-side-parchment.png" })
+                {
+                    string shotPath = Path.Combine(assets, "test_assets", "reported", shot);
+                    Check(File.Exists(shotPath), "reported scan screenshot " + shot);
+                    using (Bitmap image = new Bitmap(shotPath))
+                    {
+                        DetectedPuzzle found = vision.Find(image, new Pixels(image));
+                        if (found != null) Check(found.Scan != null && found.Scan.Region != null && found.Scan.Region.Id == 368, shot + " resolves to Prifddinas");
+                        else
+                        {
+                            string read = vision.LastText ?? "";
+                            Check(read.IndexOf("prifddinas", StringComparison.OrdinalIgnoreCase) < 0, shot + " text was read but not matched: " + read);
+                        }
+                    }
+                }
                 var clues = new ReferenceClueReader(assets);
+                string gnome = clues.Clues.Single(c => c.Card.Id == 122).Card.Travel;
+                Check(gnome.Contains("Challenge: What is 57 x 89 + 23?") && gnome.Contains("Answer: 5096"), "gnomeball referee challenge answer");
                 Check(clues.MatchText("R AK MI").Card.Id == 335, "R AK MI is Karim");
                 Check(clues.MatchText("IMKROM").Card.Id == 340, "IM KROM is Rommik");
                 Check(clues.MatchText("Beckon at Varrock Dig Site, near the eastern winch. Bow or curtsy before you talk to me. Have nothing equipped at all when you do.").Card.Id == 7, "eastern winch beckon");

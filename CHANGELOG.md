@@ -1,5 +1,17 @@
 # Kavros Clue Helper
 
+## 0.7.22
+
+**Clues**
+- Talk to the Gnome ball referee includes the challenge "What is 57 x 89 + 23?" and the answer 5096.
+
+**Scans**
+- Prifddinas and the Heart of Gielinor are read from the scroll text when the picture match finds nothing. The place name and the paces both have to match. Prifddinas is 30 paces, or 35 with meerkats. The Heart of Gielinor is 49 paces, or 54 with meerkats.
+- The same reading accepts the side parchment, including "you are in range of the coordinate" with the distance in paces.
+
+**Capture**
+- Companion, AFK Warden, the Slayer helper and another Clue Helper are blanked only while they are in front of the game. A window behind the game is left as it was captured.
+
 ## 0.7.21
 
 **Clues**

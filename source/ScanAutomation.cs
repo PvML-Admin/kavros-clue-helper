@@ -87,9 +87,12 @@ namespace KavrosClueHelper
                 Bitmap frame=ScreenReader.Capture(screen);if(full)nextFullTracking=now.AddSeconds(6);
                 foreach(System.Windows.Forms.Form surface in new System.Windows.Forms.Form[]{this,floatingPanel,notice})
                 {
-                    if(surface==null||!surface.Visible)continue;
-                    Rectangle cover=Rectangle.Intersect(surface.Bounds,screen);cover.Offset(-screen.X,-screen.Y);
-                    if(cover.Width>0&&cover.Height>0)using(Graphics g=Graphics.FromImage(frame))g.FillRectangle(Brushes.Black,cover);
+                    if(surface==null||!surface.Visible||!surface.IsHandleCreated)continue;
+                    Rectangle overlap=Rectangle.Intersect(surface.Bounds,screen);
+                    if(overlap.Width<1||overlap.Height<1)continue;
+                    if(!GameVisibility.Any(overlap,delegate(Point point){return WindowLocator.AtPoint(surface.Handle,point,IntPtr.Zero);}))continue;
+                    Rectangle cover=overlap;cover.Offset(-screen.X,-screen.Y);
+                    using(Graphics g=Graphics.FromImage(frame))g.FillRectangle(Brushes.Black,cover);
                 }
                 foreach(Rectangle foreign in WindowLocator.ForeignCovers(screen))
                 {

@@ -149,6 +149,12 @@ namespace KavrosClueHelper
                 clientB.Client = new Rectangle(0, 0, 800, 600);
                 List<Rectangle> covers = WindowLocator.CoverRects(new[] { clientB, shell, chip }, new Rectangle(0, 0, 800, 600), 1);
                 Check(covers.Count == 1 && covers[0].Width == 90, "a small helper overlay is masked and the game window is not");
+                GameWindow behind = Window(25, "Companion", "KavrosCompanion", "WindowsForms10.Window");
+                behind.Client = new Rectangle(100, 80, 140, 90);
+                GameWindow ahead = Window(26, "Slayer Helper", "KavrosSlayerHelper", "WindowsForms10.Window");
+                ahead.Client = new Rectangle(300, 40, 80, 40);
+                List<Rectangle> frontOnly = WindowLocator.CoverRects(new[] { behind, ahead, clientB }, new Rectangle(0, 0, 800, 600), 1, delegate(GameWindow window, Rectangle overlap) { return window.Handle == ahead.Handle; });
+                Check(frontOnly.Count == 1 && frontOnly[0].X == 300 && frontOnly[0].Width == 80, "a helper window behind the game is not blanked");
                 clientB.Display = "Zezima";
                 Check(WindowLocator.Choose(new[] { clientA, clientB, clientC }, clientB.Handle, 200, clientC.Handle) == clientB, "a character name does not change the bound client");
                 Check(clientB.ToString() == "Zezima" && clientA.ToString() == clientA.Title, "the picker shows a character name and otherwise the window title");
