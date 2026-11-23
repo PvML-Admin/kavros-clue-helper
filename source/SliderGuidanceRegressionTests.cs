@@ -75,7 +75,9 @@ namespace KavrosClueHelper
       using(var frame=(Bitmap)native.Clone())
       {
        using(Graphics g=Graphics.FromImage(frame))for(int i=0;i<25;i++){if(board[i]==24)g.DrawImage(blank,GuidanceDrawing.Cell(puzzle,i));else g.DrawImage(reference,GuidanceDrawing.Cell(puzzle,i),new Rectangle(board[i]%5*49,board[i]/5*49,49,49),GraphicsUnit.Pixel);}
-       using(Graphics g=Graphics.FromImage(frame))GuidanceDrawing.Draw(g,GuidanceDrawing.SliderMarks(puzzle,route.Skip(step).ToList(),step+1));
+       var shown=GuidanceDrawing.SliderMarks(puzzle,route.Skip(step).ToList(),step+1);
+       if(shown.Count>0){int cell=route[step];int gap=Array.IndexOf(board,24);shown[0].Colour=KavrosTheme.Gold;shown[0].Pulse=true;shown[0].ArrowX=gap%5-cell%5;shown[0].ArrowY=gap/5-cell/5;}
+       using(Graphics g=Graphics.FromImage(frame))GuidanceDrawing.Draw(g,shown);
        using(Bitmap captured=step%2==0?frame.Clone(Rectangle.Intersect(new Rectangle(Point.Empty,frame.Size),Rectangle.Inflate(puzzle.Grid,60,60)),System.Drawing.Imaging.PixelFormat.Format24bppRgb):(Bitmap)frame.Clone())
        using(AnalysisResult result=engine.Analyze(captured,150,false,CancellationToken.None,true))
        {
@@ -86,7 +88,17 @@ namespace KavrosClueHelper
       }
      }
      Check(engine.SlidingRouteReuses>=12,"route survives alternating full/cropped captures without replanning");
-     using(var closed=new Bitmap(native.Width,native.Height))using(AnalysisResult gone=engine.Analyze(closed,150,false,CancellationToken.None,true))Check(gone.Plan==null&&!gone.Pending,"closing the actual puzzle clears guidance");
+     var pulse=new GuidanceMark{Box=new Rectangle(80,80,49,49),Text="1",Colour=KavrosTheme.Gold,Sliding=true,Pulse=true,ArrowX=1};
+     var cover=new System.Collections.Generic.List<Rectangle>();GuidanceDrawing.AddOpaque(pulse,cover);
+     Check(cover.Any(r=>r.Contains(70,100)),"the pulse cover includes the full ring");
+     Check(cover.Any(r=>r.Contains(80+49+20,80+24)),"the arrow cover includes the gold shaft");
+     using(AnalysisResult settled=engine.Analyze(native,150,false,CancellationToken.None,true))Check(settled.Plan!=null&&!settled.Pending,"the settled slider is readable before the hold expires");
+     using(var closed=new Bitmap(native.Width,native.Height))
+     {
+      using(AnalysisResult soon=engine.Analyze(closed,150,false,CancellationToken.None,true))Check(soon.Pending&&soon.Plan!=null,"a slider that just closed keeps its step briefly");
+      System.Threading.Thread.Sleep(1600);
+      using(AnalysisResult gone=engine.Analyze(closed,150,false,CancellationToken.None,true))Check(gone.Plan==null&&!gone.Pending,"closing the actual puzzle clears guidance once the hold expires");
+     }
     }
     foreach(float scale in new[]{0.8F,1F,1.25F,2F})
     using(Bitmap original=TestFixtures.SliderImage("castle",Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray(),"rev944"))

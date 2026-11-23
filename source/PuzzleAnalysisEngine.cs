@@ -145,7 +145,9 @@ namespace KavrosClueHelper
                 // somewhere else on the same screen.
                 if (trackingBoard && hashUnchanged)
                 { boardSeen=DateTime.UtcNow; boardHold.Seen(); boardChange.Reset(); UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
-                DetectedPuzzle puzzle = trackingBoard ? detector.ReadAgain(image,last,pixels) : null;
+                int sliderBadge=-1;
+                if(cached!=null&&cached.Sliding!=null&&cached.Sliding.Count>0&&last!=null&&last.Kind==PuzzleKind.Sliding)sliderBadge=cached.Sliding[0];
+                DetectedPuzzle puzzle = trackingBoard ? detector.ReadAgain(image,last,pixels,sliderBadge) : null;
                 bool sliderLive=livePolling&&last!=null&&last.Kind==PuzzleKind.Sliding;
                 bool sliderSeen=sliderLive&&(DateTime.UtcNow-boardSeen).TotalMilliseconds<1500;
                 bool frameVisible=sliderLive&&VisibleSlider(image,pixels);
@@ -179,8 +181,13 @@ namespace KavrosClueHelper
                         if(hashUnchanged)
                         { UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
                         if(last!=null && !trackingBoard) puzzle=detector.ReadAgain(image,last,pixels);
-                        if(puzzle==null&&(frameVisible||sliderSeen))return PendingSlider(timer.ElapsedMilliseconds);
-                        if(puzzle==null)
+                        // Keep the last slider step only for about 1.5s after a
+                        // real read. A frame that stays visible longer is solved
+                        // again. Clue readers stay off while that frame is up,
+                        // so a stuck slider cannot become a scan or a text clue.
+                        if(puzzle==null&&sliderSeen)return PendingSlider(timer.ElapsedMilliseconds);
+                        if(puzzle==null&&frameVisible)puzzle=detector.DetectBoards(image,pixels,true,false);
+                        else if(puzzle==null)
                         {
                             FullSearches++;
                             puzzle=detector.DetectClues(image,pixels);
@@ -190,7 +197,7 @@ namespace KavrosClueHelper
                 cancellation.ThrowIfCancellationRequested();
                 if (puzzle == null)
                 {
-                    if(livePolling&&VisibleSlider(image,pixels))return PendingSlider(timer.ElapsedMilliseconds);
+                    if(sliderSeen&&frameVisible)return PendingSlider(timer.ElapsedMilliseconds);
                     if(livePolling&&cached!=null&&last!=null&&last.Kind==PuzzleKind.Knot&&(DateTime.UtcNow-knotConfirmed).TotalMilliseconds<800&&detector.KnotFrameVisible(image,last))
                         return new AnalysisResult{Plan=cached,Pending=true,Unchanged=true,Milliseconds=timer.ElapsedMilliseconds};
                     if(livePolling&&HoldBoard(DateTime.UtcNow))return Held(timer.ElapsedMilliseconds);
@@ -259,7 +266,7 @@ namespace KavrosClueHelper
                 cancellation.ThrowIfCancellationRequested();
                 if (!DetectionPolicy.CanTrack(plan))
                 {
-                    if(livePolling&&VisibleSlider(image,pixels))return PendingSlider(timer.ElapsedMilliseconds);
+                    if(sliderSeen&&frameVisible)return PendingSlider(timer.ElapsedMilliseconds);
                     if(livePolling&&puzzle.Kind==(last==null?PuzzleKind.None:last.Kind)&&HoldBoard(DateTime.UtcNow))return Held(timer.ElapsedMilliseconds);
                     last = null; cached = null; solveKey = null; knotFrames.Missing(DateTime.UtcNow);
                     return new AnalysisResult { Preview = MakePreview(image,new Rectangle(Point.Empty,image.Size)), Milliseconds = timer.ElapsedMilliseconds };

@@ -114,9 +114,33 @@ namespace KavrosClueHelper
             return LabelBounds(mark);
         }
         // Number badges, and the thin box stroke, without covering the tile picture.
+        // A pulsed slider step grows 8px and draws a 7px stroke on that edge,
+        // so the bright ring reaches 12px outside the cell. The gold arrow is
+        // covered as well. Capture exclusion hides the window entirely; this
+        // is the fallback that still has to paint over those pixels.
         public static void AddOpaque(GuidanceMark mark, IList<Rectangle> patches)
         {
             patches.Add(OpaquePatch(mark));
+            if (mark.Sliding && (mark.Pulse || mark.ArrowX != 0 || mark.ArrowY != 0))
+            {
+                Rectangle ring = Rectangle.Inflate(mark.Box, 12, 12);
+                int band = 12;
+                if (ring.Width <= band * 2 || ring.Height <= band * 2) patches.Add(ring);
+                else
+                {
+                    patches.Add(new Rectangle(ring.Left, ring.Top, ring.Width, band));
+                    patches.Add(new Rectangle(ring.Left, ring.Bottom - band, ring.Width, band));
+                    patches.Add(new Rectangle(ring.Left, ring.Top, band, ring.Height));
+                    patches.Add(new Rectangle(ring.Right - band, ring.Top, band, ring.Height));
+                }
+                if (mark.ArrowX != 0 || mark.ArrowY != 0)
+                {
+                    int x1 = mark.Box.Left + mark.Box.Width / 2, y1 = mark.Box.Top + mark.Box.Height / 2;
+                    int x2 = x1 + mark.ArrowX * mark.Box.Width, y2 = y1 + mark.ArrowY * mark.Box.Height;
+                    patches.Add(Rectangle.FromLTRB(Math.Min(x1, x2) - 10, Math.Min(y1, y2) - 10, Math.Max(x1, x2) + 10, Math.Max(y1, y2) + 10));
+                }
+                return;
+            }
             if (!mark.Outline && !mark.Sliding) return;
             Rectangle box = mark.Sliding ? Rectangle.Inflate(mark.Box, 4, 4) : mark.Box;
             int thick = 4;

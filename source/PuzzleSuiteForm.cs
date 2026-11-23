@@ -31,6 +31,7 @@ namespace KavrosClueHelper
         protected override bool ShowWithoutActivation { get { return true; } }
         protected override CreateParams CreateParams { get { CreateParams p = base.CreateParams; p.ExStyle |= 0x00080000 | 0x00000020 | 0x08000000 | 0x80; return p; } }
         protected override void WndProc(ref Message m) { if (m.Msg == 0x84) { m.Result = new IntPtr(-1); return; } base.WndProc(ref m); }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Native.ExcludeFromCapture(Handle); }
         public void UpdateGuidance(Rectangle bounds, List<GuidanceMark> next)
         {
             bool show,hide,move,paint; Rectangle nextPlaced; bool nextKnown;
@@ -673,7 +674,13 @@ namespace KavrosClueHelper
                 nextRead=job.CapturedAt.AddMilliseconds(result.Plan==null?75:125);
                 captureDetails += "; last analysis "+result.Milliseconds+" ms"+(result.Unchanged?"; cached":"");
                 if(result.Pending&&current!=null&&current.Kind==PuzzleKind.Sliding)
-                {status.Text="Waiting for the tiles to settle...";nextRead=DateTime.UtcNow.AddMilliseconds(75);ShowGuidance();return;}
+                {
+                    sliderRereadMisses++;
+                    nextRead=DateTime.UtcNow.AddMilliseconds(75);
+                    status.Text=sliderRereadMisses>=3?"Can't read the tiles - move the mouse off the puzzle":"Waiting for the tiles to settle...";
+                    ShowGuidance();
+                    return;
+                }
                 if(result.Pending&&current!=null&&DetectionPolicy.IsBoardPuzzle(current.Kind)&&current.Kind!=PuzzleKind.Knot&&current.Kind!=PuzzleKind.Sliding)
                 {status.Text="Puzzle covered. Keeping the last reading.";nextRead=DateTime.UtcNow.AddMilliseconds(120);ShowGuidance();return;}
                 if(result.Pending&&current!=null&&current.Kind==PuzzleKind.Knot)
@@ -738,6 +745,7 @@ namespace KavrosClueHelper
                 {
                     if(current!=null && current.Kind==PuzzleKind.Compass)
                     { status.Text="Compass stays locked."; nextRead=DateTime.UtcNow.AddMilliseconds(120); ShowGuidance(); return; }
+                    bool currentWasSlider=current!=null&&current.Kind==PuzzleKind.Sliding;
                     retainedClue.Missing();
                     compassSession.Observe(null,DateTime.UtcNow);
                     lastLocated=null; pendingKey=null; current=null; marks.Clear(); canvas.Puzzle=null; canvas.Invalidate(); overlay.Hide();
@@ -746,7 +754,7 @@ namespace KavrosClueHelper
                     masterView.SetClue(savedMaster?retainedClue.Saved.Master:null,assetPath);
                     puzzleDetails="Capture succeeded; no supported puzzle matched."; detected.Text="Game captured / puzzle not recognised";
                     summary.Text=retainedClue.Saved==null?"Open a clue or puzzle. Text clues use Windows English OCR.":"Last clue saved. Guidance remains visible while you travel.";
-                    status.Text=retainedClue.Saved==null?"Looking for a clue. Use Screenshot or Details if one is not recognised.":"New clues replace the saved card automatically. Clear removes it."; return;
+                    status.Text=currentWasSlider&&sliderRereadMisses>=3?"Can't read the tiles - move the mouse off the puzzle":(retainedClue.Saved==null?"Looking for a clue. Use Screenshot or Details if one is not recognised.":"New clues replace the saved card automatically. Clear removes it."); return;
                 }
                 DetectedPuzzle p=result.Plan.Puzzle.OffsetBy(Point.Empty);
                 if(!job.Offline&&p.Kind==PuzzleKind.Sliding&&result.Milliseconds>=350)
@@ -802,6 +810,7 @@ namespace KavrosClueHelper
                 DetectedPuzzle shownClue=retainedClue.Display(current);
                 if(!job.Offline&&shownClue!=null&&shownClue.Kind==PuzzleKind.Scan&&!scanChange.Accept(shownClue.Key,puzzle.Key))
                 {nextRead=DateTime.UtcNow.AddMilliseconds(100);return;}
+                if(puzzle.Kind==PuzzleKind.Sliding)sliderRereadMisses=0;
                 lastLocated=puzzle;
                 if(DetectionPolicy.IsBoardPuzzle(puzzle.Kind))captureSearch.Complete(true,true);
                 retainedClue.Accept(puzzle);
