@@ -163,9 +163,12 @@ namespace KavrosClueHelper
         }
         static void ConsiderScroll(Pixels p,int y,int x0,int x1,List<Rectangle> found)
         {
+            // The title row itself has to be a solid dark bar. A sandy row
+            // that is only just darker than the parchment is not a scroll.
+            if(!DarkBand(p,x0,x1,y))return;
             double above=PaperBand(p,x0,x1,y-28),below=PaperBand(p,x0,x1,y+32);
-            if(above>=0.45)return;
-            if(below<0.55)return;
+            if(above>=0.30)return;
+            if(below<0.72)return;
             // A parchment sitting on a dark surface has dark pixels on both
             // sides of any dark row. A title bar stops at the frame.
             if(FlankingDark(p,y,x0,x1))return;
@@ -176,14 +179,18 @@ namespace KavrosClueHelper
                 sideRows++;
                 if(EdgeDark(p,x0,yy,true)&&EdgeDark(p,x1,yy,false))sideHit++;
             }
-            if(sideRows==0||sideHit*2<sideRows)return;
-            int bottom=-1,inside=-1;
+            if(sideRows<2||sideHit<sideRows)return;
+            int bottom=-1;
             for(int yy=y+16;yy<Math.Min(p.Height,y+460);yy+=8)
             {
                 bool sides=EdgeDark(p,x0,yy,true)&&EdgeDark(p,x1,yy,false);
-                if(PaperBand(p,x0,x1,yy)>=0.45&&sides){inside=yy;continue;}
-                if(inside>0&&DarkBand(p,x0,x1,yy)){bottom=yy;break;}
-                if(inside>0){bottom=inside;break;}
+                if(PaperBand(p,x0,x1,yy)>=0.55&&sides)continue;
+                if(DarkBand(p,x0,x1,yy)&&yy-y>=150){bottom=yy;break;}
+                if(!sides&&yy-y>80)
+                {
+                    for(int look=yy-16;look<=yy+16;look+=2)if(DarkBand(p,x0,x1,look)&&look-y>=150){bottom=look;break;}
+                    break;
+                }
             }
             if(bottom<0||bottom-y<150||bottom-y>450)return;
             found.Add(Rectangle.FromLTRB(Math.Max(0,x0-6),Math.Max(0,y-6),Math.Min(p.Width,x1+10),Math.Min(p.Height,bottom+10)));

@@ -700,6 +700,10 @@ namespace KavrosClueHelper
         public int BoardPasses { get; private set; }
         public int ScrollFastPaths { get; private set; }
         public bool LastScrollFast { get; private set; }
+        public float LastFirstScale { get; private set; }
+        private float lastMatchedScale;
+        private bool preferLegacy;
+        private readonly System.Collections.Generic.HashSet<float> triedScales = new System.Collections.Generic.HashSet<float>();
         // Set when a dark towers grid with some edge clues is visible but the
         // clues are not all readable yet (the panel is still opening).
         public Rectangle? TowerGridCandidate { get; private set; }
@@ -803,14 +807,20 @@ namespace KavrosClueHelper
             if(allowBroadSearch)
             {
                 BroadSearches++;
-                int searched=0;
-                // The likely scale runs to completion. Later scales, towers and
-                // the lockbox stop once the frame budget is spent.
-                while(searched<order.Length && (searched==0 || timer.ElapsedMilliseconds<120))
+                // Every pass starts at the scale this client should be using.
+                // The rotation only adds one more scale, and only while the
+                // frame budget still has time left.
+                float expected=ExpectedScale(screenshot.Height);
+                LastFirstScale=expected;
+                triedScales.Add(expected);
+                DetectedPuzzle match=FindAtScale(screenshot,pixels,expected,null,int.MaxValue);
+                if(match!=null){lastMatchedScale=match.Scale>0?match.Scale:expected;return match;}
+                float extra=NextExtraScale(order,expected);
+                if(timer.ElapsedMilliseconds<120)
                 {
-                    float scale=order[nextSearchScale % order.Length]; nextSearchScale=(nextSearchScale+1)%order.Length; searched++;
-                    DetectedPuzzle match=FindAtScale(screenshot,pixels,scale,searched==1?null:timer,budget);
-                    if(match!=null) return match;
+                    triedScales.Add(extra);
+                    match=FindAtScale(screenshot,pixels,extra,timer,budget);
+                    if(match!=null){lastMatchedScale=match.Scale>0?match.Scale:extra;return match;}
                 }
             }
             if(timer.ElapsedMilliseconds<budget)
@@ -837,7 +847,53 @@ namespace KavrosClueHelper
         private int nextSearchScale;
         private int towerScanY = 25;
         private int lockScaleCursor;
-        public void ResetSearch() { nextSearchScale=0; towerScanY=25; lockScaleCursor=0; }
+        private int heavyGate;
+        public void ResetSearch() { nextSearchScale=0; towerScanY=25; lockScaleCursor=0; triedScales.Clear(); heavyGate=0; }
+        // DPI picks the scale. Otherwise a 1080p client is 1.0, and a tall
+        // client that has already matched a puzzle keeps that scale.
+        public float ExpectedScale(int pixelHeight)
+        {
+            float target;
+            if(activeDpi>96)target=activeDpi/96F;
+            else if(pixelHeight>=1400&&lastMatchedScale>0)target=lastMatchedScale;
+            else if(pixelHeight>=1400)target=pixelHeight/1080F;
+            else target=1F;
+            float best=scales[0],bestDist=Math.Abs(best-target);
+            foreach(float scale in scales)
+            {
+                float dist=Math.Abs(scale-target);
+                if(dist<bestDist-0.0001F||(Math.Abs(dist-bestDist)<=0.0001F&&scale<best)){best=scale;bestDist=dist;}
+            }
+            return best;
+        }
+        float NextExtraScale(float[] order,float expected)
+        {
+            for(int n=0;n<order.Length;n++)
+            {
+                float scale=order[nextSearchScale%order.Length];
+                nextSearchScale=(nextSearchScale+1)%order.Length;
+                if(Math.Abs(scale-expected)>0.02F)return scale;
+            }
+            return order[0];
+        }
+        public bool DueForHeavyClues()
+        {
+            bool covered=true;
+            foreach(float scale in new[]{1F,1.25F,1.5F,2F})
+            {
+                bool seen=false;
+                foreach(float tried in triedScales)if(Math.Abs(tried-scale)<0.02F){seen=true;break;}
+                if(!seen){covered=false;break;}
+            }
+            // The first look, and every fourth look after that, still reads a
+            // clue. Resetting the counter on a hit would make the next pass
+            // look like the first and run the readers again.
+            heavyGate++;
+            bool due=covered||heavyGate%4==1;
+            if(due)triedScales.Clear();
+            if(heavyGate>=4)heavyGate=0;
+            return due;
+        }
         internal DetectedPuzzle TryScroll(Bitmap image, Pixels pixels)
         {
             LastScrollFast = false;
@@ -850,9 +906,26 @@ namespace KavrosClueHelper
         private DetectedPuzzle FindAtScale(Bitmap screenshot,Pixels pixels,float scale,System.Diagnostics.Stopwatch clock,int budget)
         {
             if(clock!=null&&clock.ElapsedMilliseconds>=budget)return null;
-            Rectangle all=new Rectangle(Point.Empty,screenshot.Size);
-            DetectedPuzzle old = FindOldInterface(screenshot, pixels, scale, clock, budget); if (old != null) return old;
+            // Modern players are the common case. A legacy client, once it has
+            // matched, is checked first on the next pass.
+            if(!preferLegacy)
+            {
+                DetectedPuzzle modern=FindModern(screenshot,pixels,scale,clock,budget);
+                if(modern!=null){preferLegacy=false;return modern;}
+                DetectedPuzzle old=FindOldInterface(screenshot,pixels,scale,clock,budget);
+                if(old!=null){preferLegacy=true;return old;}
+                return null;
+            }
+            DetectedPuzzle legacy=FindOldInterface(screenshot,pixels,scale,clock,budget);
+            if(legacy!=null){preferLegacy=true;return legacy;}
+            DetectedPuzzle again=FindModern(screenshot,pixels,scale,clock,budget);
+            if(again!=null)preferLegacy=false;
+            return again;
+        }
+        private DetectedPuzzle FindModern(Bitmap screenshot,Pixels pixels,float scale,System.Diagnostics.Stopwatch clock,int budget)
+        {
             if(clock!=null&&clock.ElapsedMilliseconds>=budget)return null;
+            Rectangle all=new Rectangle(Point.Empty,screenshot.Size);
             ImagePattern[] p = patterns[scale];
             List<Point> lefts = p[0].Find(pixels, all, 12);
             foreach (Point left in lefts)

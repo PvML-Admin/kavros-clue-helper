@@ -85,6 +85,7 @@ namespace KavrosClueHelper
         public long LastSliderAdvanceMilliseconds {get;private set;}
         public int BroadSearches { get { return detector.BroadSearches; } }
         public int BoardPasses { get { return detector.BoardPasses; } }
+        public float LastFirstScale { get { return detector.LastFirstScale; } }
         public int ScrollFastPaths { get { return detector.ScrollFastPaths; } }
         public int UnchangedFrames { get; private set; }
         public Action<string> Progress;
@@ -184,14 +185,11 @@ namespace KavrosClueHelper
                 bool sameSolve = last != null && DetectionPolicy.CanTrack(cached) && solveKey == cached.Puzzle.Key + ":" + reverse+(cached.Puzzle.Kind==PuzzleKind.Knot?":"+cached.KnotMoving:"")+":"+wholeRows && !cached.KnotMoving && new Rectangle(Point.Empty,image.Size).Contains(last.Bounds);
                 bool hashUnchanged = sameSolve && pixels.Hash(last.Bounds, guide) == lastHash;
                 bool trackingBoard = last != null && DetectionPolicy.IsBoardPuzzle(last.Kind);
-                // An unchanged board or an unchanged clue already on screen
-                // returns before any board search. The hash is only the area
-                // already shown, so this frame does no template work.
-                if (hashUnchanged)
-                {
-                    if(trackingBoard){boardSeen=DateTime.UtcNow; boardHold.Seen(); boardChange.Reset();}
-                    UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds };
-                }
+                // An unchanged board can be reused. A tracked text clue still
+                // has to run the board search, because a puzzle can open
+                // somewhere else on the same screen.
+                if (trackingBoard && hashUnchanged)
+                { boardSeen=DateTime.UtcNow; boardHold.Seen(); boardChange.Reset(); UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
                 int sliderBadge=-1;
                 if(cached!=null&&cached.Sliding!=null&&cached.Sliding.Count>0&&last!=null&&last.Kind==PuzzleKind.Sliding)sliderBadge=cached.Sliding[0];
                 DetectedPuzzle puzzle = trackingBoard ? detector.ReadAgain(image,last,pixels,sliderBadge,guide) : null;
@@ -252,6 +250,8 @@ namespace KavrosClueHelper
                         // keeps the board instead of running the slow clue reader.
                         if(livePolling&&trackingBoard&&HoldBoard(DateTime.UtcNow))return Held(timer.ElapsedMilliseconds);
                         if(livePolling && broad) nextBroadSearch=DateTime.UtcNow.AddMilliseconds(100);
+                        if(hashUnchanged)
+                        { UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
                         if(last!=null && !trackingBoard) puzzle=detector.ReadAgain(image,last,pixels);
                         // Keep the last slider step only for about 1.5s after a
                         // real read. A frame that stays visible longer is solved
@@ -262,7 +262,11 @@ namespace KavrosClueHelper
                         else if(puzzle==null)
                         {
                             FullSearches++;
-                            puzzle=detector.DetectClues(image,pixels);
+                            // The title bar is checked above on every pass.
+                            // Master templates, map matching and OCR wait until
+                            // several misses, or until 1.0, 1.25, 1.5 and 2
+                            // have each been tried.
+                            if(detector.DueForHeavyClues())puzzle=detector.DetectClues(image,pixels);
                         }
                     }
                 }

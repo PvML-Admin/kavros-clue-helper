@@ -124,6 +124,7 @@ namespace KavrosClueHelper
     }
     using(Bitmap modernLong=TestFixtures.SliderImage("castle",scrambled,"modern"))TimeRealLoop(report,"modern",modernLong,assets);
     TimeScrolls(report,assets);
+    TimeFirstGuide(report,assets);
     float[] dpi125=PuzzleDetector.SearchOrder(1369,120);
     Check(Math.Abs(dpi125[0]-1.25F)<0.02F&&Math.Abs(dpi125[1]-1F)<0.02F,"125% board search tries scale 1.25 then 1.0");
     Check(Math.Abs(PuzzleDetector.SearchOrder(1369,96)[0]-1F)<0.02F,"96 DPI board search still starts at 1.0");
@@ -346,6 +347,51 @@ namespace KavrosClueHelper
     g.DrawImage(reference,new Rectangle(x,y,fromCell.Width,fromCell.Height),new Rectangle(tile%5*49,tile/5*49,49,49),GraphicsUnit.Pixel);
    }
   }
+  static void TimeFirstGuide(string report,string assets)
+  {
+   int[] board=Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray();
+   TimeOpen(report,assets,"modern 100%",board,"modern",1F,96);
+   TimeOpen(report,assets,"legacy 100%",board,"rev944",1F,96);
+   TimeOpen(report,assets,"modern 125%",board,"modern",1.25F,120);
+   TimeOpen(report,assets,"legacy 125%",board,"rev944",1.25F,120);
+   TimeOpen(report,assets,"modern 150%",board,"modern",1.5F,144);
+   TimeOpen(report,assets,"legacy 150%",board,"rev944",1.5F,144);
+   TimeOpen(report,assets,"modern 200%",board,"modern",2F,192);
+   TimeOpen(report,assets,"legacy 200%",board,"rev944",2F,192);
+  }
+  static void TimeOpen(string report,string assets,string label,int[] board,string skin,float scale,int dpi)
+  {
+   var engine=new PuzzleAnalysisEngine(assets);
+   using(Bitmap widget=TestFixtures.SliderImage("castle",board,skin))
+   using(Bitmap sized=Math.Abs(scale-1F)<0.01F?(Bitmap)widget.Clone():Pixels.ScaleNearest(widget,scale))
+   using(Bitmap idle=new Bitmap(2560,1369))
+   using(Bitmap scene=new Bitmap(2560,1369))
+   {
+    using(Graphics g=Graphics.FromImage(idle))g.Clear(Color.FromArgb(30,40,50));
+    long idleMs=0;
+    for(int i=0;i<9;i++)
+    {
+     using(Bitmap frame=(Bitmap)idle.Clone())
+     {
+      var watch=System.Diagnostics.Stopwatch.StartNew();
+      using(AnalysisResult miss=engine.Analyze(frame,91,false,CancellationToken.None,true,true,Point.Empty,dpi,null))
+      {watch.Stop();idleMs+=watch.ElapsedMilliseconds;Check(miss.Plan==null||miss.Plan.Puzzle.Kind!=PuzzleKind.Sliding,label+" idle frame has no slider");}
+     }
+    }
+    using(Graphics g=Graphics.FromImage(scene)){g.Clear(Color.FromArgb(30,40,50));g.DrawImageUnscaled(sized,700,280);}
+    System.Threading.Thread.Sleep(150);
+    var open=System.Diagnostics.Stopwatch.StartNew();
+    using(AnalysisResult found=engine.Analyze(scene,91,false,CancellationToken.None,true,true,Point.Empty,dpi,null))
+    {
+     open.Stop();
+     float expect=dpi<=96?1F:dpi/96F;
+     File.AppendAllText(report,label+" first guide after 9 idle 2560x1369 frames: "+open.ElapsedMilliseconds+" ms (idle total "+idleMs+" ms), first scale "+engine.LastFirstScale.ToString("0.00")+"\r\n");
+     Check(found.Plan!=null&&found.Plan.Puzzle.Kind==PuzzleKind.Sliding,label+" slider is found on the next frame");
+     Check(Math.Abs(engine.LastFirstScale-expect)<0.05F,label+" starts at scale "+expect.ToString("0.00")+" after the rotation would have moved");
+     Check(open.ElapsedMilliseconds<4000,label+" first guide stays under 4 s ("+open.ElapsedMilliseconds+" ms)");
+    }
+   }
+  }
   static void TimeScrolls(string report,string assets)
   {
    Check(ParagraphVision.SkipClueSheet(new Rectangle(100,200,1288,824),2560),"a sand sheet is not sent to OCR or master matching");
@@ -360,14 +406,31 @@ namespace KavrosClueHelper
     {
      Check(first.Plan!=null&&first.Plan.Puzzle.Kind==PuzzleKind.EmoteClue,"a shown text clue is tracked");
      int boards=engine.BoardPasses;
-     var watch=System.Diagnostics.Stopwatch.StartNew();
      using(AnalysisResult again=engine.Analyze(master,242,false,CancellationToken.None,true))
      {
-      watch.Stop();
-      Check(again.Unchanged&&again.Plan!=null,"an unchanged clue returns before the board search");
-      Check(engine.BoardPasses==boards,"an unchanged clue does not search for boards");
-      File.AppendAllText(report,"unchanged clue frame: "+watch.ElapsedMilliseconds+" ms\r\n");
-      Check(watch.ElapsedMilliseconds<80,"an unchanged clue costs almost nothing ("+watch.ElapsedMilliseconds+" ms)");
+      Check(again.Plan!=null&&again.Plan.Puzzle.Kind==PuzzleKind.EmoteClue,"an unchanged clue stays up when no puzzle has opened");
+      Check(engine.BoardPasses>boards,"a tracked text clue still runs the board search");
+     }
+     using(Bitmap scene=new Bitmap(2560,1369))
+     {
+      using(Graphics g=Graphics.FromImage(scene)){g.Clear(Color.FromArgb(30,40,50));g.DrawImageUnscaled(master,1500,420);}
+      using(AnalysisResult shown=engine.Analyze(scene,77,false,CancellationToken.None,true,true,Point.Empty,96,null))
+       Check(shown.Plan!=null&&shown.Plan.Puzzle.Kind==PuzzleKind.EmoteClue,"the clue is tracked on the full window");
+      int[] one=Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray();
+      using(Bitmap slider=TestFixtures.SliderImage("castle",one,"modern"))
+      using(Bitmap both=(Bitmap)scene.Clone())
+      {
+       using(Graphics g=Graphics.FromImage(both))g.DrawImageUnscaled(slider,180,160);
+       System.Threading.Thread.Sleep(150);
+       var watch=System.Diagnostics.Stopwatch.StartNew();
+       using(AnalysisResult opened=engine.Analyze(both,77,false,CancellationToken.None,true,true,Point.Empty,96,null))
+       {
+        watch.Stop();
+        File.AppendAllText(report,"tracked clue, slider opens elsewhere: "+watch.ElapsedMilliseconds+" ms, first scale "+engine.LastFirstScale.ToString("0.00")+"\r\n");
+        Check(opened.Plan!=null&&opened.Plan.Puzzle.Kind==PuzzleKind.Sliding,"a puzzle opening elsewhere replaces the tracked clue");
+        Check(Math.Abs(engine.LastFirstScale-1F)<0.02F,"that search starts at scale 1.0");
+       }
+      }
      }
     }
    }
