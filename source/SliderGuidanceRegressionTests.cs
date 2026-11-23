@@ -100,6 +100,9 @@ namespace KavrosClueHelper
       using(AnalysisResult gone=engine.Analyze(closed,150,false,CancellationToken.None,true))Check(gone.Plan==null&&!gone.Pending,"closing the actual puzzle clears guidance once the hold expires");
      }
      TimeCapture(report,"legacy",native,assets);
+     WholeRowAdvance();
+     CaptureOffsetMask(assets);
+     TimeRealLoop(report,"legacy",native,assets);
     }
     foreach(float scale in new[]{0.8F,1F,1.25F,2F})
     using(Bitmap original=TestFixtures.SliderImage("castle",Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray(),"rev944"))
@@ -112,6 +115,18 @@ namespace KavrosClueHelper
     Check(!GuidanceDrawing.HideForCapture(false,PuzzleKind.Sliding),"slider stays visible in screenshots");
     int[] modernBoard=Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray();
     using(Bitmap modern=TestFixtures.SliderImage("castle",modernBoard,"modern"))TimeCapture(report,"modern",modern,assets);
+    int[] scrambled=Enumerable.Range(0,25).ToArray();
+    var rng=new Random(88);
+    for(int n=0;n<48;n++)
+    {
+     int blankAt=Array.IndexOf(scrambled,24);var options=SlidingSolver.Neighbours(blankAt).ToArray();int pick=options[rng.Next(options.Length)];
+     scrambled[blankAt]=scrambled[pick];scrambled[pick]=24;
+    }
+    using(Bitmap modernLong=TestFixtures.SliderImage("castle",scrambled,"modern"))TimeRealLoop(report,"modern",modernLong,assets);
+    TimeScrolls(report,assets);
+    float[] dpi125=PuzzleDetector.SearchOrder(1369,120);
+    Check(Math.Abs(dpi125[0]-1.25F)<0.02F&&Math.Abs(dpi125[1]-1F)<0.02F,"125% board search tries scale 1.25 then 1.0");
+    Check(Math.Abs(PuzzleDetector.SearchOrder(1369,96)[0]-1F)<0.02F,"96 DPI board search still starts at 1.0");
     File.AppendAllText(report,"V0.5.5 SLIDER GUIDANCE PASS: "+checks+" assertions. Visible badges, twelve consecutive moves, rolling four-step previews, animation retention, closure and scaled tile reading. No windows shown or game input/capture.\r\n");return 0;
    }
    catch(Exception e){File.AppendAllText(report,e+"\r\n");return 1;}
@@ -183,6 +198,210 @@ namespace KavrosClueHelper
    int tile=from[move];
    int x=(int)Math.Round(fromCell.X+(toCell.X-fromCell.X)*t),y=(int)Math.Round(fromCell.Y+(toCell.Y-fromCell.Y)*t);
    g.DrawImage(reference,new Rectangle(x,y,fromCell.Width,fromCell.Height),new Rectangle(tile%5*49,tile/5*49,49,49),GraphicsUnit.Pixel);
+  }
+  static void WholeRowAdvance()
+  {
+   int[] goal=Enumerable.Range(0,25).ToArray();
+   int[] board=(int[])goal.Clone();
+   board[21]=24;board[22]=21;board[23]=22;board[24]=23;
+   var route=new List<int>{22,23,24};
+   List<int> followed;int consumed;int slow=SlidingClickOptimizer.SlowSolves;
+   Check(SliderStep.Follow(board,route,goal,null,out followed,out consumed),"a whole-row step is the next board on the route");
+   Check(consumed==3&&followed.Count==0,"the whole row is consumed without a new plan");
+   Check(!SlidingSolver.Neighbours(21).Contains(24),"the blank moved more than one cell");
+   Check(SlidingClickOptimizer.SlowSolves==slow,"whole-row advance does not solve");
+  }
+  static void CaptureOffsetMask(string assets)
+  {
+   using(Bitmap image=TestFixtures.SliderImage("castle",Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray(),"rev944"))
+   {
+    var detector=new PuzzleDetector(assets);
+    DetectedPuzzle puzzle=detector.Detect(image);
+    Check(puzzle!=null&&puzzle.Kind==PuzzleKind.Sliding,"offset fixture is a slider");
+    int move=Array.IndexOf(puzzle.Board,24)==24?23:Array.IndexOf(puzzle.Board,23);
+    var marks=GuidanceDrawing.SliderMarks(puzzle,new[]{move},1,1);
+    marks[0].Colour=KavrosTheme.Gold;marks[0].Pulse=true;marks[0].ArrowX=1;
+    Point captureOffset=new Point(640,280);
+    foreach(GuidanceMark mark in marks)mark.Box=new Rectangle(mark.Box.X+captureOffset.X,mark.Box.Y+captureOffset.Y,mark.Box.Width,mark.Box.Height);
+    GuideInk missed=GuideInk.ForSlider(image.Width,image.Height,marks,Point.Empty);
+    GuideInk covered=GuideInk.ForSlider(image.Width,image.Height,marks,captureOffset);
+    int x=marks[0].Box.X-captureOffset.X+3,y=marks[0].Box.Y-captureOffset.Y+3;
+    Check(x>=0&&y>=0&&x<image.Width&&y<image.Height,"the badge sits on the cropped capture");
+    Check(missed==null||!missed.Ignores(x,y),"a mask without CaptureOffset misses the guide");
+    Check(covered!=null&&covered.Ignores(x,y),"a mask with CaptureOffset covers the guide");
+   }
+  }
+  static void TimeRealLoop(string report,string label,Bitmap source,string assets)
+  {
+   int slow=SlidingClickOptimizer.SlowSolves;
+   var engine=new PuzzleAnalysisEngine(assets);
+   var times=new List<long>();
+   bool wholeRow=false;
+   using(Bitmap scene=new Bitmap(source.Width+360,source.Height+240))
+   {
+    using(Graphics g=Graphics.FromImage(scene)){g.Clear(Color.FromArgb(24,28,32));g.DrawImage(source,180,120);}
+    using(AnalysisResult found=engine.Analyze((Bitmap)scene.Clone(),150,false,CancellationToken.None,true,true,Point.Empty,96,null))
+    {
+     Check(found.Plan!=null&&found.Plan.Puzzle.Kind==PuzzleKind.Sliding,label+" slider is read on the full frame");
+     Check(SlidingClickOptimizer.SlowSolves==slow,label+" the first route is shown without the slow solver");
+     DetectedPuzzle puzzle=found.Plan.Puzzle;
+     int[] board=(int[])puzzle.Board.Clone();
+     var route=new List<int>(found.Plan.Sliding);
+     List<int> clicks;
+     Check(SlidingRoute.TryClickRoute(board,route,out clicks)&&clicks.Count>0,label+" route is playable");
+     int gap=Array.IndexOf(board,24);
+     using(Bitmap reference=new Bitmap(Path.Combine(assets,"data","sliders","sliders",puzzle.Theme+".png")))
+     using(Bitmap blank=scene.Clone(GuidanceDrawing.Cell(puzzle,gap),System.Drawing.Imaging.PixelFormat.Format24bppRgb))
+     {
+      foreach(int click in clicks)
+      {
+       int blankAt=Array.IndexOf(board,24);
+       int distance=blankAt/5==click/5?Math.Abs(click-blankAt):Math.Abs(click/5-blankAt/5);
+       if(distance>1)wholeRow=true;
+       var shown=GuidanceDrawing.SliderMarks(puzzle,new[]{click},1,1);
+       shown[0].Colour=KavrosTheme.Gold;shown[0].Pulse=true;shown[0].ArrowX=blankAt%5-click%5;shown[0].ArrowY=blankAt/5-click/5;
+       long pending=0;
+       foreach(double t in new[]{0.33,0.66})
+       {
+        using(Bitmap frame=(Bitmap)scene.Clone())
+        {
+         using(Graphics g=Graphics.FromImage(frame)){DrawClick(g,puzzle,board,click,t,reference,blank);GuidanceDrawing.Draw(g,shown);}
+         Rectangle crop=Rectangle.Intersect(new Rectangle(Point.Empty,frame.Size),Rectangle.Inflate(puzzle.Grid,36,36));
+         using(Bitmap shot=frame.Clone(crop,System.Drawing.Imaging.PixelFormat.Format24bppRgb))
+         {
+          GuideInk ink=GuideInk.ForSlider(shot.Width,shot.Height,shown,crop.Location);
+          var watch=System.Diagnostics.Stopwatch.StartNew();
+          using(AnalysisResult result=engine.Analyze(shot,150,false,CancellationToken.None,true,true,crop.Location,96,ink))
+          {watch.Stop();pending+=watch.ElapsedMilliseconds;Check(result.Plan!=null,label+" the guide stays up during a whole-row slide");}
+         }
+        }
+       }
+       int[] next=AfterClick(board,click);
+       long settled=0;
+       using(Bitmap frame=(Bitmap)scene.Clone())
+       {
+        using(Graphics g=Graphics.FromImage(frame)){DrawBoard(g,puzzle,next,reference,blank);GuidanceDrawing.Draw(g,shown);}
+        Rectangle crop=Rectangle.Intersect(new Rectangle(Point.Empty,frame.Size),Rectangle.Inflate(puzzle.Grid,36,36));
+        using(Bitmap shot=frame.Clone(crop,System.Drawing.Imaging.PixelFormat.Format24bppRgb))
+        {
+         GuideInk ink=GuideInk.ForSlider(shot.Width,shot.Height,shown,crop.Location);
+         int badgeX=shown[0].Box.X-crop.X+3,badgeY=shown[0].Box.Y-crop.Y+3;
+         Check(ink!=null&&ink.Ignores(badgeX,badgeY),label+" the cropped capture mask covers the badge");
+         var watch=System.Diagnostics.Stopwatch.StartNew();
+         using(AnalysisResult result=engine.Analyze(shot,150,false,CancellationToken.None,true,true,crop.Location,96,ink))
+         {
+          watch.Stop();settled=watch.ElapsedMilliseconds;
+          Check(result.Plan!=null&&!result.Pending&&result.Plan.Puzzle.Board.SequenceEqual(next),label+" the settled click is read through the guide");
+          List<int> followed;int consumed;int now=SlidingClickOptimizer.SlowSolves;
+          Check(SliderStep.Follow(board,route,result.Plan.Puzzle.Board,result.Plan.Sliding,out followed,out consumed),label+" the shown route advances");
+          Check(SlidingClickOptimizer.SlowSolves==now,label+" follow does not solve on the UI thread");
+          route=followed;board=next;
+         }
+        }
+       }
+       times.Add(125+pending+150+settled);
+      }
+     }
+    }
+   }
+   times.Sort();
+   long median=times[times.Count/2],worst=times[times.Count-1];
+   File.AppendAllText(report,label+" click -> next step over "+times.Count+" clicks (analysis, UI follow, guide at the crop offset, 125/75 ms cadence, whole-row frames, background proof): median "+median+" ms, worst "+worst+" ms"+(wholeRow?"; included a whole-row click":"")+"; slow solves "+(SlidingClickOptimizer.SlowSolves-slow)+"\r\n");
+   Check(worst<1200,label+" worst click stays under 1.2 s ("+worst+" ms)");
+   Check(SlidingClickOptimizer.SlowSolves==slow,label+" the puzzle never used the slow solver");
+  }
+  static int[] AfterClick(int[] board,int click)
+  {
+   int[] next=(int[])board.Clone();int blank=Array.IndexOf(next,24);
+   int step=blank/5==click/5?Math.Sign(click-blank):5*Math.Sign(click/5-blank/5);
+   while(blank!=click){int n=blank+step;next[blank]=next[n];next[n]=24;blank=n;}
+   return next;
+  }
+  static void DrawBoard(Graphics g,DetectedPuzzle puzzle,int[] board,Bitmap reference,Bitmap blank)
+  {
+   for(int i=0;i<25;i++)
+   {
+    Rectangle cell=GuidanceDrawing.Cell(puzzle,i);
+    if(board[i]==24)g.DrawImage(blank,cell);
+    else g.DrawImage(reference,cell,new Rectangle(board[i]%5*49,board[i]/5*49,49,49),GraphicsUnit.Pixel);
+   }
+  }
+  static void DrawClick(Graphics g,DetectedPuzzle puzzle,int[] from,int click,double t,Bitmap reference,Bitmap blank)
+  {
+   int blankAt=Array.IndexOf(from,24);
+   int step=blankAt/5==click/5?Math.Sign(click-blankAt):5*Math.Sign(click/5-blankAt/5);
+   var moving=new List<int>();
+   for(int p=blankAt+step;;p+=step){moving.Add(p);if(p==click)break;}
+   for(int i=0;i<25;i++)
+   {
+    if(i==blankAt||moving.Contains(i))continue;
+    g.DrawImage(reference,GuidanceDrawing.Cell(puzzle,i),new Rectangle(from[i]%5*49,from[i]/5*49,49,49),GraphicsUnit.Pixel);
+   }
+   g.DrawImage(blank,GuidanceDrawing.Cell(puzzle,blankAt));
+   foreach(int src in moving)
+   {
+    Rectangle fromCell=GuidanceDrawing.Cell(puzzle,src),toCell=GuidanceDrawing.Cell(puzzle,src-step);
+    int tile=from[src];
+    int x=(int)Math.Round(fromCell.X+(toCell.X-fromCell.X)*t),y=(int)Math.Round(fromCell.Y+(toCell.Y-fromCell.Y)*t);
+    g.DrawImage(reference,new Rectangle(x,y,fromCell.Width,fromCell.Height),new Rectangle(tile%5*49,tile/5*49,49,49),GraphicsUnit.Pixel);
+   }
+  }
+  static void TimeScrolls(string report,string assets)
+  {
+   Check(ParagraphVision.SkipClueSheet(new Rectangle(100,200,1288,824),2560),"a sand sheet is not sent to OCR or master matching");
+   Check(ParagraphVision.SkipClueSheet(new Rectangle(2040,16,432,227),2560),"the minimap is not sent to OCR or master matching");
+   Check(!ParagraphVision.SkipClueSheet(new Rectangle(922,490,520,320),2560),"a framed scroll is still read");
+   TimeOneScroll(report,"hamid-full-2560",Path.Combine(assets,"test_assets","reported","hamid-full-2560.png"),assets,false);
+   TimeOneScroll(report,"rogues-yawn",Path.Combine(assets,"test_assets","reported","mysterious-rogues-yawn.png"),assets,true);
+   using(Bitmap master=new Bitmap(Path.Combine(assets,"test_assets","master","242.png")))
+   {
+    var engine=new PuzzleAnalysisEngine(assets);
+    using(AnalysisResult first=engine.Analyze(master,242,false,CancellationToken.None,true))
+    {
+     Check(first.Plan!=null&&first.Plan.Puzzle.Kind==PuzzleKind.EmoteClue,"a shown text clue is tracked");
+     int boards=engine.BoardPasses;
+     var watch=System.Diagnostics.Stopwatch.StartNew();
+     using(AnalysisResult again=engine.Analyze(master,242,false,CancellationToken.None,true))
+     {
+      watch.Stop();
+      Check(again.Unchanged&&again.Plan!=null,"an unchanged clue returns before the board search");
+      Check(engine.BoardPasses==boards,"an unchanged clue does not search for boards");
+      File.AppendAllText(report,"unchanged clue frame: "+watch.ElapsedMilliseconds+" ms\r\n");
+      Check(watch.ElapsedMilliseconds<80,"an unchanged clue costs almost nothing ("+watch.ElapsedMilliseconds+" ms)");
+     }
+    }
+   }
+  }
+  static void TimeOneScroll(string report,string label,string path,string assets,bool place)
+  {
+   Check(File.Exists(path),label+" fixture is installed");
+   var engine=new PuzzleAnalysisEngine(assets);
+   using(Bitmap raw=new Bitmap(path))
+   using(Bitmap frame=new Bitmap(2560,1369))
+   {
+    using(Graphics g=Graphics.FromImage(frame))
+    {
+     g.Clear(Color.FromArgb(168,142,92));
+     if(place)g.DrawImage(raw,560,300);else g.DrawImage(raw,0,0);
+    }
+    int boards=engine.BoardPasses;
+    var watch=System.Diagnostics.Stopwatch.StartNew();
+    using(AnalysisResult result=engine.Analyze(frame,77,false,CancellationToken.None,true,true,Point.Empty,96,null))
+    {
+     watch.Stop();
+     Check(engine.ScrollFastPaths>=1,label+" takes the scroll fast path");
+     Check(engine.BoardPasses==boards,label+" skips the board search");
+     string card=result.Plan!=null&&result.Plan.Puzzle.Master!=null?" card "+result.Plan.Puzzle.Master.Id:" Windows OCR unavailable here, so this is locate plus the OCR attempt";
+     var againWatch=System.Diagnostics.Stopwatch.StartNew();
+     using(AnalysisResult again=engine.Analyze(frame,77,false,CancellationToken.None,true,true,Point.Empty,96,null))
+     {
+      againWatch.Stop();
+      File.AppendAllText(report,label+" scroll open -> card: "+watch.ElapsedMilliseconds+" ms;"+card+"; next frame "+againWatch.ElapsedMilliseconds+" ms"+(again.Unchanged?"; unchanged":"")+"; board searches "+engine.BoardPasses+"\r\n");
+      Check(engine.BoardPasses==boards,label+" second frame still skips the board search");
+     }
+     Check(watch.ElapsedMilliseconds<500,label+" scroll path stays under 500 ms ("+watch.ElapsedMilliseconds+" ms)");
+    }
+   }
   }
  }
 }

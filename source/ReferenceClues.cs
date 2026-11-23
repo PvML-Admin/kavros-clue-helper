@@ -97,6 +97,7 @@ namespace KavrosClueHelper
             }
             foreach(Rectangle r in candidates)
             {
+                if(ParagraphVision.SkipClueSheet(r,p.Width))continue;
                 if(!HasMysteriousFrame(p,r)){plain.Add(r);continue;}
                 Rectangle sheet=TrimToPaper(p,r);
                 bool same=false;
@@ -276,36 +277,48 @@ namespace KavrosClueHelper
         }
         private DetectedPuzzle Result(ReferenceClue clue,Rectangle paper)
         {return clue==null?null:new DetectedPuzzle{Kind=PuzzleKind.EmoteClue,Master=clue.Card,Bounds=paper,Scale=1,Confidence=0.96,Message=clue.Card.Tier+" "+clue.Type};}
+        public DetectedPuzzle ReadSheet(Bitmap image,Pixels pixels,Rectangle scroll)
+        {
+            Rectangle paper=TrimToPaper(pixels,scroll);
+            if(paper.Width<180||paper.Height<90)paper=scroll;
+            if(ParagraphVision.SkipClueSheet(paper,pixels.Width))return null;
+            return ReadPaper(image,pixels,paper);
+        }
         public DetectedPuzzle Detect(Bitmap image,Pixels pixels)
         {
             foreach(Rectangle paper in Papers(pixels).Take(3))
             {
-                SearchCancellation.Check();ulong hash=pixels.Hash(paper);
-                if(hasCache&&cached!=null&&cachedSize==image.Size&&cachedPaper==paper&&cachedHash==hash)return Result(cached,paper);
-                ReferenceClue known;if(recent.TryGetValue(hash,out known)&&known!=null)return Result(known,paper);
-                ReferenceClue found=null;
-                MapSignature signature=MapSignature.Read(pixels,paper);
-                if(signature!=null)
-                {
-                    var ranked=maps.Concat(variants).GroupBy(m=>m.Key).Select(group=>new{Id=group.Key,Score=group.Max(m=>m.Value.Compare(signature))}).OrderByDescending(v=>v.Score).Take(2).ToArray();
-                    MapScores=paper+" "+signature.Info+" "+String.Join(" / ",ranked.Select(v=>v.Id+":"+v.Score.ToString("0.000")));
-                    if(ranked.Length>0&&ranked[0].Id!=188&&ranked[0].Id!=900001&&ranked[0].Score>=0.83&&(ranked.Length<2||ranked[0].Score-ranked[1].Score>=0.07))found=Clues.First(c=>c.Card.Id==ranked[0].Id);
-                }
-                if(found==null)
-                {
-                    if(Progress!=null)Progress("Reading clue...");
-                    // Upscale the parchment, retaining antialiasing and real ink.
-                    int mx=Math.Max(4,paper.Width/10),my=Math.Max(4,paper.Height/8);
-                    Rectangle inner=new Rectangle(paper.X+mx,paper.Y+my,Math.Max(8,paper.Width-2*mx),Math.Max(8,paper.Height-2*my));
-                    double scale=Math.Min(2,2000.0/Math.Max(inner.Width,inner.Height));
-                    using(Bitmap crop=Pixels.Crop(image,inner,new Size((int)(inner.Width*scale),(int)(inner.Height*scale))))
-                    {LastText=ocr.Read(crop);LastError=ocr.Unavailable;found=MatchText(LastText);}
-                }
-                cachedHash=hash;cachedSize=image.Size;cachedPaper=paper;cached=found;hasCache=found!=null;
-                if(found!=null){recent[hash]=found;recentOrder.Enqueue(hash);while(recentOrder.Count>24)recent.Remove(recentOrder.Dequeue());}
-                if(found!=null)return Result(found,paper);
+                if(ParagraphVision.SkipClueSheet(paper,pixels.Width))continue;
+                DetectedPuzzle found=ReadPaper(image,pixels,paper);
+                if(found!=null)return found;
             }
             return null;
+        }
+        DetectedPuzzle ReadPaper(Bitmap image,Pixels pixels,Rectangle paper)
+        {
+            SearchCancellation.Check();ulong hash=pixels.Hash(paper);
+            if(hasCache&&cached!=null&&cachedSize==image.Size&&cachedPaper==paper&&cachedHash==hash)return Result(cached,paper);
+            ReferenceClue known;if(recent.TryGetValue(hash,out known)&&known!=null)return Result(known,paper);
+            ReferenceClue found=null;
+            MapSignature signature=MapSignature.Read(pixels,paper);
+            if(signature!=null)
+            {
+                var ranked=maps.Concat(variants).GroupBy(m=>m.Key).Select(group=>new{Id=group.Key,Score=group.Max(m=>m.Value.Compare(signature))}).OrderByDescending(v=>v.Score).Take(2).ToArray();
+                MapScores=paper+" "+signature.Info+" "+String.Join(" / ",ranked.Select(v=>v.Id+":"+v.Score.ToString("0.000")));
+                if(ranked.Length>0&&ranked[0].Id!=188&&ranked[0].Id!=900001&&ranked[0].Score>=0.83&&(ranked.Length<2||ranked[0].Score-ranked[1].Score>=0.07))found=Clues.First(c=>c.Card.Id==ranked[0].Id);
+            }
+            if(found==null)
+            {
+                if(Progress!=null)Progress("Reading clue...");
+                int mx=Math.Max(4,paper.Width/10),my=Math.Max(4,paper.Height/8);
+                Rectangle inner=new Rectangle(paper.X+mx,paper.Y+my,Math.Max(8,paper.Width-2*mx),Math.Max(8,paper.Height-2*my));
+                double scale=Math.Min(2,2000.0/Math.Max(inner.Width,inner.Height));
+                using(Bitmap crop=Pixels.Crop(image,inner,new Size((int)(inner.Width*scale),(int)(inner.Height*scale))))
+                {LastText=ocr.Read(crop);LastError=ocr.Unavailable;found=MatchText(LastText);}
+            }
+            cachedHash=hash;cachedSize=image.Size;cachedPaper=paper;cached=found;hasCache=found!=null;
+            if(found!=null){recent[hash]=found;recentOrder.Enqueue(hash);while(recentOrder.Count>24)recent.Remove(recentOrder.Dequeue());}
+            return Result(found,paper);
         }
     }
     internal sealed class MapSignature

@@ -1,5 +1,17 @@
 # Kavros Clue Helper
 
+## 0.7.26
+
+**Slider**
+- A whole-row step advances the route already on screen. The helper does not solve the board again on the UI thread, so the timer and the guide keep moving.
+- One route is shared. A shorter proof replaces it only when the next click stays the same. The first step is the fast route; a shorter one is refined in the background.
+- The guide mask uses the capture offset, so the ring, arrow and badge are ignored on a cropped read. After missed reads the last board stays up.
+
+**Clues**
+- A mysterious clue scroll is found from its title bar first. That frame skips the board search and the master templates and goes straight to the scroll text.
+- An unchanged clue already on screen is not searched again.
+- A large sand sheet and the minimap are not sent to master matching or text recognition.
+
 ## 0.7.25
 
 **Slider**

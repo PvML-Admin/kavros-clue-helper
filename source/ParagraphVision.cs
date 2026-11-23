@@ -147,6 +147,13 @@ namespace KavrosClueHelper
             for(int x=x0;x<=x1;x+=2)if(Dark(p.Get(x,y),80))dark++;
             return dark>=2;
         }
+        static bool FlankingDark(Pixels p,int y,int x0,int x1)
+        {
+            int row=Math.Max(0,y-6),leftDark=0,leftN=0,rightDark=0,rightN=0;
+            for(int x=Math.Max(0,x0-48);x<x0;x+=4){leftN++;if(Dark(p.Get(x,row),70))leftDark++;}
+            for(int x=x1+1;x<Math.Min(p.Width,x1+49);x+=4){rightN++;if(Dark(p.Get(x,row),70))rightDark++;}
+            return leftN>=3&&rightN>=3&&leftDark*2>=leftN&&rightDark*2>=rightN;
+        }
         static bool DarkBand(Pixels p,int x0,int x1,int y)
         {
             if(y<0||y>=p.Height)return false;
@@ -159,6 +166,9 @@ namespace KavrosClueHelper
             double above=PaperBand(p,x0,x1,y-28),below=PaperBand(p,x0,x1,y+32);
             if(above>=0.45)return;
             if(below<0.55)return;
+            // A parchment sitting on a dark surface has dark pixels on both
+            // sides of any dark row. A title bar stops at the frame.
+            if(FlankingDark(p,y,x0,x1))return;
             int sideRows=0,sideHit=0;
             for(int dy=40;dy<=160;dy+=60)
             {
@@ -292,6 +302,33 @@ namespace KavrosClueHelper
             for(int i=0;i<template.Count;i++)
                 if(Math.Abs(lines[start+i].Bounds.Top-lines[start].Bounds.Top-(template[i].Bounds.Top-template[0].Bounds.Top)*scale)>Math.Max(3,scale*4))return false;
             return true;
+        }
+        // A full-window beige run can be the sand behind a scroll, or the
+        // minimap. Neither is a clue sheet. Framed scrolls are smaller than this.
+        public static bool SkipClueSheet(Rectangle r, int imageWidth)
+        {
+            if (r.Width > 1100 || r.Height > 700) return true;
+            if (r.Top < 48 && r.Left > imageWidth * 0.62 && r.Width < 560 && r.Height < 320) return true;
+            return false;
+        }
+        public static List<Rectangle> ClueSheets(Pixels p)
+        {
+            var result = new List<Rectangle>();
+            if (p == null) return result;
+            foreach (Rectangle scroll in FindScrolls(p)) if (!SkipClueSheet(scroll, p.Width)) result.Add(scroll);
+            foreach (Rectangle paper in FindPapers(p))
+            {
+                if (SkipClueSheet(paper, p.Width) || paper.Width < 180 || paper.Height < 90) continue;
+                bool same = false;
+                foreach (Rectangle have in result)
+                {
+                    Rectangle hit = Rectangle.Intersect(have, paper);
+                    int small = Math.Min(have.Width * have.Height, paper.Width * paper.Height);
+                    if (hit.Width > 0 && small > 0 && hit.Width * hit.Height >= small * 0.55) { same = true; break; }
+                }
+                if (!same) result.Add(paper);
+            }
+            return result;
         }
     }
 }

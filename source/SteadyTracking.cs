@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 
 namespace KavrosClueHelper
 {
@@ -109,6 +110,48 @@ namespace KavrosClueHelper
             if (matched || advanced) return 0;
             if (priorMisses >= 2) return 2;
             return 1;
+        }
+        // The form displays the route the engine already owns. A whole-row
+        // step matches any later board on that route. This never solves.
+        public static bool Follow(int[] shownBoard, IList<int> shownRoute, int[] nextBoard, IList<int> preparedRoute, out List<int> route, out int consumed)
+        {
+            route = null;
+            consumed = 0;
+            if (nextBoard == null || !SlidingSolver.IsValid(nextBoard)) return false;
+            if (shownBoard != null && shownRoute != null && SlidingSolver.IsValid(shownBoard))
+            {
+                if (shownBoard.SequenceEqual(nextBoard))
+                {
+                    route = SameStep(shownBoard, shownRoute, preparedRoute);
+                    return true;
+                }
+                List<int> remaining;
+                if (SlidingRoute.Advance(shownBoard, shownRoute, nextBoard, out remaining))
+                {
+                    consumed = shownRoute.Count - remaining.Count;
+                    route = remaining;
+                    return true;
+                }
+            }
+            if (preparedRoute != null && SlidingRoute.Playable(nextBoard, preparedRoute))
+            {
+                route = new List<int>(preparedRoute);
+                return true;
+            }
+            return false;
+        }
+        public static bool SameNextClick(int[] board, IList<int> shown, IList<int> prepared)
+        {
+            List<int> left, right;
+            if (board == null || shown == null || prepared == null) return false;
+            if (!SlidingRoute.TryClickRoute(board, shown, out left) || !SlidingRoute.TryClickRoute(board, prepared, out right)) return false;
+            return left.Count > 0 && right.Count > 0 && left[0] == right[0];
+        }
+        static List<int> SameStep(int[] board, IList<int> shown, IList<int> prepared)
+        {
+            if (prepared != null && prepared.Count < shown.Count && SlidingRoute.Playable(board, prepared) && SameNextClick(board, shown, prepared))
+                return new List<int>(prepared);
+            return new List<int>(shown);
         }
     }
 
