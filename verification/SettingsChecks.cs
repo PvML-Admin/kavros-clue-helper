@@ -29,7 +29,7 @@ public sealed class SettingsChecks : MarshalByRefObject
         {
             var footer=form.Controls.Find("BuildCredit",true).OfType<Label>().Single();
             var crest=form.Controls.Find("KavrosCrest",true).OfType<PictureBox>().Single();
-            if(!footer.Text.Contains("v0.7.22")||crest.Image==null||form.Icon==null)throw new Exception("Missing branding or incorrect version.");
+            if(!footer.Text.Contains("v0.7.23")||crest.Image==null||form.Icon==null)throw new Exception("Missing branding or incorrect version.");
             const BindingFlags flags=BindingFlags.Instance|BindingFlags.NonPublic;
             var option=(CheckBox)typeof(PuzzleSuiteForm).GetField("wholeRowClicks",flags).GetValue(form);
             var summary=(Label)typeof(PuzzleSuiteForm).GetField("summary",flags).GetValue(form);

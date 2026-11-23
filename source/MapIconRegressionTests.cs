@@ -32,6 +32,10 @@ namespace KavrosClueHelper
                 float[] fourK = PuzzleDetector.SearchOrder(2160);
                 Check(fourK.Length >= 12 && Math.Abs(fourK[0] - 2F) < 0.01F, "a 4K frame searches the 2x interface scale first");
                 Check(PuzzleDetector.SearchOrder(1080)[0] == 1F, "a 1080p frame searches the native template first");
+                Check(PuzzleDetector.SearchOrder(1351)[0] == 1F && PuzzleDetector.SearchOrder(1351, 96)[0] == 1F, "DPI 96 keeps the 100% search order");
+                Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 120)[0] - 1.25F) < 0.01F, "Windows 125% searches the 1.25 scale first");
+                Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 144)[0] - 1.5F) < 0.01F, "Windows 150% searches the 1.5 scale first");
+                Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 192)[0] - 2F) < 0.01F, "Windows 200% searches the 2x scale first");
                 string preferred = LodestoneIcons.Resolve(assets, "Lumbridge lodestone");
                 Check(preferred != null && preferred.Replace('\\', '/').Contains("/map-icons/lodestones/lumbridge.png"), "lodestone icons prefer assets/map-icons/lodestones");
                 string compass = LodestoneIcons.CompassFile(assets);

@@ -41,6 +41,22 @@ namespace KavrosClueHelper
                 b.Board[3]=1;check(!SteadyPolicy.SameState(a,b,2),"a clicked board is redrawn");
                 b.Board[3]=0;b.Bounds=new Rectangle(140,100,300,300);check(!SteadyPolicy.SameState(a,b,2),"a moved board is redrawn");
                 check(SteadyPolicy.HoldsThroughMisses(PuzzleKind.Lockbox)&&SteadyPolicy.HoldsThroughMisses(PuzzleKind.Towers)&&SteadyPolicy.HoldsThroughMisses(PuzzleKind.Knot)&&!SteadyPolicy.HoldsThroughMisses(PuzzleKind.Sliding),"lockbox, towers and the knot hold through a miss");
+                int[] solved = new int[25];
+                for (int i = 0; i < 25; i++) solved[i] = i;
+                int[] moved = (int[])solved.Clone();
+                moved[23] = 24; moved[24] = 23;
+                check(SliderStep.OneLegalMove(solved, moved), "one adjacent tile is a legal slider step");
+                check(!SliderStep.OneLegalMove(solved, solved), "an unchanged board is not a new step");
+                int[] jump = (int[])solved.Clone();
+                jump[20] = 24; jump[24] = 20;
+                check(!SliderStep.OneLegalMove(solved, jump), "a two-tile jump is not one click");
+                var shown = new DetectedPuzzle { Kind = PuzzleKind.Sliding, Board = solved, Bounds = new Rectangle(40, 50, 300, 300), Grid = new Rectangle(60, 80, 250, 250) };
+                var next = new DetectedPuzzle { Kind = PuzzleKind.Sliding, Board = moved, Bounds = new Rectangle(41, 50, 300, 301), Grid = new Rectangle(61, 80, 250, 250) };
+                check(SliderStep.SkipConfirm(shown, next), "the same place and one legal move skips the confirm wait");
+                next.Bounds = new Rectangle(90, 50, 300, 300);
+                check(!SliderStep.SkipConfirm(shown, next), "a slider that moved on screen still waits");
+                check(SliderStep.Reread(true, false, 2) == 0 && SliderStep.Reread(false, true, 2) == 0, "a matching or continued read is shown");
+                check(SliderStep.Reread(false, false, 0) == 1 && SliderStep.Reread(false, false, 1) == 1 && SliderStep.Reread(false, false, 2) == 2, "a bad slider re-read is kept twice and then reset");
 
                 var motion=new MotionEstimate();
                 check(!motion.Estimate(t).HasValue,"no estimate before any position");

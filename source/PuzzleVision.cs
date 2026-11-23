@@ -215,6 +215,21 @@ namespace KavrosClueHelper
             }
             return result;
         }
+        // Blocky scale for the legacy interface. Bilinear copies smear the
+        // pixel-art corners and the close button at 125%, 150% and 200%.
+        public static Bitmap ScaleNearest(Bitmap image, float scale)
+        {
+            int width = Math.Max(1, (int)Math.Round(image.Width * scale));
+            int height = Math.Max(1, (int)Math.Round(image.Height * scale));
+            Bitmap result = new Bitmap(width, height);
+            using (Graphics g = Graphics.FromImage(result))
+            {
+                g.InterpolationMode = InterpolationMode.NearestNeighbor;
+                g.PixelOffsetMode = PixelOffsetMode.Half;
+                g.DrawImage(image, new Rectangle(Point.Empty, result.Size), new Rectangle(Point.Empty, image.Size), GraphicsUnit.Pixel);
+            }
+            return result;
+        }
         public static double ColourSimilarity(Color a, Color b)
         { return (Math.Max(0, 1 - Math.Abs(a.R - b.R) / 128.0) + Math.Max(0, 1 - Math.Abs(a.G - b.G) / 128.0) + Math.Max(0, 1 - Math.Abs(a.B - b.B) / 128.0)) / 3; }
         public double[] Fingerprint(Rectangle rectangle, int columns, int rows, bool hsl)
@@ -539,16 +554,31 @@ namespace KavrosClueHelper
         private readonly Dictionary<float, ImagePattern[]> lockboxPatterns = new Dictionary<float, ImagePattern[]>();
         private readonly Dictionary<float, OldFrame[]> oldFrames = new Dictionary<float, OldFrame[]>();
         private readonly Dictionary<float, ImagePattern[]> oldSliderAnchors = new Dictionary<float, ImagePattern[]>();
+        private readonly Dictionary<float, OldFrame[]> blockyFrames = new Dictionary<float, OldFrame[]>();
+        private readonly Dictionary<float, ImagePattern[]> blockySliders = new Dictionary<float, ImagePattern[]>();
+        private int activeDpi = 96;
         private readonly float[] scales = { 1F, 0.8F, 8F/9F, 2F/3F, 0.5F, 1.25F, 1.5F, 1.75F, 2F, 2.25F, 2.5F, 3F };
         // Templates are drawn at 1080p. A 1440p or 4K client is searched at the
         // nearest interface scales first, then the rest, so a large UI is not
         // matched as a small 1080p puzzle.
         public static float[] SearchOrder(int pixelHeight)
         {
+            return SearchOrder(pixelHeight, 96);
+        }
+        // DPI 96 keeps the height order used today. Any other DPI searches
+        // dpi/96 first, then the neighbouring scales. 125% is 1.25, the same
+        // way 150% is 1.5 and 200% is 2.
+        public static float[] SearchOrder(int pixelHeight, int dpi)
+        {
             float[] classic = { 1F, 0.8F, 8F/9F, 2F/3F, 0.5F, 1.25F, 1.5F, 2F, 1.75F, 2.25F, 2.5F, 3F };
-            if (pixelHeight < 1400) return classic;
-            float target = pixelHeight / 1080F;
-            return classic.OrderBy(s => Math.Abs(s - target)).ThenBy(s => s).ToArray();
+            if (dpi == 96 || dpi <= 0)
+            {
+                if (pixelHeight < 1400) return classic;
+                float target = pixelHeight / 1080F;
+                return classic.OrderBy(s => Math.Abs(s - target)).ThenBy(s => s).ToArray();
+            }
+            float dpiScale = dpi / 96F;
+            return classic.OrderBy(s => Math.Abs(s - dpiScale)).ThenBy(s => s).ToArray();
         }
         public int LastTowerCluesRead;
         private string towerSolveKey;
@@ -588,6 +618,40 @@ namespace KavrosClueHelper
             using (Bitmap image = new Bitmap(Path.Combine(assets, "alt1anchors", "rev944", name)))
             using (Bitmap resized = Pixels.Crop(image, new Rectangle(Point.Empty, image.Size), new Size((int)Math.Round(image.Width * scale), (int)Math.Round(image.Height * scale)))) return new ImagePattern(resized);
         }
+        public void UseDpi(int dpi)
+        {
+            if (dpi < 96) dpi = 96;
+            if (dpi == activeDpi) return;
+            activeDpi = dpi;
+            nextSearchScale = 0;
+            if (compass != null) compass.UseDpi(dpi);
+            if (scans != null) scans.UseDpi(dpi);
+            if (masterClues != null) masterClues.UseDpi(dpi);
+        }
+        private ImagePattern BlockyPattern(string name, float scale)
+        {
+            using (Bitmap image = new Bitmap(Path.Combine(assets, "alt1anchors", "rev944", name)))
+            using (Bitmap resized = Pixels.ScaleNearest(image, scale)) return new ImagePattern(resized);
+        }
+        private OldFrame[] BlockyFrames(float scale)
+        {
+            OldFrame[] ready;
+            if (blockyFrames.TryGetValue(scale, out ready)) return ready;
+            ready = new[] {
+                new OldFrame { TopLeft = BlockyPattern("eoctopleft.png", scale), Close = BlockyPattern("eocx.png", scale), BottomLeft = BlockyPattern("eocbotleft.png", scale), TopLeftOffset = new Point(4,29), CloseOffset = new Point(10,24), BottomOffset = new Point(3,7) },
+                new OldFrame { TopLeft = BlockyPattern("legacytopleft.png", scale), Close = BlockyPattern("legacyx.png", scale), BottomLeft = BlockyPattern("legacybotleft.png", scale), TopLeftOffset = new Point(4,29), CloseOffset = new Point(19,20), BottomOffset = new Point(6,-2) }
+            };
+            blockyFrames[scale] = ready;
+            return ready;
+        }
+        private ImagePattern[] BlockySliders(float scale)
+        {
+            ImagePattern[] ready;
+            if (blockySliders.TryGetValue(scale, out ready)) return ready;
+            ready = new[] { BlockyPattern("slide.png", scale), BlockyPattern("slidelegacy.png", scale), BlockyPattern("slide944-native.png", scale) };
+            blockySliders[scale] = ready;
+            return ready;
+        }
         public DetectedPuzzle Detect(Bitmap screenshot, bool allowBroadSearch = true, bool progressive = false)
         {
             return Detect(screenshot, new Pixels(screenshot), allowBroadSearch, progressive);
@@ -607,7 +671,7 @@ namespace KavrosClueHelper
             if(lockbox!=null) return lockbox;
             if(!allowBroadSearch) return null;
             BroadSearches++;
-            float[] order=SearchOrder(screenshot.Height);
+            float[] order=SearchOrder(screenshot.Height, activeDpi);
             if(progressive)
             {
                 var timer=System.Diagnostics.Stopwatch.StartNew();
@@ -666,8 +730,17 @@ namespace KavrosClueHelper
         }
         private DetectedPuzzle FindOldInterface(Bitmap image, Pixels pixels, float scale)
         {
+            if (activeDpi != 96)
+            {
+                DetectedPuzzle blocky = MatchOldInterface(image, pixels, scale, BlockyFrames(scale), BlockySliders(scale));
+                if (blocky != null) return blocky;
+            }
+            return MatchOldInterface(image, pixels, scale, oldFrames[scale], oldSliderAnchors[scale]);
+        }
+        private DetectedPuzzle MatchOldInterface(Bitmap image, Pixels pixels, float scale, OldFrame[] frames, ImagePattern[] sliderAnchors)
+        {
             Rectangle all = new Rectangle(Point.Empty, image.Size);
-            foreach (OldFrame frame in oldFrames[scale])
+            foreach (OldFrame frame in frames)
             {
                 List<Point> lefts = frame.TopLeft.Find(pixels, all, 12);
                 foreach (Point left in lefts)
@@ -687,7 +760,7 @@ namespace KavrosClueHelper
                     }
                 }
             }
-            foreach (ImagePattern anchor in oldSliderAnchors[scale]) foreach (Point close in anchor.Find(pixels, all, 15))
+            foreach (ImagePattern anchor in sliderAnchors) foreach (Point close in anchor.Find(pixels, all, 15))
             {
                 Rectangle grid = new Rectangle(close.X - (int)Math.Round(297 * scale), close.Y + (int)Math.Round(15 * scale), (int)Math.Round(273 * scale), (int)Math.Round(273 * scale));
                 DetectedPuzzle puzzle = sliders.Read(image, grid, scale); if (puzzle != null) return puzzle;
@@ -706,8 +779,10 @@ namespace KavrosClueHelper
         public bool SliderFrameVisible(Bitmap image,DetectedPuzzle previous)
         {
             ImagePattern[] anchors;if(previous==null||previous.Kind!=PuzzleKind.Sliding||!oldSliderAnchors.TryGetValue(previous.Scale,out anchors))return false;
-            Pixels pixels=new Pixels(image);Rectangle search=Rectangle.Intersect(new Rectangle(Point.Empty,image.Size),Rectangle.Inflate(previous.Bounds,55,55));
-            return anchors.Any(a=>a.Find(pixels,search,1,35).Count>0);
+            Pixels pixels=new Pixels(image);Rectangle search=Rectangle.Intersect(new Rectangle(Point.Empty,image.Size),Rectangle.Inflate(previous.Bounds,70,70));
+            if(anchors.Any(a=>a.Find(pixels,search,1,47).Count>0))return true;
+            if(activeDpi==96)return false;
+            return BlockySliders(previous.Scale).Any(a=>a.Find(pixels,search,1,47).Count>0);
         }
         public DetectedPuzzle ReadAgain(Bitmap screenshot, DetectedPuzzle previous, Pixels pixels = null)
         {
@@ -790,7 +865,8 @@ namespace KavrosClueHelper
         private DetectedPuzzle FindLockboxGrid(Bitmap image,Pixels pixels)
         {
             Rectangle all=new Rectangle(Point.Empty,image.Size);
-            foreach(float scale in scales) foreach(ImagePattern icon in lockboxPatterns[scale])
+            IEnumerable<float> lockScales=activeDpi==96?(IEnumerable<float>)scales:scales.OrderBy(s=>Math.Abs(s-activeDpi/96F)).ThenBy(s=>s);
+            foreach(float scale in lockScales) foreach(ImagePattern icon in lockboxPatterns[scale])
             {
                 foreach(Point point in icon.Find(pixels,all,40))
                 {

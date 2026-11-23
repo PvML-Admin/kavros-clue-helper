@@ -98,15 +98,58 @@ namespace KavrosClueHelper
         public Action<string> Progress;
         private sealed class Model {public ScanRegion Region;public float Scale;public ImagePattern Title,Level;public Size Source;public Point TitleOrigin;public Point[] Empty;}
         private readonly List<Model> models=new List<Model>();
+        private string scanDir;
         private readonly NativeClueOcr ocr=new NativeClueOcr();
         private readonly ScanTitleReader titles;
         private Rectangle lastOcrArea;private ulong lastOcrHash;private DetectedPuzzle lastOcr;private bool ocrCached;
         public string LastText;
         public readonly List<ScanRegion> Regions=new List<ScanRegion>();
+        private int dpi=96;
+        private bool added175;
+        public void UseDpi(int value)
+        {
+            if(value<96)value=96;
+            dpi=value;
+            if(dpi==96||added175)return;
+            float target=dpi/96F;
+            float gap=Math.Abs(target-1.75F);
+            if(gap<Math.Abs(target-1.5F)&&gap<Math.Abs(target-2F)){added175=true;AddScale(1.75F);}
+        }
+        private IEnumerable<Model> OrderedModels()
+        {
+            if(dpi==96)return models;
+            float target=dpi/96F;
+            return models.OrderBy(m=>Math.Abs(m.Scale-target)).ThenBy(m=>m.Scale);
+        }
+        private void AddScale(float scale)
+        {
+            if(string.IsNullOrEmpty(scanDir))return;
+            foreach(int id in new[]{368,371})
+            {
+                ScanRegion region=null;
+                for(int i=0;i<Regions.Count;i++)if(Regions[i].Id==id){region=Regions[i];break;}
+                if(region==null)continue;
+                try
+                {
+                    int[] meta;
+                    if(!ScanTables.TryInts(File.ReadAllText(Path.Combine(scanDir,id+"-title.tsv")),4,out meta))continue;
+                    using(Bitmap original=new Bitmap(Path.Combine(scanDir,id+"-title.png")))
+                    using(Bitmap image=Pixels.Crop(original,new Rectangle(Point.Empty,original.Size),new Size((int)Math.Round(original.Width*scale),(int)Math.Round(original.Height*scale))))
+                    using(Bitmap oldLevel=new Bitmap(Path.Combine(scanDir,id+"-level.png")))
+                    using(Bitmap level=Pixels.Crop(oldLevel,new Rectangle(Point.Empty,oldLevel.Size),new Size((int)Math.Round(oldLevel.Width*scale),(int)Math.Round(oldLevel.Height*scale))))
+                    {
+                        Pixels mask=new Pixels(image);var empty=new List<Point>();
+                        for(int yy=0;yy<image.Height;yy+=2)for(int xx=0;xx<image.Width;xx+=2)if(mask.Get(xx,yy).A<5)empty.Add(new Point(xx,yy));
+                        models.Add(new Model{Region=region,Scale=scale,Title=new ImagePattern(image),Level=new ImagePattern(level),Source=new Size(meta[2],meta[3]),TitleOrigin=new Point(meta[0],meta[1]),Empty=empty.Where((q,i)=>i%Math.Max(1,empty.Count/24)==0).Take(24).ToArray()});
+                    }
+                }
+                catch(Exception ex){CrashLog.Write(ex);}
+            }
+        }
         public ScanVision(string assets)
         {
             titles=new ScanTitleReader(assets);
-            string dir=Path.Combine(assets,"scan");
+            string dir=Path.Combine(assets,"scan");scanDir=dir;
             foreach(int id in new[]{368,371})
             {
                 try
@@ -229,7 +272,7 @@ namespace KavrosClueHelper
             // Search each title once. Overlapping scenery regions otherwise
             // repeat the same white-pixel candidates hundreds of times.
             List<Rectangle> areas=new List<Rectangle>{new Rectangle(Point.Empty,image.Size)};
-            foreach(Model model in models)
+            foreach(Model model in OrderedModels())
             foreach(Rectangle area in areas)
             foreach(Point hit in model.Title.Find(p,area,8,35,q=>PaperAround(p,q,model)))
             {

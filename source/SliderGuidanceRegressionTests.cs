@@ -16,6 +16,44 @@ namespace KavrosClueHelper
      var puzzle=baseline.Plan.Puzzle;var route=baseline.Plan.Sliding;Check(route!=null&&route.Count>4,"slider has a route for preview");
      var fresh=engine.ReadOnlySlider(native,puzzle);Check(fresh!=null&&fresh.Board.SequenceEqual(puzzle.Board),"fresh-frame validation reads the current board without replanning");
      Check(baseline.Plan.Sliding.SequenceEqual(route),"fresh-frame read leaves the active route intact");
+     var stepWatch=System.Diagnostics.Stopwatch.StartNew();
+     using(var animation=(Bitmap)native.Clone())
+     {
+      using(Graphics g=Graphics.FromImage(animation))for(int i=0;i<25;i++)g.FillRectangle(Brushes.Black,GuidanceDrawing.Cell(puzzle,i));
+      using(AnalysisResult pending=engine.Analyze(animation,150,false,CancellationToken.None,true))
+      {
+       stepWatch.Stop();
+       File.AppendAllText(report,"click -> next step shown (held through the slide): "+stepWatch.ElapsedMilliseconds+" ms\r\n");
+       Check(pending.Pending&&pending.Plan!=null,"a framed animation retains the existing guide");
+       Check(stepWatch.ElapsedMilliseconds<500,"the held slider step returns before the clue readers ("+stepWatch.ElapsedMilliseconds+" ms)");
+      }
+     }
+     using(AnalysisResult recovered=engine.Analyze(native,150,false,CancellationToken.None,true))
+     {
+      Check(!recovered.Pending&&recovered.Plan!=null,"settled tiles resume immediately");
+      File.AppendAllText(report,"click -> next step shown (settled re-read): "+recovered.Milliseconds+" ms\r\n");
+     }
+     detector.UseDpi(120);
+     using(Bitmap modern=TestFixtures.SliderImage("castle",Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray(),"rev944"))
+     using(Bitmap scaled=Pixels.ScaleNearest(modern,1.25F))
+     {
+      DetectedPuzzle at125=detector.Detect(scaled,true,true);
+      Check(at125!=null&&at125.Kind==PuzzleKind.Sliding&&Math.Abs(at125.Scale-1.25F)<0.02F,"modern slider at Windows 125% is read at scale 1.25");
+     }
+     detector.UseDpi(96);
+     string shot=Path.Combine(assets,"test_assets","reported","slider-2560x1351-dpi120.png");
+     Check(File.Exists(shot),"125% legacy slider screenshot is installed");
+     using(Bitmap reported=new Bitmap(shot))
+     using(Bitmap restored=Pixels.ScaleNearest(reported,2560F/reported.Width))
+     {
+      detector.UseDpi(120);detector.ResetSearch();
+      var watch=System.Diagnostics.Stopwatch.StartNew();
+      DetectedPuzzle legacy=detector.Detect(restored,true,true);
+      watch.Stop();
+      File.AppendAllText(report,"125% legacy slider: "+(legacy==null?"not found":legacy.Kind+" scale "+legacy.Scale)+" in "+watch.ElapsedMilliseconds+" ms\r\n");
+      Check(legacy!=null&&legacy.Kind==PuzzleKind.Sliding,"legacy slider at Windows 125% is detected");
+      detector.UseDpi(96);
+     }
      using(var painted=(Bitmap)native.Clone())
      {
       using(Graphics g=Graphics.FromImage(painted))GuidanceDrawing.Draw(g,GuidanceDrawing.SliderMarks(puzzle,route));
