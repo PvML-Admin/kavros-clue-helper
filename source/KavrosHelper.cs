@@ -600,7 +600,7 @@ namespace KavrosClueHelper
             if (message.Msg == 0x0084) { message.Result = new IntPtr(-1); return; }
             base.WndProc(ref message);
         }
-        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Native.ExcludeFromCapture(Handle); }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); }
         public void Display(Rectangle bounds, int[] values)
         {
             Bounds = bounds;

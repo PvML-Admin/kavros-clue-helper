@@ -1,4 +1,4 @@
-using System;using System.Drawing;using System.IO;using System.Linq;using System.Threading;
+using System;using System.Collections.Generic;using System.Drawing;using System.IO;using System.Linq;using System.Threading;
 namespace KavrosClueHelper
 {
  public static class SliderGuidanceRegressionTests
@@ -99,6 +99,7 @@ namespace KavrosClueHelper
       System.Threading.Thread.Sleep(1600);
       using(AnalysisResult gone=engine.Analyze(closed,150,false,CancellationToken.None,true))Check(gone.Plan==null&&!gone.Pending,"closing the actual puzzle clears guidance once the hold expires");
      }
+     TimeCapture(report,"legacy",native,assets);
     }
     foreach(float scale in new[]{0.8F,1F,1.25F,2F})
     using(Bitmap original=TestFixtures.SliderImage("castle",Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray(),"rev944"))
@@ -109,9 +110,79 @@ namespace KavrosClueHelper
      var read=detector.ReadAgain(frame,puzzle);Check(read!=null&&read.Board.SequenceEqual(puzzle.Board),"badges stay readable to the detector at scale "+scale);
     }
     Check(!GuidanceDrawing.HideForCapture(false,PuzzleKind.Sliding),"slider stays visible in screenshots");
+    int[] modernBoard=Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray();
+    using(Bitmap modern=TestFixtures.SliderImage("castle",modernBoard,"modern"))TimeCapture(report,"modern",modern,assets);
     File.AppendAllText(report,"V0.5.5 SLIDER GUIDANCE PASS: "+checks+" assertions. Visible badges, twelve consecutive moves, rolling four-step previews, animation retention, closure and scaled tile reading. No windows shown or game input/capture.\r\n");return 0;
    }
    catch(Exception e){File.AppendAllText(report,e+"\r\n");return 1;}
+  }
+  static void TimeCapture(string report,string label,Bitmap source,string assets)
+  {
+   var engine=new PuzzleAnalysisEngine(assets);
+   using(Bitmap opening=(Bitmap)source.Clone())
+   using(AnalysisResult found=engine.Analyze(opening,180,false,CancellationToken.None,true))
+   {
+    Check(found.Plan!=null&&found.Plan.Puzzle.Kind==PuzzleKind.Sliding,label+" slider is read before the click");
+    DetectedPuzzle puzzle=found.Plan.Puzzle;
+    Check(found.Plan.Sliding!=null&&found.Plan.Sliding.Count>0,label+" slider has a route");
+    int move=found.Plan.Sliding[0];
+    int[] board=(int[])puzzle.Board.Clone();
+    int empty=Array.IndexOf(board,24);
+    var stale=GuidanceDrawing.SliderMarks(puzzle,new[]{move},1,1);
+    stale[0].Colour=KavrosTheme.Gold;stale[0].Pulse=true;stale[0].ArrowX=empty%5-move%5;stale[0].ArrowY=empty/5-move/5;
+    using(Bitmap reference=new Bitmap(Path.Combine(assets,"data","sliders","sliders",puzzle.Theme+".png")))
+    using(Bitmap blank=source.Clone(GuidanceDrawing.Cell(puzzle,empty),System.Drawing.Imaging.PixelFormat.Format24bppRgb))
+    {
+     var watch=System.Diagnostics.Stopwatch.StartNew();
+     long settled=0;
+     foreach(double t in new[]{0.33,0.66,1.0})
+     {
+      using(Bitmap frame=(Bitmap)source.Clone())
+      {
+       using(Graphics g=Graphics.FromImage(frame))
+       {
+        DrawSlide(g,puzzle,board,move,t,reference,blank);
+        GuidanceDrawing.Draw(g,stale);
+       }
+       GuideInk ink=GuideInk.ForSlider(frame.Width,frame.Height,stale,Point.Empty);
+       var frameWatch=System.Diagnostics.Stopwatch.StartNew();
+       using(AnalysisResult result=engine.Analyze(frame,180,false,CancellationToken.None,true,false,null,96,ink))
+       {
+        frameWatch.Stop();
+        if(t<1)
+        {
+         Check(result.Plan!=null,"the guide stays up while the tile is sliding ("+label+")");
+        }
+        else
+        {
+         settled=frameWatch.ElapsedMilliseconds;
+         int[] next=(int[])board.Clone();next[empty]=next[move];next[move]=24;
+         Check(result.Plan!=null&&!result.Pending&&result.Plan.Puzzle.Board.SequenceEqual(next),label+" settled frame is read through the drawn guide");
+         List<int> remaining;
+         Check(SlidingRoute.Advance(board,found.Plan.Sliding,next,out remaining),label+" the known route advances");
+        }
+       }
+      }
+     }
+     watch.Stop();
+     File.AppendAllText(report,label+" click -> next step (guide drawn, capture mask, 3-frame slide): "+watch.ElapsedMilliseconds+" ms; settled frame "+settled+" ms\r\n");
+     Check(watch.ElapsedMilliseconds<800,label+" click reaches the next step without a full rescan ("+watch.ElapsedMilliseconds+" ms)");
+    }
+   }
+  }
+  static void DrawSlide(Graphics g,DetectedPuzzle puzzle,int[] from,int move,double t,Bitmap reference,Bitmap blank)
+  {
+   int empty=Array.IndexOf(from,24);
+   Rectangle fromCell=GuidanceDrawing.Cell(puzzle,move),toCell=GuidanceDrawing.Cell(puzzle,empty);
+   for(int i=0;i<25;i++)
+   {
+    Rectangle cell=GuidanceDrawing.Cell(puzzle,i);
+    if(i==move||i==empty)g.DrawImage(blank,cell);
+    else g.DrawImage(reference,cell,new Rectangle(from[i]%5*49,from[i]/5*49,49,49),GraphicsUnit.Pixel);
+   }
+   int tile=from[move];
+   int x=(int)Math.Round(fromCell.X+(toCell.X-fromCell.X)*t),y=(int)Math.Round(fromCell.Y+(toCell.Y-fromCell.Y)*t);
+   g.DrawImage(reference,new Rectangle(x,y,fromCell.Width,fromCell.Height),new Rectangle(tile%5*49,tile/5*49,49,49),GraphicsUnit.Pixel);
   }
  }
 }

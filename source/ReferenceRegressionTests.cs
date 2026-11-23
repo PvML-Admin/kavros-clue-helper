@@ -69,7 +69,30 @@ namespace KavrosClueHelper
                     check(paper.Value.Width>300&&paper.Value.Height>160,"frame is the scroll, not a roof");
                     check(paper.Value.Top>300,"dark title bar is trimmed off the parchment");
                 }
-                foreach(string shot in new[]{"beasts.png","calc.png","foodles.png","alkharid-real.png","al1.png","al2.png","al3.png","yan.png","duel.png","slider2.png","slider-tree.png","slider3.png","mysterious-rogues-yawn.png"})
+                string hamidPath=Path.Combine(assets,"test_assets","reported","hamid-full-2560.png");
+                check(File.Exists(hamidPath),"hamid scroll fixture");
+                using(Bitmap shot=new Bitmap(hamidPath))
+                {
+                    Pixels pixels=new Pixels(shot);
+                    Rectangle? paper=reader.PrimaryPaper(pixels);
+                    check(paper.HasValue,"hamid mysterious scroll is found on the sand");
+                    check(paper.Value.Width>300&&paper.Value.Width<900&&paper.Value.Height>160&&paper.Value.Height<520,"hamid paper is the scroll, not the beach");
+                    check(paper.Value.Contains(1100,600),"hamid paper covers the clue text");
+                    check(paper.Value.Left>800&&paper.Value.Right<1600,"hamid paper is not the sand run");
+                }
+                ReferenceClue hamid=reader.MatchText("Identify the back of this over-acting brother. (He's a long way from home.)");
+                check(hamid!=null&&hamid.Card.Id==144,"hamid wording maps to clue 144");
+                string card=hamid.Card.Travel??"";
+                int ways=0;
+                foreach(string line in card.Replace("\r","").Split('\n'))
+                {
+                    string trimmed=line.Trim();
+                    if(trimmed.StartsWith("Fastest:")||trimmed.StartsWith("Alternatively:")||trimmed.StartsWith("Third option:"))ways++;
+                    if(trimmed.StartsWith("Fastest:"))check(trimmed.IndexOf("Hazelmere",StringComparison.OrdinalIgnoreCase)<0&&trimmed.IndexOf("120 ")<0,"hamid fastest is not a ring or 120 cape");
+                }
+                check(ways==3&&card.Contains("Final step:")&&card.IndexOf("Hamid",StringComparison.OrdinalIgnoreCase)>=0,"hamid card has three ways and the final step");
+                check(card.IndexOf("Tile ")<0&&card.IndexOf("boat",StringComparison.OrdinalIgnoreCase)<0&&card.IndexOf("RuneApps",StringComparison.OrdinalIgnoreCase)<0&&card.IndexOf("Jagex",StringComparison.OrdinalIgnoreCase)<0&&card.IndexOf("Alt1",StringComparison.OrdinalIgnoreCase)<0,"hamid card has no coordinates, boats, or tracker names");
+                foreach(string shot in new[]{"beasts.png","calc.png","foodles.png","alkharid-real.png","al1.png","al2.png","al3.png","yan.png","duel.png","slider2.png","slider-tree.png","slider3.png","mysterious-rogues-yawn.png","hamid-full-2560.png"})
                     check(File.Exists(Path.Combine(assets,"test_assets","reported",shot)),"reported fixture "+shot);
                 check(File.Exists(Path.Combine(assets,"test_assets","reported","beasts.png")),"beasts fixture");
                 check(File.Exists(Path.Combine(assets,"test_assets","reported","slider-tree.png")),"tree slider fixture");

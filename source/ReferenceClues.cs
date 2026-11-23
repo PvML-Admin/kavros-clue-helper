@@ -67,6 +67,7 @@ namespace KavrosClueHelper
         }
         private static List<Rectangle> Papers(Pixels p,bool trim=true)
         {
+            var scrolls=ParagraphVision.FindScrolls(p);
             var papers=ParagraphVision.FindPapers(p);
             for(int i=0;i<papers.Count;i++)
             {
@@ -89,13 +90,28 @@ namespace KavrosClueHelper
             }
             var framed=new List<Rectangle>();
             var plain=new List<Rectangle>();
+            foreach(Rectangle scroll in scrolls)
+            {
+                Rectangle sheet=TrimToPaper(p,scroll);
+                if(sheet.Width>=180&&sheet.Height>=90)framed.Add(sheet);
+            }
             foreach(Rectangle r in candidates)
             {
                 if(!HasMysteriousFrame(p,r)){plain.Add(r);continue;}
-                framed.Add(TrimToPaper(p,r));
+                Rectangle sheet=TrimToPaper(p,r);
+                bool same=false;
+                foreach(Rectangle have in framed)if(SameSheet(have,sheet)){same=true;break;}
+                if(!same)framed.Add(sheet);
             }
             framed.AddRange(plain);
             return framed;
+        }
+        static bool SameSheet(Rectangle a,Rectangle b)
+        {
+            Rectangle hit=Rectangle.Intersect(a,b);
+            if(hit.Width<=0||hit.Height<=0)return false;
+            int small=Math.Min(a.Width*a.Height,b.Width*b.Height);
+            return small>0&&hit.Width*hit.Height>=small*0.55;
         }
         // The current clue window is a dark "MYSTERIOUS CLUE SCROLL" frame
         // around parchment. Scene roofs are the same colour, so a framed
@@ -117,11 +133,19 @@ namespace KavrosClueHelper
             for(int y=r.Top+r.Height/5;y<r.Bottom-r.Height/5;y+=8)
             {
                 sideN++;
-                int lx=Math.Max(0,r.Left-8),rx=Math.Min(p.Width-1,r.Right+7);
-                Color left=p.Get(lx,y),right=p.Get(rx,y);
-                if((left.R+left.G+left.B)/3<80&&(right.R+right.G+right.B)/3<80)sides++;
+                // The frame is only 7-10px and can sit behind a bright bevel,
+                // so look across that band instead of one pixel 8px outside.
+                if(FrameSide(p,r.Left,y,true)&&FrameSide(p,r.Right,y,false))sides++;
             }
             return bandN>0&&band*1.0/bandN>=0.55&&sideN>0&&sides*1.0/sideN>=0.45;
+        }
+        static bool FrameSide(Pixels p,int edge,int y,bool left)
+        {
+            int x0=left?Math.Max(0,edge-18):Math.Max(0,edge-2);
+            int x1=left?Math.Min(p.Width-1,edge+2):Math.Min(p.Width-1,edge+18);
+            int dark=0;
+            for(int x=x0;x<=x1;x+=2){Color c=p.Get(x,y);if((c.R+c.G+c.B)/3<80)dark++;}
+            return dark>=2;
         }
         private static Rectangle TrimToPaper(Pixels p,Rectangle r)
         {

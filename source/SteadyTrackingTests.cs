@@ -55,6 +55,14 @@ namespace KavrosClueHelper
                 check(SliderStep.SkipConfirm(shown, next), "the same place and one legal move skips the confirm wait");
                 next.Bounds = new Rectangle(90, 50, 300, 300);
                 check(!SliderStep.SkipConfirm(shown, next), "a slider that moved on screen still waits");
+                next.Bounds = shown.Bounds; next.Grid = shown.Grid;
+                int[] two = (int[])solved.Clone();
+                int blankAt = 24;
+                foreach (int step in new[] { 23, 22 }) { two[blankAt] = two[step]; two[step] = 24; blankAt = step; }
+                next.Board = two;
+                check(!SliderStep.OneLegalMove(solved, two), "a whole-row slide is more than one swap");
+                check(SliderStep.SkipConfirm(shown, next, new[] { 23, 22 }), "a whole-row step of the known route skips the confirm wait");
+                check(!SliderStep.SkipConfirm(shown, next), "a multi-tile change still waits when it is not the route");
                 check(SliderStep.Reread(true, false, 2) == 0 && SliderStep.Reread(false, true, 2) == 0, "a matching or continued read is shown");
                 check(SliderStep.Reread(false, false, 0) == 1 && SliderStep.Reread(false, false, 1) == 1 && SliderStep.Reread(false, false, 2) == 2, "a bad slider re-read is kept twice and then reset");
 

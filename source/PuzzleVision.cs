@@ -148,7 +148,8 @@ namespace KavrosClueHelper
             int low = Math.Min(r, Math.Min(g,b)), high = Math.Max(r, Math.Max(g,b));
             return low >= 110 && high - low <= 75;
         }
-        public ulong Hash(Rectangle region)
+        public ulong Hash(Rectangle region) { return Hash(region, null); }
+        public ulong Hash(Rectangle region, GuideInk ink)
         {
             region = Rectangle.Intersect(region, new Rectangle(0,0,Width,Height));
             ulong h = 1469598103934665603UL;
@@ -156,7 +157,10 @@ namespace KavrosClueHelper
             {
                 for (int y = region.Top; y < region.Bottom; y++)
                     for (int x = region.Left; x < region.Right; x++)
-                    { int i=(y*Width+x)*4; h=(h^data[i])*1099511628211UL; h=(h^data[i+1])*1099511628211UL; h=(h^data[i+2])*1099511628211UL; }
+                    {
+                        if (ink != null && ink.Ignores(x, y)) continue;
+                        int i=(y*Width+x)*4; h=(h^data[i])*1099511628211UL; h=(h^data[i+1])*1099511628211UL; h=(h^data[i+2])*1099511628211UL;
+                    }
             }
             return h;
         }
@@ -454,11 +458,16 @@ namespace KavrosClueHelper
         // that cell's arrow points at. Passing them replaces the colour guess,
         // which treated the guide's own brown cover as a badge and then kept
         // the previous board.
-        public DetectedPuzzle Read(Bitmap source,Rectangle region,float scale,int badgeTile,int arrowTile)
+        public DetectedPuzzle Read(Bitmap source,Rectangle region,float scale,int badgeTile,int arrowTile,GuideInk ink=null)
         {
+            if(ink!=null)
+            {
+                DetectedPuzzle masked=ReadCore(source,region,scale,false,-1,-1,ink);
+                if(masked!=null)return masked;
+            }
             if(badgeTile>=0)
             {
-                DetectedPuzzle guided=ReadCore(source,region,scale,false,badgeTile,arrowTile);
+                DetectedPuzzle guided=ReadCore(source,region,scale,false,badgeTile,arrowTile,null);
                 if(guided!=null)return guided;
             }
             bool marked=false;
@@ -472,8 +481,8 @@ namespace KavrosClueHelper
                     marked=colour>=3&&dark>=30;
                 }
             }
-            DetectedPuzzle result=ReadCore(source,region,scale,marked,-1,-1);
-            if(marked&&(result==null||!SlidingSolver.IsSolvable(result.Board)))return ReadCore(source,region,scale,false,-1,-1)??result;
+            DetectedPuzzle result=ReadCore(source,region,scale,marked,-1,-1,null);
+            if(marked&&(result==null||!SlidingSolver.IsSolvable(result.Board)))return ReadCore(source,region,scale,false,-1,-1,null)??result;
             return result;
         }
         private static string rememberedTheme;
@@ -514,22 +523,58 @@ namespace KavrosClueHelper
             }
             return n == 0 ? 0 : Math.Pow(score / n, 3);
         }
-        private DetectedPuzzle ReadCore(Bitmap source, Rectangle region, float scale,bool safe,int badgeTile,int arrowTile)
-
+        static bool Covered(GuideInk ink, Rectangle region, int sampleWidth, int sampleHeight, int x, int y)
+        {
+            int sx0 = region.X + x * region.Width / sampleWidth, sy0 = region.Y + y * region.Height / sampleHeight;
+            int sx1 = region.X + (x + 1) * region.Width / sampleWidth, sy1 = region.Y + (y + 1) * region.Height / sampleHeight;
+            if (sx1 <= sx0) sx1 = sx0 + 1;
+            if (sy1 <= sy0) sy1 = sy0 + 1;
+            for (int sy = sy0; sy < sy1; sy++) for (int sx = sx0; sx < sx1; sx++) if (ink.Ignores(sx, sy)) return true;
+            return false;
+        }
+        static double[] MaskedFingerprint(Pixels crop, Rectangle cell, GuideInk ink, Rectangle region, out bool[] empty)
+        {
+            const int columns = 7, rows = 7;
+            double[] result = new double[columns * rows * 3];
+            empty = new bool[columns * rows];
+            for (int row = 0; row < rows; row++) for (int column = 0; column < columns; column++)
+            {
+                int left = cell.X + column * cell.Width / columns, right = cell.X + (column + 1) * cell.Width / columns;
+                int top = cell.Y + row * cell.Height / rows, bottom = cell.Y + (row + 1) * cell.Height / rows;
+                double r = 0, g = 0, b = 0, n = 0;
+                for (int y = top; y < bottom; y++) for (int x = left; x < right; x++)
+                {
+                    if (Covered(ink, region, crop.Width, crop.Height, x, y)) continue;
+                    Color sample = crop.Get(x, y); r += sample.R; g += sample.G; b += sample.B; n++;
+                }
+                int bin = row * columns + column;
+                if (n < 1) { empty[bin] = true; continue; }
+                r /= n; g /= n; b /= n;
+                r /= 256; g /= 256; b /= 256;
+                double max = Math.Max(r, Math.Max(g, b)), min = Math.Min(r, Math.Min(g, b)), range = max - min, hue = 0;
+                if (range > 0) { if (max == r) hue = (6 + (g - b) / range) % 6; else if (max == g) hue = (b - r) / range + 2; else hue = (r - g) / range + 4; }
+                int i = bin * 3;
+                result[i] = Math.Round(hue / 6 * 255); result[i + 1] = Math.Round(range * 255); result[i + 2] = Math.Round((max + min) * 127.5);
+            }
+            return result;
+        }
+        private DetectedPuzzle ReadCore(Bitmap source, Rectangle region, float scale,bool safe,int badgeTile,int arrowTile,GuideInk ink)
         {
             using (Bitmap crop = Pixels.Crop(source, region, new Size(273, 273)))
             {
                 if (crop == null) return null;
                 Pixels p = new Pixels(crop);
-                bool guided = badgeTile >= 0;
+                bool guided = badgeTile >= 0 && ink == null;
+                bool masked = ink != null;
                 bool[] quiet = guided ? GuideSkip(false) : null;
                 bool[] ring = guided ? GuideSkip(true) : null;
                 double[][] tiles = new double[25][];
-                bool[][] skips = guided ? new bool[25][] : null;
+                bool[][] skips = (guided || masked) ? new bool[25][] : null;
                 for (int i = 0; i < 25; i++)
                 {
                     Rectangle cell = new Rectangle(i % 5 * 56, i / 5 * 56, 49, 49);
-                    if (!guided) tiles[i] = safe ? TileFingerprint(p, cell) : p.Fingerprint(cell, 7, 7, true);
+                    if (masked) { bool[] empty; tiles[i] = MaskedFingerprint(p, cell, ink, region, out empty); skips[i] = empty; }
+                    else if (!guided) tiles[i] = safe ? TileFingerprint(p, cell) : p.Fingerprint(cell, 7, 7, true);
                     else { tiles[i] = p.Fingerprint(cell, 7, 7, true); skips[i] = (i == badgeTile || i == arrowTile) ? ring : quiet; }
                 }
                 double best = 0; int[] bestMap = null; string theme = null; double minScore = 0; double[,] bestScores = null;
@@ -540,7 +585,7 @@ namespace KavrosClueHelper
                     {
                         double[][] bank = safe ? reference.Tiles : reference.FullTiles;
                         List<double[]> blankBank = safe ? blanks : fullBlanks;
-                        if (guided)
+                        if (guided || masked)
                         {
                             double tileScore = SimilaritySkip(tiles[i], reference.FullTiles[j], skips[i]);
                             double blankScore = j == 24 ? fullBlanks.Select(b => SimilaritySkip(tiles[i], b, skips[i])).DefaultIfEmpty(0).Max() : 0;
@@ -567,7 +612,7 @@ namespace KavrosClueHelper
                     }
                     if (cheapest < 0.05) { int swap = bestMap[a]; bestMap[a] = bestMap[b]; bestMap[b] = swap; }
                 }
-                if (guided) { rememberedTheme = theme; rememberedBoard = (int[])bestMap.Clone(); }
+                if (guided || masked) { rememberedTheme = theme; rememberedBoard = (int[])bestMap.Clone(); }
                 else bestMap = RememberBoard(theme, bestMap, safe);
                 return new DetectedPuzzle { Kind = PuzzleKind.Sliding, Bounds = region, Grid = region, Scale = scale, Board = bestMap, Theme = theme, Confidence = best };
             }
@@ -842,7 +887,7 @@ namespace KavrosClueHelper
             if(activeDpi==96)return false;
             return BlockySliders(previous.Scale).Any(a=>a.Find(pixels,search,1,47).Count>0);
         }
-        public DetectedPuzzle ReadAgain(Bitmap screenshot, DetectedPuzzle previous, Pixels pixels = null, int badgeTile = -1)
+        public DetectedPuzzle ReadAgain(Bitmap screenshot, DetectedPuzzle previous, Pixels pixels = null, int badgeTile = -1, GuideInk guideInk = null)
         {
             if (previous == null || !new Rectangle(Point.Empty, screenshot.Size).Contains(previous.Bounds)) return null;
             if (previous.Kind == PuzzleKind.EmoteClue || previous.Kind == PuzzleKind.Scan)
@@ -855,7 +900,7 @@ namespace KavrosClueHelper
             {
                 int arrow = -1;
                 if (badgeTile >= 0 && previous.Board != null) { int blank = Array.IndexOf(previous.Board, 24); if (blank >= 0) arrow = blank; }
-                return sliders.Read(screenshot, previous.Grid, previous.Scale, badgeTile, arrow);
+                return sliders.Read(screenshot, previous.Grid, previous.Scale, badgeTile, arrow, guideInk);
             }
             if (previous.Kind == PuzzleKind.Towers)
             {
