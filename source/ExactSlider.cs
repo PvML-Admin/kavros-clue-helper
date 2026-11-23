@@ -69,12 +69,18 @@ namespace KavrosClueHelper
                     job.Upper = lines && SlidingRoute.TryClickRoute(board, upper, out clicks) ? clicks.Count : upper.Count;
                 }
                 active = job;
-                ThreadPool.QueueUserWorkItem(delegate
+                var search = new Thread(delegate()
                 {
                     List<int> route = null;
                     string error = null;
                     ExactSlider.BoundChanged = delegate(int bound) { lock (gate) job.Lower = bound; };
-                    try { route = ExactSlider.Solve(job.Board, upper, lines, job.Stop.Token); }
+                    try
+                    {
+                        // The reader runs below normal. This search stays lower
+                        // so a full-window frame is not stuck behind it.
+                        try { Thread.CurrentThread.Priority = ThreadPriority.Lowest; } catch (Exception) { }
+                        route = ExactSlider.Solve(job.Board, upper, lines, job.Stop.Token);
+                    }
                     catch (OperationCanceledException) { }
                     catch (Exception ex) { error = ex.Message; }
                     finally
@@ -89,6 +95,9 @@ namespace KavrosClueHelper
                         }
                     }
                 });
+                search.IsBackground = true;
+                try { search.Priority = ThreadPriority.Lowest; } catch (Exception) { }
+                search.Start();
             }
         }
 

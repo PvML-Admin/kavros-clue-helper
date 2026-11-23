@@ -1,8 +1,8 @@
-# Kavros Clue Helper v0.7.26
+# Kavros Clue Helper v0.7.27
 
-v0.7.26: A whole-row slider click advances the step already on screen, without freezing the guide to replan. A mysterious clue scroll is read from its title bar before any board search, and an unchanged clue stays up. The guide's ring, arrow and badge are ignored on a cropped read.
+v0.7.27: Opening a slider shows the guide on the first look at the scale the client is using. A tracked text clue still notices a puzzle that opens somewhere else, and a mysterious scroll still needs its dark title bar and frame.
 
-Settings shows **Made by Zenity · v0.7.26**. The full notes are in CHANGELOG.md.
+Settings shows **Made by Zenity · v0.7.27**. The full notes are in CHANGELOG.md.
 
 # Kavros Clue Helper v0.7.25
 

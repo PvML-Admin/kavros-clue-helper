@@ -1,5 +1,16 @@
 # Kavros Clue Helper
 
+## 0.7.27
+
+**Slider**
+- Every frame starts at the scale this client should be using: the Windows DPI scale, otherwise 1.0, otherwise the scale that matched last. One extra scale is tried only while the frame still has time. The modern frame is checked before the legacy one, unless the legacy interface was the last match.
+- The shortest-route search runs below the reader, so a full-window frame is not stuck behind it.
+
+**Clues**
+- The scroll title bar is still checked on every missed board. Master templates, map matching and text recognition wait a few frames, or until the main scales have been covered. The first look still reads a clue.
+- A tracked text clue keeps its card when the screen has not changed, and still searches for a puzzle that opens somewhere else.
+- A mysterious scroll has to have the dark title bar and the dark frame. A sandy row is not enough.
+
 ## 0.7.26
 
 **Slider**
