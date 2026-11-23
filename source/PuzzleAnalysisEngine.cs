@@ -76,6 +76,7 @@ namespace KavrosClueHelper
         private AnalysisResult Held(long elapsed){return new AnalysisResult{Plan=cached,Pending=true,Unchanged=true,Milliseconds=elapsed};}
         public int FullSearches { get; private set; }
         public int SlidingRouteReuses {get;private set;}
+        public long LastSliderAdvanceMilliseconds {get;private set;}
         public int BroadSearches { get { return detector.BroadSearches; } }
         public int UnchangedFrames { get; private set; }
         public Action<string> Progress;
@@ -98,10 +99,11 @@ namespace KavrosClueHelper
         }
         private AnalysisResult PendingSlider(long elapsed)
         {return new AnalysisResult{Plan=cached,Pending=true,Unchanged=true,Milliseconds=elapsed};}
-        public AnalysisResult Analyze(Bitmap image, int source, bool reverse, CancellationToken cancellation, bool livePolling = false,bool wholeRows=false, Point? captureOrigin=null)
+        public AnalysisResult Analyze(Bitmap image, int source, bool reverse, CancellationToken cancellation, bool livePolling = false,bool wholeRows=false, Point? captureOrigin=null, int dpi=96)
         {
             Stopwatch timer = Stopwatch.StartNew();
             SearchCancellation.Token = cancellation;
+            detector.UseDpi(dpi);
             Bitmap decoded=null;
             try
             {
@@ -144,6 +146,13 @@ namespace KavrosClueHelper
                 if (trackingBoard && hashUnchanged)
                 { boardSeen=DateTime.UtcNow; boardHold.Seen(); boardChange.Reset(); UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
                 DetectedPuzzle puzzle = trackingBoard ? detector.ReadAgain(image,last,pixels) : null;
+                bool sliderLive=livePolling&&last!=null&&last.Kind==PuzzleKind.Sliding;
+                bool sliderSeen=sliderLive&&(DateTime.UtcNow-boardSeen).TotalMilliseconds<1500;
+                bool frameVisible=sliderLive&&VisibleSlider(image,pixels);
+                // The frame is still there and the board was read moments ago.
+                // Keep the step on screen. Do not spend this frame on a board
+                // search or the clue readers.
+                if(puzzle==null&&frameVisible&&sliderSeen)return PendingSlider(timer.ElapsedMilliseconds);
                 if (puzzle == null)
                 {
                     bool broad=!livePolling || DateTime.UtcNow>=nextBroadSearch;
@@ -170,6 +179,7 @@ namespace KavrosClueHelper
                         if(hashUnchanged)
                         { UnchangedFrames++; return new AnalysisResult { Plan = cached, Unchanged = true, Milliseconds = timer.ElapsedMilliseconds }; }
                         if(last!=null && !trackingBoard) puzzle=detector.ReadAgain(image,last,pixels);
+                        if(puzzle==null&&(frameVisible||sliderSeen))return PendingSlider(timer.ElapsedMilliseconds);
                         if(puzzle==null)
                         {
                             FullSearches++;
@@ -238,7 +248,7 @@ namespace KavrosClueHelper
                         plan.SlidingWholeRows=wholeRows;
                         if(cached!=null&&cached.Puzzle.Kind==PuzzleKind.Sliding&&cached.SlidingWholeRows==wholeRows&&cached.Puzzle.Theme==puzzle.Theme&&SlidingRoute.Advance(cached.Puzzle.Board,cached.Sliding,puzzle.Board,out remaining)&&SlidingRoute.Playable(puzzle.Board,remaining))
                         {
-                            plan.Sliding=remaining;int consumed=cached.Sliding.Count-remaining.Count;List<int> spent;bool clicksMatch=false;
+                            plan.Sliding=remaining;LastSliderAdvanceMilliseconds=timer.ElapsedMilliseconds;int consumed=cached.Sliding.Count-remaining.Count;List<int> spent;bool clicksMatch=false;
                             if(SlidingRoute.TryClickRoute(cached.Puzzle.Board,cached.Sliding.Take(consumed).ToList(),out spent))clicksMatch=SlidingRoute.CompletedClicks(cached.Puzzle.Board,cached.Sliding,consumed)==spent.Count;
                             plan.SlidingOptimal=cached.SlidingOptimal&&(!wholeRows||clicksMatch);SlidingRouteReuses++;
                         }

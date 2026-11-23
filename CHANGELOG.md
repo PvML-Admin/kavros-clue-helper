@@ -1,5 +1,19 @@
 # Kavros Clue Helper
 
+## 0.7.23
+
+**Slider**
+- While a slider is on screen, a frame in the middle of a move keeps the current step. The clue readers are not run for that frame.
+- A re-read that misses the tiles keeps the last board and tries again shortly. The route is dropped only after three missed reads.
+- One legal move in the same place is shown without waiting for another frame.
+- The legacy close button is looked for a little further from the last position, with the same colour tolerance as the other anchors.
+
+**Windows scaling**
+- The game window's DPI is read once per capture. At 100% the search order is unchanged.
+- At 125%, 150% and 200% the matching scale is searched first: 1.25, 1.5 and 2. The first frame after a DPI change uses that scale.
+- Modern puzzles, the compass, scans and master clues use that order. Scan scale 1.75 is added only when the DPI is nearest to 175%.
+- Legacy frame corners, the close button and the slider mark are also tried as nearest-neighbour copies at that scale, so the blocky legacy interface matches at 125%, 150% and 200%.
+
 ## 0.7.22
 
 **Clues**

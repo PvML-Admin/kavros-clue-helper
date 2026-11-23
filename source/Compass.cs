@@ -33,6 +33,14 @@ namespace KavrosClueHelper
         private readonly double[][] off,msaa;
         private readonly double amplitude,phase,offset;
         private readonly float[] scales={0.8F,1F,8F/9F,1.25F,4F/3F,1.5F,2F};
+        private int dpi=96;
+        public void UseDpi(int value){dpi=value<96?96:value;}
+        private IEnumerable<float> ScaleOrder()
+        {
+            if(dpi==96)return scales;
+            float target=dpi/96F;
+            return scales.OrderBy(s=>Math.Abs(s-target)).ThenBy(s=>s);
+        }
         public CompassVision(string assets)
         {
             string dir=Path.Combine(assets,"compass");
@@ -91,7 +99,7 @@ namespace KavrosClueHelper
         {
             Rectangle all=new Rectangle(Point.Empty,image.Size);
             List<Rectangle> areas=ScrollAreas.Find(pixels);
-            foreach(float scale in scales) foreach(Rectangle area in (scale==0.8F||scale==1F?new List<Rectangle>{all}:areas)) foreach(Point anchor in anchors[scale].Find(pixels,area,12,47,q=>NorthBackground(pixels,q,scale)))
+            foreach(float scale in ScaleOrder()) foreach(Rectangle area in (scale==0.8F||scale==1F?new List<Rectangle>{all}:areas)) foreach(Point anchor in anchors[scale].Find(pixels,area,12,47,q=>NorthBackground(pixels,q,scale)))
             {
                 Rectangle body=new Rectangle(anchor.X-(int)Math.Round(78*scale),anchor.Y-(int)Math.Round(20*scale),(int)Math.Round(176*scale),(int)Math.Round(259*scale));
                 DetectedPuzzle best=null;

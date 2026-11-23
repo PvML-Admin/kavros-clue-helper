@@ -66,6 +66,45 @@ namespace KavrosClueHelper
         }
     }
 
+    public static class SliderStep
+    {
+        public static bool OneLegalMove(int[] from, int[] to)
+        {
+            if (from == null || to == null || from.Length != 25 || to.Length != 25) return false;
+            int blank = Array.IndexOf(from, 24);
+            if (blank < 0) return false;
+            foreach (int next in SlidingSolver.Neighbours(blank))
+            {
+                if (to[next] != 24 || to[blank] != from[next]) continue;
+                bool same = true;
+                for (int i = 0; i < 25; i++)
+                {
+                    if (i == blank || i == next) continue;
+                    if (from[i] != to[i]) { same = false; break; }
+                }
+                if (same) return true;
+            }
+            return false;
+        }
+        // The board did not move on screen and the tiles are one click on.
+        // That frame can be shown without waiting for a second read.
+        public static bool SkipConfirm(DetectedPuzzle shown, DetectedPuzzle next)
+        {
+            if (shown == null || next == null || shown.Kind != PuzzleKind.Sliding || next.Kind != PuzzleKind.Sliding) return false;
+            if (!SteadyPolicy.Near(shown.Bounds, next.Bounds, 8) || !SteadyPolicy.Near(shown.Grid, next.Grid, 8)) return false;
+            return OneLegalMove(shown.Board, next.Board);
+        }
+        // 0 = the fresh read matches or continues the route.
+        // 1 = keep the last board and try again.
+        // 2 = three bad reads, drop the route.
+        public static int Reread(bool matched, bool advanced, int priorMisses)
+        {
+            if (matched || advanced) return 0;
+            if (priorMisses >= 2) return 2;
+            return 1;
+        }
+    }
+
     // Estimates the player's map position from recent movement while the
     // minimap cannot be matched. Positions are map tiles; time in UTC.
     public sealed class MotionEstimate

@@ -23,6 +23,7 @@ namespace KavrosClueHelper
                     patterns.Add(clue,models[0]);variants.Add(clue,models);
                 }
         }
+        public void UseDpi(int value){legacy.UseDpi(value);}
         public DetectedPuzzle Detect(Bitmap image,Pixels pixels,Rectangle? previous=null)
         {
             var papers=previous.HasValue?new List<Rectangle>{Rectangle.Intersect(previous.Value,new Rectangle(Point.Empty,image.Size))}:ParagraphVision.FindPapers(pixels);

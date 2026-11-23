@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.23
+
+v0.7.23: A slider that is still on screen keeps its next step instead of reading every other clue. Windows 125% (and 150% and 200%) searches the matching interface size first. The legacy corners and close button are also matched as blocky pixels at those sizes. The modern interface uses the same 1.25 scale it already uses for 150% and 200%.
+
+Settings shows **Made by Zenity · v0.7.23**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.22
 
 v0.7.22: The gnomeball referee card shows its challenge answer. Prifddinas and Heart of Gielinor scans are recognised from the scroll text when the picture does not match. A helper window sitting behind the game is left on the capture.
