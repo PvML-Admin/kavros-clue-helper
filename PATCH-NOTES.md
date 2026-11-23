@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.26
+
+v0.7.26: A whole-row slider click advances the step already on screen, without freezing the guide to replan. A mysterious clue scroll is read from its title bar before any board search, and an unchanged clue stays up. The guide's ring, arrow and badge are ignored on a cropped read.
+
+Settings shows **Made by Zenity · v0.7.26**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.25
 
 v0.7.25: The slider guide stays in your own screenshots. Capture no longer paints over the tiles; the reader ignores the ring, arrow and badge and keeps using the clean pixels. A click that slides a whole row is shown immediately when it matches the route. If a read misses, the last grid is tried again a few pixels either way before the whole window is searched. Mysterious clue scrolls on sand, including the Hamid cryptic, are found from the dark title bar.

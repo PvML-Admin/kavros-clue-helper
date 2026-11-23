@@ -56,7 +56,7 @@ namespace KavrosClueHelper
         }
         public DetectedPuzzle Detect(Bitmap image,Pixels pixels,Rectangle? previous=null)
         {
-            List<Rectangle> papers=previous.HasValue ? new List<Rectangle>{Rectangle.Intersect(previous.Value,new Rectangle(Point.Empty,image.Size))} : FindPapers(pixels);
+            List<Rectangle> papers=previous.HasValue ? new List<Rectangle>{Rectangle.Intersect(previous.Value,new Rectangle(Point.Empty,image.Size))} : FindPapers(pixels).Where(r=>!ParagraphVision.SkipClueSheet(r,pixels.Width)).ToList();
             foreach(Rectangle paper in papers.OrderByDescending(r=>r.Width*r.Height).Take(8))
             {
                 if(paper.Width<190 || paper.Height<90) continue;

@@ -775,7 +775,8 @@ namespace KavrosClueHelper
                     using(Bitmap freshImage=ScreenReader.Capture(screen))
                     {
                         ScreenReader.Cover(freshImage, screen, CaptureInk(Native.ClientBounds(job.Window).Location, screen));
-                        GuideInk freshInk=GuideInk.ForSlider(freshImage.Width,freshImage.Height,marks,p.Bounds.Location);
+                        Point guideOrigin=p.Bounds.Location;guideOrigin.Offset(job.CaptureOffset);
+                        GuideInk freshInk=GuideInk.ForSlider(freshImage.Width,freshImage.Height,marks,guideOrigin);
                         DetectedPuzzle fresh=analysisEngine.ReadOnlySlider(freshImage,new DetectedPuzzle{Kind=PuzzleKind.Sliding,Bounds=new Rectangle(Point.Empty,freshImage.Size),Grid=localGrid,Scale=p.Scale},freshInk);
                         bool matched=fresh!=null&&fresh.Board!=null&&p.Board!=null&&fresh.Board.SequenceEqual(p.Board);
                         List<int> remaining=null;
@@ -791,7 +792,7 @@ namespace KavrosClueHelper
                             if(result.Plan.SlidingWholeRows&&(!spentOk||SlidingRoute.CompletedClicks(p.Board,result.Plan.Sliding,consumed)!=spentClicks.Count))optimal=false;
                             p.Board=fresh.Board;result.Plan=new PuzzlePlan { Puzzle=p, Sliding=remaining, SlidingWholeRows=result.Plan.SlidingWholeRows, SlidingOptimal=optimal };
                         }
-                        else if(reread==1)
+                        else if(reread==1||reread==2)
                         {
                             sliderRereadMisses++;
                             Note("Slide re-read missed ("+sliderRereadMisses+"). Keeping the last board.");
@@ -799,14 +800,6 @@ namespace KavrosClueHelper
                             status.Text="Reading the slider again...";
                             if(current!=null)ShowGuidance();
                             return;
-                        }
-                        else if(reread==2)
-                        {
-                            sliderRereadMisses=0;
-                            Note("Slide board changed before the route was ready. Reading the same area again.");
-                            slidingMoves=null;slidingBoard=null;slidingTheme=null;
-                            retainedClue.Reset();current=null;marks.Clear();canvas.Puzzle=null;canvas.Invalidate();ShowMasterView(false);overlay.Hide();requestedScan=true;nextRead=DateTime.MinValue;
-                            status.Text="Tiles changed while finding the route. Reading the latest board...";return;
                         }
                         else sliderRereadMisses=0;
                     }
@@ -914,27 +907,17 @@ namespace KavrosClueHelper
             {
                 if (!SlidingSolver.IsSolvable(puzzle.Board)) { overlay.Hide(); summary.Text = "Tile recognition gave an impossible board. Rescan before moving."; canvas.Invalidate(); return; }
                 if (AwaitShortestSlider(puzzle, ref prepared)) return;
-                if (!FollowSlider(puzzle,prepared==null?null:prepared.Sliding)) { overlay.Hide(); summary.Text = "Tile recognition gave an impossible board. Rescan before moving."; canvas.Invalidate(); return; }
+                if (!FollowSlider(puzzle,prepared==null?null:prepared.Sliding)) { overlay.Hide(); summary.Text = SlidingSolver.IsSolvable(puzzle.Board)?"Reading the slide puzzle...":"Tile recognition gave an impossible board. Rescan before moving."; canvas.Invalidate(); return; }
                 if (slidingMoves==null||slidingMoves.Count == 0) summary.Text = "Sliding puzzle solved.";
                 else
                 {
                     List<int> clicks;
                     if(!SlidingRoute.TryClickRoute(puzzle.Board,slidingMoves,out clicks))
                     {
-                        Note("Invalid slider route. Checking parity and solving the board again.");
-                        clicks=null;slidingMoves=null;
-                        if(SlidingSolver.IsSolvable(puzzle.Board))
-                        {
-                            SlidingOptimization again=SlidingClickOptimizer.Solve(puzzle.Board);
-                            if(SlidingRoute.TryClickRoute(puzzle.Board,again.Moves,out clicks)){slidingMoves=again.Moves;slidingBoard=(int[])puzzle.Board.Clone();slidingTheme=puzzle.Theme;slidingBatchNumber=1;}
-                        }
-                        if(clicks==null)
-                        {
-                            Note("Slider route could not be rebuilt. Reading the same area again.");
-                            requestedScan=true;nextRead=DateTime.MinValue;overlay.Hide();
-                            summary.Text="Reading the slide puzzle again.";status.Text="The slide route did not match the board. Reading it again.";
-                            canvas.Invalidate();return;
-                        }
+                        Note("Slider route could not be shown. Waiting for the next read.");
+                        slidingMoves=null;slidingBoard=null;
+                        overlay.Hide();summary.Text="Reading the slide puzzle again.";status.Text="The slide route did not match the board. Reading it again.";
+                        canvas.Invalidate();return;
                     }
                     canvas.Next=clicks[0];
                     marks=GuidanceDrawing.SliderMarks(puzzle,clicks,slidingBatchNumber,1);
@@ -989,28 +972,19 @@ namespace KavrosClueHelper
         }
         private bool FollowSlider(DetectedPuzzle puzzle,List<int> preparedRoute=null)
         {
-            List<int> remaining;
-            if(slidingTheme==puzzle.Theme&&slidingBoard!=null&&slidingMoves!=null)
+            int[] shown=slidingTheme==puzzle.Theme?slidingBoard:null;
+            List<int> shownRoute=slidingTheme==puzzle.Theme?slidingMoves:null;
+            List<int> route;int consumed;
+            if(!SliderStep.Follow(shown,shownRoute,puzzle.Board,preparedRoute,out route,out consumed))return false;
+            bool moved=shown!=null&&!shown.SequenceEqual(puzzle.Board);
+            if(moved)
             {
-                if(slidingBoard.SequenceEqual(puzzle.Board))return true;
-                int oldBlank=Array.IndexOf(slidingBoard,24),nextBlank=Array.IndexOf(puzzle.Board,24);
-                bool adjacent=oldBlank>=0&&SlidingSolver.Neighbours(oldBlank).Contains(nextBlank);
-                if(adjacent&&SlidingRoute.Advance(slidingBoard,slidingMoves,puzzle.Board,out remaining))
-                {
-                    int consumed=slidingMoves.Count-remaining.Count;
-                    slidingBatchNumber+=SlidingRoute.CompletedClicks(slidingBoard,slidingMoves,consumed);slidingMoves=remaining;
-                    slidingBoard=(int[])puzzle.Board.Clone();
-                    if(sliderStepShown!=DateTime.MinValue)Note("click -> next step shown: "+(int)(DateTime.UtcNow-sliderStepShown).TotalMilliseconds+" ms");
-                    sliderStepShown=DateTime.UtcNow;return true;
-                }
+                slidingBatchNumber+=SlidingRoute.CompletedClicks(shown,shownRoute,consumed);
+                if(sliderStepShown!=DateTime.MinValue)Note("click -> next step shown: "+(int)(DateTime.UtcNow-sliderStepShown).TotalMilliseconds+" ms");
+                sliderStepShown=DateTime.UtcNow;
             }
-            // The board is not the next step of the cached route. Solve what is on screen.
-            if(!SlidingSolver.IsSolvable(puzzle.Board))return false;
-            preparedRoute=null;
-            try { slidingMoves=SlidingClickOptimizer.Solve(puzzle.Board).Moves; }
-            catch (Exception ex) { CrashLog.Write(ex); slidingMoves=null; slidingBoard=null; return false; }
-            slidingBatchNumber=1;
-            slidingBoard=(int[])puzzle.Board.Clone();slidingTheme=puzzle.Theme;sliderStepShown=DateTime.UtcNow;
+            else if(shown==null){slidingBatchNumber=1;sliderStepShown=DateTime.UtcNow;}
+            slidingMoves=route;slidingBoard=(int[])puzzle.Board.Clone();slidingTheme=puzzle.Theme;
             return true;
         }
         private Rectangle lastClient;

@@ -680,13 +680,26 @@ namespace KavrosClueHelper
                 float target = pixelHeight / 1080F;
                 return classic.OrderBy(s => Math.Abs(s - target)).ThenBy(s => s).ToArray();
             }
-            float dpiScale = dpi / 96F;
-            return classic.OrderBy(s => Math.Abs(s - dpiScale)).ThenBy(s => s).ToArray();
+            return PlaceScale(classic, dpi / 96F);
+        }
+        // The interface scale comes first. 1.0 is next, so a 1080p puzzle is
+        // still found on the second try at 125%, 150% and 200%.
+        static float[] PlaceScale(float[] classic, float target)
+        {
+            var ordered = classic.OrderBy(s => Math.Abs(s - target)).ThenBy(s => s).ToList();
+            if (Math.Abs(ordered[0] - 1F) > 0.02F)
+            {
+                for (int i = 0; i < ordered.Count; i++) if (Math.Abs(ordered[i] - 1F) < 0.001F) { float one = ordered[i]; ordered.RemoveAt(i); ordered.Insert(1, one); break; }
+            }
+            return ordered.ToArray();
         }
         public int LastTowerCluesRead;
         private string towerSolveKey;
         private List<int[]> towerSolutions;
         public int BroadSearches { get; private set; }
+        public int BoardPasses { get; private set; }
+        public int ScrollFastPaths { get; private set; }
+        public bool LastScrollFast { get; private set; }
         // Set when a dark towers grid with some edge clues is visible but the
         // clues are not all readable yet (the panel is still opening).
         public Rectangle? TowerGridCandidate { get; private set; }
@@ -767,30 +780,48 @@ namespace KavrosClueHelper
         }
         internal DetectedPuzzle DetectBoards(Bitmap screenshot, Pixels pixels, bool allowBroadSearch, bool progressive)
         {
+            BoardPasses++;
             TowerGridCandidate = null;
-            DetectedPuzzle fastTower = FindTowerGrid(screenshot, pixels);
-            if (fastTower != null) return fastTower;
-            DetectedPuzzle lockbox=FindLockboxGrid(screenshot,pixels);
-            if(lockbox!=null) return lockbox;
-            if(!allowBroadSearch) return null;
-            BroadSearches++;
             float[] order=SearchOrder(screenshot.Height, activeDpi);
-            if(progressive)
+            if(!progressive)
             {
-                var timer=System.Diagnostics.Stopwatch.StartNew();
-                int searched=0;
-                do
+                DetectedPuzzle fastTower = FindTowerGrid(screenshot, pixels, int.MaxValue, true);
+                if (fastTower != null) return fastTower;
+                DetectedPuzzle lockbox=FindLockboxGrid(screenshot,pixels,order,int.MaxValue,true);
+                if(lockbox!=null) return lockbox;
+                if(!allowBroadSearch) return null;
+                BroadSearches++;
+                foreach(float scale in order)
                 {
-                    float scale=order[nextSearchScale % order.Length]; nextSearchScale=(nextSearchScale+1)%order.Length; searched++;
-                    DetectedPuzzle match=FindAtScale(screenshot,pixels,scale);
+                    DetectedPuzzle match=FindAtScale(screenshot,pixels,scale,null,int.MaxValue);
                     if(match!=null) return match;
-                } while(timer.ElapsedMilliseconds<180 && searched<order.Length);
+                }
                 return null;
             }
-            foreach(float scale in order)
+            var timer=System.Diagnostics.Stopwatch.StartNew();
+            const int budget=180;
+            if(allowBroadSearch)
             {
-                DetectedPuzzle match=FindAtScale(screenshot,pixels,scale);
-                if(match!=null) return match;
+                BroadSearches++;
+                int searched=0;
+                // The likely scale runs to completion. Later scales, towers and
+                // the lockbox stop once the frame budget is spent.
+                while(searched<order.Length && (searched==0 || timer.ElapsedMilliseconds<120))
+                {
+                    float scale=order[nextSearchScale % order.Length]; nextSearchScale=(nextSearchScale+1)%order.Length; searched++;
+                    DetectedPuzzle match=FindAtScale(screenshot,pixels,scale,searched==1?null:timer,budget);
+                    if(match!=null) return match;
+                }
+            }
+            if(timer.ElapsedMilliseconds<budget)
+            {
+                DetectedPuzzle lockbox=FindLockboxGrid(screenshot,pixels,order,budget-(int)timer.ElapsedMilliseconds,false);
+                if(lockbox!=null) return lockbox;
+            }
+            if(timer.ElapsedMilliseconds<budget)
+            {
+                DetectedPuzzle tower=FindTowerGrid(screenshot,pixels,budget-(int)timer.ElapsedMilliseconds,false);
+                if(tower!=null) return tower;
             }
             return null;
         }
@@ -804,15 +835,29 @@ namespace KavrosClueHelper
             return scans.Find(screenshot,pixels);
         }
         private int nextSearchScale;
-        public void ResetSearch() { nextSearchScale=0; }
-        private DetectedPuzzle FindAtScale(Bitmap screenshot,Pixels pixels,float scale)
+        private int towerScanY = 25;
+        private int lockScaleCursor;
+        public void ResetSearch() { nextSearchScale=0; towerScanY=25; lockScaleCursor=0; }
+        internal DetectedPuzzle TryScroll(Bitmap image, Pixels pixels)
         {
+            LastScrollFast = false;
+            var scrolls = ParagraphVision.FindScrolls(pixels);
+            if (scrolls == null || scrolls.Count == 0) return null;
+            LastScrollFast = true;
+            ScrollFastPaths++;
+            return referenceClues.ReadSheet(image, pixels, scrolls[0]);
+        }
+        private DetectedPuzzle FindAtScale(Bitmap screenshot,Pixels pixels,float scale,System.Diagnostics.Stopwatch clock,int budget)
+        {
+            if(clock!=null&&clock.ElapsedMilliseconds>=budget)return null;
             Rectangle all=new Rectangle(Point.Empty,screenshot.Size);
-            DetectedPuzzle old = FindOldInterface(screenshot, pixels, scale); if (old != null) return old;
+            DetectedPuzzle old = FindOldInterface(screenshot, pixels, scale, clock, budget); if (old != null) return old;
+            if(clock!=null&&clock.ElapsedMilliseconds>=budget)return null;
             ImagePattern[] p = patterns[scale];
             List<Point> lefts = p[0].Find(pixels, all, 12);
             foreach (Point left in lefts)
             {
+                if(clock!=null&&clock.ElapsedMilliseconds>=budget)return null;
                 Rectangle rightBand=Rectangle.FromLTRB(left.X+(int)(130*scale),Math.Max(0,left.Y-(int)(8*scale)),Math.Min(screenshot.Width,left.X+(int)(820*scale)),Math.Min(screenshot.Height,left.Y+p[1].Size.Height+(int)(9*scale)));
                 List<Point> rights=p[1].Find(pixels,rightBand,18);
                 Point? right = rights.Where(r => r.X > left.X + 130 * scale && r.X < left.X + 800 * scale && Math.Abs(r.Y - left.Y) < 8 * scale).Select(r => (Point?)r).FirstOrDefault();
@@ -831,23 +876,26 @@ namespace KavrosClueHelper
             }
             return null;
         }
-        private DetectedPuzzle FindOldInterface(Bitmap image, Pixels pixels, float scale)
+        private DetectedPuzzle FindOldInterface(Bitmap image, Pixels pixels, float scale, System.Diagnostics.Stopwatch clock, int budget)
         {
+            if(clock!=null&&clock.ElapsedMilliseconds>=budget)return null;
             if (activeDpi != 96)
             {
-                DetectedPuzzle blocky = MatchOldInterface(image, pixels, scale, BlockyFrames(scale), BlockySliders(scale));
+                DetectedPuzzle blocky = MatchOldInterface(image, pixels, scale, BlockyFrames(scale), BlockySliders(scale), clock, budget);
                 if (blocky != null) return blocky;
             }
-            return MatchOldInterface(image, pixels, scale, oldFrames[scale], oldSliderAnchors[scale]);
+            return MatchOldInterface(image, pixels, scale, oldFrames[scale], oldSliderAnchors[scale], clock, budget);
         }
-        private DetectedPuzzle MatchOldInterface(Bitmap image, Pixels pixels, float scale, OldFrame[] frames, ImagePattern[] sliderAnchors)
+        private DetectedPuzzle MatchOldInterface(Bitmap image, Pixels pixels, float scale, OldFrame[] frames, ImagePattern[] sliderAnchors, System.Diagnostics.Stopwatch clock, int budget)
         {
             Rectangle all = new Rectangle(Point.Empty, image.Size);
             foreach (OldFrame frame in frames)
             {
+                if(clock!=null&&clock.ElapsedMilliseconds>=budget)return null;
                 List<Point> lefts = frame.TopLeft.Find(pixels, all, 12);
                 foreach (Point left in lefts)
                 {
+                    if(clock!=null&&clock.ElapsedMilliseconds>=budget)return null;
                     int closeY = left.Y + (int)Math.Round((frame.TopLeftOffset.Y - frame.CloseOffset.Y) * scale);
                     Rectangle closeBand=Rectangle.FromLTRB(left.X+(int)(120*scale),Math.Max(0,closeY-(int)(4*scale)),Math.Min(image.Width,left.X+(int)(820*scale)),Math.Min(image.Height,closeY+frame.Close.Size.Height+(int)(5*scale)));
                     List<Point> closes=frame.Close.Find(pixels,closeBand,20);
@@ -970,11 +1018,19 @@ namespace KavrosClueHelper
                 return new DetectedPuzzle {Kind=PuzzleKind.Lockbox,Bounds=bounds,Grid=grid,Scale=scale,Board=board,Confidence=minimum};
             }
         }
-        private DetectedPuzzle FindLockboxGrid(Bitmap image,Pixels pixels)
+        private DetectedPuzzle FindLockboxGrid(Bitmap image,Pixels pixels,float[] order,int budgetMs,bool complete)
         {
             Rectangle all=new Rectangle(Point.Empty,image.Size);
-            IEnumerable<float> lockScales=activeDpi==96?(IEnumerable<float>)scales:scales.OrderBy(s=>Math.Abs(s-activeDpi/96F)).ThenBy(s=>s);
-            foreach(float scale in lockScales) foreach(ImagePattern icon in lockboxPatterns[scale])
+            var clock=System.Diagnostics.Stopwatch.StartNew();
+            int start=complete?0:lockScaleCursor;
+            if(start<0||start>=order.Length)start=0;
+            for(int n=0;n<order.Length;n++)
+            {
+                if(clock.ElapsedMilliseconds>=budgetMs){if(!complete)lockScaleCursor=(start+n)%order.Length;return null;}
+                float scale=order[(start+n)%order.Length];
+                ImagePattern[] icons;
+                if(!lockboxPatterns.TryGetValue(scale,out icons))continue;
+                foreach(ImagePattern icon in icons)
             {
                 foreach(Point point in icon.Find(pixels,all,40))
                 {
@@ -991,7 +1047,10 @@ namespace KavrosClueHelper
                     if(best!=null) return best;
                 }
                 SearchCancellation.Check();
+                if(!complete&&clock.ElapsedMilliseconds>=budgetMs){lockScaleCursor=(start+n+1)%order.Length;return null;}
             }
+            }
+            if(!complete)lockScaleCursor=0;
             return null;
         }
         private bool LockboxSurface(Pixels p,Point origin,float scale)
@@ -1072,12 +1131,19 @@ namespace KavrosClueHelper
                 return new DetectedPuzzle{Kind=PuzzleKind.Towers,Bounds=area,Grid=previous.Grid,Scale=previous.Scale,Towers=previous.Towers,TowerSolutions=previous.TowerSolutions,Confidence=previous.Confidence};
             }
         }
-        private DetectedPuzzle FindTowerGrid(Bitmap image, Pixels pixels)
+        private DetectedPuzzle FindTowerGrid(Bitmap image, Pixels pixels, int budgetMs, bool complete)
         {
             List<Rectangle> examined = new List<Rectangle>();
-            for (int y = 25; y < pixels.Height - 135; y++)
+            var clock=System.Diagnostics.Stopwatch.StartNew();
+            int yStart=complete?25:towerScanY;
+            if(yStart<25)yStart=25;
+            for (int y = yStart; y < pixels.Height - 135; y++)
             {
-                if ((y & 15) == 0) SearchCancellation.Check();
+                if ((y & 15) == 0)
+                {
+                    SearchCancellation.Check();
+                    if(clock.ElapsedMilliseconds>=budgetMs){if(!complete)towerScanY=y;return null;}
+                }
                 int start = -1, lastWhite = -1;
                 for (int x = 20; x < pixels.Width; x++)
                 {
@@ -1115,6 +1181,7 @@ namespace KavrosClueHelper
                     }
                 }
             }
+            if(!complete)towerScanY=25;
             return null;
         }
         private static bool GridLine(Pixels pixels, int x, int y, int length, bool horizontal, bool allowDim=false)
