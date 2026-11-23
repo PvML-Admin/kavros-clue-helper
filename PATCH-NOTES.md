@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.22
+
+v0.7.22: The gnomeball referee card shows its challenge answer. Prifddinas and Heart of Gielinor scans are recognised from the scroll text when the picture does not match. A helper window sitting behind the game is left on the capture.
+
+Settings shows **Made by Zenity · v0.7.22**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.21
 
 v0.7.21: Twenty-four clue cards use the travel routes checked in-game. A teleport that lands on the spot no longer sends you off from a lodestone that is not on the card, and the fairy ring tip stays only where a fairy ring is still listed.
