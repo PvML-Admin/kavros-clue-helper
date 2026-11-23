@@ -1,5 +1,13 @@
 # Kavros Clue Helper
 
+## 0.7.24
+
+**Slider**
+- A click that slides the blank is kept. A swap of two picture tiles is still treated as a misread.
+- The last step is held only for about 1.5 seconds after a real read. After that the board is located and solved again, even while the frame is visible. Clue readers are not run on that frame.
+- Three missed reads in a row set the status to "Can't read the tiles - move the mouse off the puzzle". There is no popup.
+- The guide window is excluded from screen capture on Windows 10 2004 and later, and it stays visible to the player. Where that is unavailable, the capture paint covers the full pulse ring and the gold arrow, and the reader is told which cell has the badge.
+
 ## 0.7.23
 
 **Slider**

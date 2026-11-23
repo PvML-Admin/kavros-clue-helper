@@ -448,6 +448,19 @@ namespace KavrosClueHelper
         }
         public DetectedPuzzle Read(Bitmap source,Rectangle region,float scale)
         {
+            return Read(source, region, scale, -1, -1);
+        }
+        // badgeTile is the cell the guide is numbering. arrowTile is the blank
+        // that cell's arrow points at. Passing them replaces the colour guess,
+        // which treated the guide's own brown cover as a badge and then kept
+        // the previous board.
+        public DetectedPuzzle Read(Bitmap source,Rectangle region,float scale,int badgeTile,int arrowTile)
+        {
+            if(badgeTile>=0)
+            {
+                DetectedPuzzle guided=ReadCore(source,region,scale,false,badgeTile,arrowTile);
+                if(guided!=null)return guided;
+            }
             bool marked=false;
             using(Bitmap normal=Pixels.Crop(source,region,new Size(273,273)))
             {
@@ -459,8 +472,8 @@ namespace KavrosClueHelper
                     marked=colour>=3&&dark>=30;
                 }
             }
-            DetectedPuzzle result=ReadCore(source,region,scale,marked);
-            if(marked&&(result==null||!SlidingSolver.IsSolvable(result.Board)))return ReadCore(source,region,scale,false)??result;
+            DetectedPuzzle result=ReadCore(source,region,scale,marked,-1,-1);
+            if(marked&&(result==null||!SlidingSolver.IsSolvable(result.Board)))return ReadCore(source,region,scale,false,-1,-1)??result;
             return result;
         }
         private static string rememberedTheme;
@@ -472,25 +485,69 @@ namespace KavrosClueHelper
             {
                 int diffs = 0, p = -1, q = -1;
                 for (int i = 0; i < 25; i++) if (rememberedBoard[i] != read[i]) { diffs++; if (p < 0) p = i; else q = i; }
-                if (diffs == 2 && rememberedBoard[p] == read[q] && rememberedBoard[q] == read[p]) return (int[])rememberedBoard.Clone();
+                // A real slide swaps the blank with one tile. Two picture tiles
+                // swapping is a misread of a near-identical pair, so keep the
+                // previous board. A blank swap is the move the player just made.
+                if (diffs == 2 && rememberedBoard[p] != 24 && rememberedBoard[q] != 24 && rememberedBoard[p] == read[q] && rememberedBoard[q] == read[p]) return (int[])rememberedBoard.Clone();
             }
             if (!safe || rememberedBoard == null) { rememberedTheme = theme; rememberedBoard = (int[])read.Clone(); }
             return read;
         }
-        private DetectedPuzzle ReadCore(Bitmap source, Rectangle region, float scale,bool safe)
+        private static bool[] GuideSkip(bool ring)
+        {
+            bool[] skip = new bool[49];
+            for (int row = 0; row < 7; row++) for (int col = 0; col < 7; col++)
+                skip[row * 7 + col] = (col < 4 && row < 4) || (ring && (row == 0 || col == 0 || row == 6 || col == 6));
+            return skip;
+        }
+        private static double SimilaritySkip(double[] a, double[] b, bool[] skip)
+        {
+            if (a == null || b == null || a.Length != b.Length || skip == null) return 0;
+            double score = 0; int n = 0;
+            for (int bin = 0; bin < skip.Length && bin * 3 + 2 < a.Length; bin++)
+            {
+                if (skip[bin]) continue;
+                int i = bin * 3;
+                double hue = Math.Abs(a[i] - b[i]); if (hue > 128) hue = 255 - hue;
+                score += Math.Max(0, 1 - hue / 128) * Math.Max(0, 1 - Math.Abs(a[i + 1] - b[i + 1]) / 255) * Math.Max(0, 1 - Math.Abs(a[i + 2] - b[i + 2]) / 255);
+                n++;
+            }
+            return n == 0 ? 0 : Math.Pow(score / n, 3);
+        }
+        private DetectedPuzzle ReadCore(Bitmap source, Rectangle region, float scale,bool safe,int badgeTile,int arrowTile)
 
         {
             using (Bitmap crop = Pixels.Crop(source, region, new Size(273, 273)))
             {
                 if (crop == null) return null;
                 Pixels p = new Pixels(crop);
-                double[][] tiles = Enumerable.Range(0, 25).Select(i => (safe?TileFingerprint(p,new Rectangle(i % 5 * 56, i / 5 * 56, 49, 49)):p.Fingerprint(new Rectangle(i%5*56,i/5*56,49,49),7,7,true))).ToArray();
+                bool guided = badgeTile >= 0;
+                bool[] quiet = guided ? GuideSkip(false) : null;
+                bool[] ring = guided ? GuideSkip(true) : null;
+                double[][] tiles = new double[25][];
+                bool[][] skips = guided ? new bool[25][] : null;
+                for (int i = 0; i < 25; i++)
+                {
+                    Rectangle cell = new Rectangle(i % 5 * 56, i / 5 * 56, 49, 49);
+                    if (!guided) tiles[i] = safe ? TileFingerprint(p, cell) : p.Fingerprint(cell, 7, 7, true);
+                    else { tiles[i] = p.Fingerprint(cell, 7, 7, true); skips[i] = (i == badgeTile || i == arrowTile) ? ring : quiet; }
+                }
                 double best = 0; int[] bestMap = null; string theme = null; double minScore = 0; double[,] bestScores = null;
                 foreach (Reference reference in references)
                 {
                     double[,] scores = new double[25, 25];
                     for (int i = 0; i < 25; i++) for (int j = 0; j < 25; j++)
-                        scores[i, j] = j == 24 ? Math.Max(Pixels.Similarity(tiles[i], (safe?reference.Tiles:reference.FullTiles)[j], true), (safe?blanks:fullBlanks).Select(b => Pixels.Similarity(tiles[i], b, true)).DefaultIfEmpty(0).Max()) : Pixels.Similarity(tiles[i], (safe?reference.Tiles:reference.FullTiles)[j], true);
+                    {
+                        double[][] bank = safe ? reference.Tiles : reference.FullTiles;
+                        List<double[]> blankBank = safe ? blanks : fullBlanks;
+                        if (guided)
+                        {
+                            double tileScore = SimilaritySkip(tiles[i], reference.FullTiles[j], skips[i]);
+                            double blankScore = j == 24 ? fullBlanks.Select(b => SimilaritySkip(tiles[i], b, skips[i])).DefaultIfEmpty(0).Max() : 0;
+                            scores[i, j] = j == 24 ? Math.Max(tileScore, blankScore) : tileScore;
+                        }
+                        else scores[i, j] = j == 24 ? Math.Max(Pixels.Similarity(tiles[i], bank[j], true), blankBank.Select(b => Pixels.Similarity(tiles[i], b, true)).DefaultIfEmpty(0).Max()) : Pixels.Similarity(tiles[i], bank[j], true);
+                    }
                     int[] assignment = Assign(scores);
                     double score = Enumerable.Range(0, 25).Average(i => scores[i, assignment[i]]);
                     if (score > best) { best = score; bestMap = assignment; theme = reference.Name; minScore = Enumerable.Range(0, 25).Min(i => scores[i, assignment[i]]); bestScores = scores; }
@@ -510,7 +567,8 @@ namespace KavrosClueHelper
                     }
                     if (cheapest < 0.05) { int swap = bestMap[a]; bestMap[a] = bestMap[b]; bestMap[b] = swap; }
                 }
-                bestMap = RememberBoard(theme, bestMap, safe);
+                if (guided) { rememberedTheme = theme; rememberedBoard = (int[])bestMap.Clone(); }
+                else bestMap = RememberBoard(theme, bestMap, safe);
                 return new DetectedPuzzle { Kind = PuzzleKind.Sliding, Bounds = region, Grid = region, Scale = scale, Board = bestMap, Theme = theme, Confidence = best };
             }
         }
@@ -784,7 +842,7 @@ namespace KavrosClueHelper
             if(activeDpi==96)return false;
             return BlockySliders(previous.Scale).Any(a=>a.Find(pixels,search,1,47).Count>0);
         }
-        public DetectedPuzzle ReadAgain(Bitmap screenshot, DetectedPuzzle previous, Pixels pixels = null)
+        public DetectedPuzzle ReadAgain(Bitmap screenshot, DetectedPuzzle previous, Pixels pixels = null, int badgeTile = -1)
         {
             if (previous == null || !new Rectangle(Point.Empty, screenshot.Size).Contains(previous.Bounds)) return null;
             if (previous.Kind == PuzzleKind.EmoteClue || previous.Kind == PuzzleKind.Scan)
@@ -793,7 +851,12 @@ namespace KavrosClueHelper
                 return masterClues.Detect(screenshot, pixels, Rectangle.Inflate(previous.Bounds,15,15)) ?? referenceClues.Detect(screenshot, pixels);
             if(previous.Kind==PuzzleKind.Compass) return compass.Read(screenshot,previous.Bounds,previous.Scale);
             if(previous.Kind==PuzzleKind.Scan)return scans.Find(screenshot,pixels);
-            if (previous.Kind == PuzzleKind.Sliding) return sliders.Read(screenshot, previous.Grid, previous.Scale);
+            if (previous.Kind == PuzzleKind.Sliding)
+            {
+                int arrow = -1;
+                if (badgeTile >= 0 && previous.Board != null) { int blank = Array.IndexOf(previous.Board, 24); if (blank >= 0) arrow = blank; }
+                return sliders.Read(screenshot, previous.Grid, previous.Scale, badgeTile, arrow);
+            }
             if (previous.Kind == PuzzleKind.Towers)
             {
                 DetectedPuzzle towers=ReadTowers(screenshot, previous.Grid, previous.Scale);

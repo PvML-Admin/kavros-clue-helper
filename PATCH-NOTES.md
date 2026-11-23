@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.24
+
+v0.7.24: Clicking a slider tile shows the next step again. The guide is left out of the capture on Windows 10 2004 and later, and the fallback paint covers the pulse ring and the arrow. A missed read keeps the last step for about a second and a half, then reads the board again. After three misses the status asks you to move the mouse off the puzzle.
+
+Settings shows **Made by Zenity · v0.7.24**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.23
 
 v0.7.23: A slider that is still on screen keeps its next step instead of reading every other clue. Windows 125% (and 150% and 200%) searches the matching interface size first. The legacy corners and close button are also matched as blocky pixels at those sizes. The modern interface uses the same 1.25 scale it already uses for 150% and 200%.
