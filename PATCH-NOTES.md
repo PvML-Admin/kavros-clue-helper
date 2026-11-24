@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.9.3
+
+Opening an elite scan, including Deep Wilderness, no longer freezes the helper or clears the current read. The title matches the letters on the scroll. A failed text read is ignored, and a failed look is written to crash.log.
+
+Settings shows **Made by Zenity  ·  v0.9.3**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.9.2
 
 Every elite scan in the minigames panel is read on the first look, including Deep Wilderness when the orb says you are too far away. An unchanged scan or compass is kept without another board search. A scroll that opens during an idle search is read straight away.

@@ -18,6 +18,13 @@ namespace KavrosClueHelper
         [ThreadStatic] public static CancellationToken Token;
         public static void Check() { Token.ThrowIfCancellationRequested(); }
     }
+    // The worker publishes this. The UI tick must not read the worker's bitmap
+    // and must not capture the window just to decide whether to cancel.
+    internal static class IdleFrame
+    {
+        internal static volatile int Sheet = 1;
+        internal static volatile bool Yield;
+    }
     public sealed class PuzzlePlan
     {
         public DetectedPuzzle Puzzle;
@@ -153,6 +160,10 @@ namespace KavrosClueHelper
         {
             Stopwatch timer = Stopwatch.StartNew();
             SearchCancellation.Token = cancellation;
+            // Treat the frame as a sheet until this look has classified it,
+            // and clear a yield left over from the previous idle miss.
+            IdleFrame.Sheet = 1;
+            IdleFrame.Yield = false;
             detector.UseDpi(dpi);
             Bitmap decoded=null;
             try
@@ -262,6 +273,10 @@ namespace KavrosClueHelper
                             if(puzzle==null)
                                 return new AnalysisResult{Preview=MakePreview(image,new Rectangle(Point.Empty,image.Size)),Milliseconds=timer.ElapsedMilliseconds};
                         }
+                        // This capture has no scroll. The tick may ask the look
+                        // to stop before the slow text search. It never reads
+                        // the bitmap itself.
+                        if(puzzle==null && !keepOpen) IdleFrame.Sheet=0;
                     }
                 }
                 if (puzzle == null)
@@ -303,7 +318,10 @@ namespace KavrosClueHelper
                             // Master templates, map matching and OCR wait until
                             // several misses, or until 1.0, 1.25, 1.5 and 2
                             // have each been tried.
-                            if(detector.DueForHeavyClues())puzzle=detector.DetectClues(image,pixels);
+                            // A stale idle look yields here, between searches.
+                            // The scan on the next capture is not cancelled,
+                            // and a result already found on this look is kept.
+                            if(!IdleFrame.Yield && detector.DueForHeavyClues())puzzle=detector.DetectClues(image,pixels);
                         }
                     }
                 }

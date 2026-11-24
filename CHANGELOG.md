@@ -1,5 +1,12 @@
 # Kavros Clue Helper
 
+## 0.9.3
+
+**Scan clues**
+- Opening an elite scan no longer freezes the helper or drops the read back to a full-window search.
+- The idle tick no longer reads the picture the worker is using, and it no longer captures the whole window.
+- Deep Wilderness matches the live title size. A failed text read is ignored instead of crashing, and a failed look is written to crash.log.
+
 ## 0.9.2
 
 **Scan clues**

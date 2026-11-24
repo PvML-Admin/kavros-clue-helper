@@ -62,14 +62,24 @@ namespace KavrosClueHelper
                 for(int y=0;y<image.Height;y++)for(int x=0;x<image.Width;x++)image.SetPixel(x,y,Color.FromArgb(18,28,36));
                 for(int y=py;y<py+ph;y++)for(int x=px;x<px+pw;x++)image.SetPixel(x,y,Color.FromArgb(148,122,70));
                 for(int y=py;y<py+ph;y++)for(int x=px+96;x<px+110;x++)image.SetPixel(x,y,Color.FromArgb(110,100,45));
-                using(Bitmap title=new Bitmap(Path.Combine(assets,"scan-titles","36.png")))
+                // Title ink is drawn from the real in-game letters (Taverley's D,
+                // the wilderness line), at the live 89x8 size. 36.png is not pasted on.
+                using(Bitmap dungeon=new Bitmap(Path.Combine(assets,"scan-titles","356.png")))
+                using(Bitmap wild=new Bitmap(Path.Combine(assets,"scan-titles","367.png")))
                 using(Bitmap far=new Bitmap(Path.Combine(assets,"scan-titles","too-far.png")))
                 using(Bitmap none=new Bitmap(Path.Combine(assets,"scan-titles","nothing-scans.png")))
                 {
-                    StampWhite(image,title,px+40,py+48);
+                    int x=px+40,y=py+48;
+                    BlitInk(image,dungeon,61,0,7,8,x,y); x+=8;
+                    BlitInk(image,wild,23,0,6,8,x,y); x+=7;
+                    BlitInk(image,wild,23,0,6,8,x,y); x+=7;
+                    DrawPee(image,x,y); x+=9;
+                    BlitInk(image,wild,0,0,58,8,x,y);
                     StampWhite(image,far,px+36,py+80);
                     StampWhite(image,none,px+36,py+96);
                 }
+                using(Bitmap stored=new Bitmap(Path.Combine(assets,"scan-titles","36.png")))
+                    Check(stored.Width==89&&stored.Height==8,"Deep Wilderness glyph is the live 89x8 title");
                 for(int y=py+112;y<py+120;y++)for(int x=px+40;x<px+120;x+=2)image.SetPixel(x,y,Color.White);
                 int boards=engine.BoardPasses;
                 var watch=System.Diagnostics.Stopwatch.StartNew();
@@ -89,6 +99,20 @@ namespace KavrosClueHelper
                     Check(engine.BoardPasses==after,"cached scan does not run the board search");
                 }
             }
+        }
+        private static void BlitInk(Bitmap image,Bitmap source,int sx,int sy,int width,int height,int left,int top)
+        {
+            for(int y=0;y<height;y++)for(int x=0;x<width;x++)
+            {
+                Color c=source.GetPixel(sx+x,sy+y);
+                if(c.R>185&&c.G>185&&c.B>185&&left+x<image.Width&&top+y<image.Height)image.SetPixel(left+x,top+y,Color.White);
+            }
+        }
+        // Lowercase p is not in a captured title. It uses the same 8px grid as the real letters.
+        private static void DrawPee(Bitmap image,int left,int top)
+        {
+            string[] rows=new[]{".....",".....","#....","#....","####.","#...#","#...#","####."};
+            for(int y=0;y<rows.Length;y++)for(int x=0;x<rows[y].Length;x++)if(rows[y][x]=='#')image.SetPixel(left+x,top+y,Color.White);
         }
         private static void StampWhite(Bitmap image,Bitmap glyph,int left,int top)
         {
