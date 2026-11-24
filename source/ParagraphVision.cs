@@ -27,7 +27,29 @@ namespace KavrosClueHelper
         }
         public static List<Rectangle> FindPapers(Pixels p)
         {
+            return CollectPapers(p,180,90,8);
+        }
+        // A compass is about 176 px wide and a scan about 222 px wide at
+        // scale 1. Both are taller than they are wide, and both are too
+        // narrow for the 340 px scroll-title search.
+        public static List<Rectangle> NarrowSheets(Pixels p)
+        {
+            var found=new List<Rectangle>();
+            if(p==null)return found;
+            foreach(Rectangle r in CollectPapers(p,140,190,12))
+            {
+                if(r.Width<140||r.Width>480)continue;
+                if(r.Height<190||r.Height>820)continue;
+                if(r.Height<=r.Width)continue;
+                found.Add(r);
+                if(found.Count==3)break;
+            }
+            return found;
+        }
+        static List<Rectangle> CollectPapers(Pixels p,int minWidth,int minHeight,int take)
+        {
             var regions=new List<Rectangle>();
+            if(p==null)return regions;
             int columns=p.Width/4+2;
             bool[] prevDark=new bool[columns],rowDark=new bool[columns];
             for(int y=8;y<p.Height-8;y+=12)
@@ -50,7 +72,7 @@ namespace KavrosClueHelper
                     {
                         if(start>=0&&gapDark>=0&&x-last>=4&&x-last<=20)
                         {
-                            KeepRun(regions,p,y,start,last,hits);
+                            KeepRun(regions,p,y,start,last,hits,minWidth);
                             start=x;last=x;hits=1;gapDark=-1;
                         }
                         else { if(start<0)start=x;last=x;hits++;gapDark=-1; }
@@ -60,20 +82,20 @@ namespace KavrosClueHelper
                         if(column)gapDark=x;
                         if(start>=0&&x-last>=36)
                         {
-                            KeepRun(regions,p,y,start,last,hits);
+                            KeepRun(regions,p,y,start,last,hits,minWidth);
                             start=-1;last=-1;hits=0;gapDark=-1;
                         }
                     }
                 }
                 bool[] swap=prevDark;prevDark=rowDark;rowDark=swap;
             }
-            return regions.Where(r=>r.Height>=90&&r.Width>=180).OrderByDescending(r=>r.Width*r.Height).Take(8).ToList();
+            return regions.Where(r=>r.Height>=minHeight&&r.Width>=minWidth).OrderByDescending(r=>r.Width*r.Height).Take(take).ToList();
         }
-        static void KeepRun(List<Rectangle> regions,Pixels p,int y,int start,int last,int hits)
+        static void KeepRun(List<Rectangle> regions,Pixels p,int y,int start,int last,int hits,int minWidth)
         {
             int width=last-start+4;
             if(width>1400){SplitWide(regions,p,y,start,last);return;}
-            if(width>=180&&hits*4>=width*0.6)AddRun(regions,p,y,start,last);
+            if(width>=minWidth&&hits*4>=width*0.6)AddRun(regions,p,y,start,last);
         }
         // A beach-wide beige strip can still hide a framed scroll. Pull the
         // sheet out between its two dark sides instead of dropping the row.
@@ -318,7 +340,14 @@ namespace KavrosClueHelper
         {
             if (!framed && (r.Width > 1100 || r.Height > 700)) return true;
             if (framed && (r.Width > 2200 || r.Height > 1600)) return true;
-            if (r.Top < 48 && r.Left > imageWidth * 0.62 && r.Width < 560 && r.Height < 320) return true;
+            // The minimap sits in the last ~700 px of a 1920-wide client.
+            // Scale that band with the capture so an ultrawide clue further
+            // left is still read. Cap it so a small map image is not treated
+            // as a minimap.
+            int band=(int)Math.Round(700.0*Math.Max(1,imageWidth)/2560.0);
+            int cap=(int)(imageWidth*0.45);
+            if(cap>0&&band>cap)band=cap;
+            if (r.Top < 48 && r.Left > imageWidth-band && r.Width < 560 && r.Height < 320) return true;
             return false;
         }
         public static List<Rectangle> ClueSheets(Pixels p)

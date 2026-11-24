@@ -627,11 +627,7 @@ Final step: Run west to the tavern west of the river, then go upstairs in the ta
 Clue: Search Drawers (West-bank tavern, East Ardougne).
 Tile 2575, 3326 | level 1</details>
   </clue>
-  <clue id="188" tier="medium" type="cryptic" heading="Fishing Platform off Witchaven" action="Search Crate" x="2764" y="3273" width="1" height="1" level="0">
-    <text>Try not to step on any aquatic nasties while searching this crate.</text>
-    <details>Not available on Kavros.
-Clue: Search Crate (Fishing Platform off Witchaven).</details>
-  </clue>
+  <!-- Clue 188, the Fishing Platform crate ("Try not to step on any aquatic nasties"), is not on Kavros. Add it back if players start receiving it. -->
   <clue id="189" tier="medium" type="cryptic" heading="Zanaris furnace" action="Search Crate" x="2399" y="4471" width="1" height="1" level="0">
     <text>After a hard day of spraying back the vegetation, you mite want to pop to the nearby forge and search the crates.</text>
     <details>Fastest: Ctrl+T or ;;t &gt; Locations &gt; Zanaris.

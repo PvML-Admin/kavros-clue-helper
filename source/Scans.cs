@@ -122,7 +122,13 @@ namespace KavrosClueHelper
         {
             float aim=targetScale>0.01F?targetScale:(dpi==96?0F:dpi/96F);
             if(aim<=0F)return models;
-            return models.OrderBy(m=>Math.Abs(m.Scale-aim)).ThenBy(m=>m.Scale);
+            return models.OrderBy(m=>ScaleRank(m.Scale,aim)).ThenBy(m=>Math.Abs(m.Scale-aim)).ThenBy(m=>m.Scale);
+        }
+        private static int ScaleRank(float scale,float aim)
+        {
+            if(Math.Abs(scale-aim)<0.02F)return 0;
+            if(Math.Abs(scale-1F)<0.02F)return 1;
+            return 2;
         }
         private void AddScale(float scale)
         {
@@ -270,11 +276,20 @@ namespace KavrosClueHelper
             }
             return tie?null:winner;
         }
-        public DetectedPuzzle Find(Bitmap image,Pixels p)
+        public DetectedPuzzle Find(Bitmap image,Pixels p){return Find(image,p,null);}
+        public DetectedPuzzle Find(Bitmap image,Pixels p,Rectangle? clip)
         {
+            if(image==null||p==null)return null;
             // Search each title once. Overlapping scenery regions otherwise
             // repeat the same white-pixel candidates hundreds of times.
-            List<Rectangle> areas=new List<Rectangle>{new Rectangle(Point.Empty,image.Size)};
+            // A parchment box is searched on its own before the full window.
+            List<Rectangle> areas=new List<Rectangle>();
+            if(clip.HasValue)
+            {
+                Rectangle box=Rectangle.Intersect(clip.Value,new Rectangle(Point.Empty,image.Size));
+                if(box.Width>=80&&box.Height>=80)areas.Add(box);
+            }
+            if(areas.Count==0)areas.Add(new Rectangle(Point.Empty,image.Size));
             foreach(Model model in OrderedModels())
             foreach(Rectangle area in areas)
             foreach(Point hit in model.Title.Find(p,area,8,35,q=>PaperAround(p,q,model)))
@@ -296,6 +311,7 @@ namespace KavrosClueHelper
                 var reading=new ScanReading{Region=model.Region,DifferentLevel=model.Level.Find(p,body,1,35).Count>0,Outside=titles.Outside(p,body)};
                 return new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=reading,Bounds=body,Scale=s,Confidence=0.95,Message="Scan clue"};
             }
+            if(clip.HasValue)return null;
             return ReadElite(image,p);
         }
         internal DetectedPuzzle FindNativeTitle(Pixels p)
@@ -366,6 +382,8 @@ namespace KavrosClueHelper
         public const string ManualHint="Right-click your spot on the map.";
         public string TrackingStatus=ManualHint;
         private MinimapMatch pending;
+        private MinimapMatch farFix;
+        private DateTime farAt;
         private DateTime lastMatch;
         private DateTime lastConfirmed;
         private int confirmations;
@@ -390,7 +408,7 @@ namespace KavrosClueHelper
             bool changed=Region==null||reading.Region==null||Region.Id!=reading.Region.Id;
             if(changed)
             {
-                Position=null;LastKnown=null;PositionTracked=false;pending=null;confirmations=0;misses=0;motion.Reset();trackHold.Reset();                MeerkatLocked=false;
+                Position=null;LastKnown=null;PositionTracked=false;pending=null;farFix=null;confirmations=0;misses=0;motion.Reset();trackHold.Reset();                MeerkatLocked=false;
                 Visited.Clear();
                 Meerkat=reading.Meerkat;
                 TrackingStatus=reading.Outside?"Too far away for this scan.":AutoTracking?FindingHint:ManualHint;
@@ -400,8 +418,8 @@ namespace KavrosClueHelper
             if(Outside){Position=null;PositionTracked=false;pending=null;TrackingStatus="Too far away for this scan.";}
         }
         public bool InRange(PointF spot,int factor=1){return (!AutoTracking||PositionTracked)&&!DifferentLevel&&Position.HasValue&&Math.Max(Math.Abs(spot.X-Position.Value.X),Math.Abs(spot.Y-Position.Value.Y))<=Range*factor;}
-        public void Clear(){Region=null;Position=null;LastKnown=null;DifferentLevel=false;Outside=false;PositionTracked=false;pending=null;motion.Reset();trackHold.Reset();Visited.Clear();}
-        public void SetAutomatic(bool enabled){AutoTracking=enabled;Position=null;LastKnown=null;PositionTracked=false;pending=null;misses=0;motion.Reset();trackHold.Reset();TrackingStatus=enabled?FindingHint:"Right-click your spot on the map.";}
+        public void Clear(){Region=null;Position=null;LastKnown=null;DifferentLevel=false;Outside=false;PositionTracked=false;pending=null;farFix=null;motion.Reset();trackHold.Reset();Visited.Clear();}
+        public void SetAutomatic(bool enabled){AutoTracking=enabled;Position=null;LastKnown=null;PositionTracked=false;pending=null;farFix=null;misses=0;motion.Reset();trackHold.Reset();TrackingStatus=enabled?FindingHint:"Right-click your spot on the map.";}
         public void SetManual(PointF position){SetAutomatic(false);Position=position;TrackingStatus="Manual position set. Right-click the map to move it.";}
         public void PrepareRecheck(){if(LastKnown.HasValue)return;Position=null;PositionTracked=false;pending=null;TrackingStatus="Minimap found. Checking your current position...";}
         public void ApplyMatch(MinimapMatch match,DateTime now)
@@ -415,6 +433,7 @@ namespace KavrosClueHelper
             }
             if(match==null)
             {
+                farFix=null;
                 if(PositionTracked&&LastKnown.HasValue)
                 {
                     // Keep following through missed frames, moving the marker
@@ -444,7 +463,24 @@ namespace KavrosClueHelper
                 double gap=Math.Max(0.05,(now-lastMatch).TotalSeconds);
                 double allowed=14+gap*24;
                 if(CompassMath.Distance(match.Position,LastKnown.Value)>allowed)
-                {Position=LastKnown;TrackingStatus="Following your minimap automatically.";NoteCoverage();return;}
+                {
+                    // One far reading is kept. The same far spot on the next
+                    // frame is a teleport, so the marker locks there.
+                    bool again=farFix!=null&&(now-farAt).TotalSeconds<2&&CompassMath.Distance(match.Position,farFix.Position)<=18;
+                    if(!again)
+                    {
+                        farFix=match;farAt=now;
+                        Position=LastKnown;TrackingStatus="Following your minimap automatically.";
+                        return;
+                    }
+                    farFix=null;pending=match;lastMatch=now;misses=0;confirmations=2;
+                    Position=match.Position;LastKnown=match.Position;PositionTracked=true;lastConfirmed=now;
+                    motion.Reset();motion.Observe(match.Position,now);
+                    TrackingStatus="Following your minimap automatically.";
+                    NoteCoverage();
+                    return;
+                }
+                farFix=null;
                 PointF held=LastKnown.Value;
                 var smoothed=new PointF(held.X+(match.Position.X-held.X)*0.7F,held.Y+(match.Position.Y-held.Y)*0.7F);
                 pending=match;lastMatch=now;misses=0;Position=smoothed;LastKnown=smoothed;PositionTracked=true;lastConfirmed=now;
@@ -458,7 +494,7 @@ namespace KavrosClueHelper
             {
                 // Back where we lost the player (or a short run from there):
                 // pick up again at once, without a confirmation frame.
-                pending=match;lastMatch=now;confirmations=2;Position=match.Position;LastKnown=match.Position;PositionTracked=true;lastConfirmed=now;
+                farFix=null;pending=match;lastMatch=now;confirmations=2;Position=match.Position;LastKnown=match.Position;PositionTracked=true;lastConfirmed=now;
                 motion.Reset();motion.Observe(match.Position,now);
                 TrackingStatus="Following your minimap automatically.";
                 NoteCoverage();

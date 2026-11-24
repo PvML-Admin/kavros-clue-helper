@@ -44,13 +44,15 @@ namespace KavrosClueHelper
                 // A delayed result never revives a stale player box.
                 if(job.Match!=null&&(DateTime.UtcNow-job.CapturedAt).TotalMilliseconds>1500)
                 {
-                    // A slow first acquisition locates the viewport only. Read a
-                    // fresh crop before confirming/displaying the player's box.
-                    trackedMinimap=Rectangle.Inflate(job.Match.Viewport,5,5);nextFullTracking=DateTime.UtcNow.AddSeconds(6);nextTracking=DateTime.MinValue;
+                    // A slow result is not drawn as the live box. It stays the
+                    // seed for the next search, and the crop stays wide enough
+                    // to cover a short run.
+                    trackedMinimap=Rectangle.Inflate(job.Match.Viewport,30,30);nextFullTracking=DateTime.UtcNow.AddSeconds(6);nextTracking=DateTime.MinValue;
+                    positionReader.KeepSeed(job.Match);
                     floatingPanel.PrepareTrackingRecheck();return;
                 }
                 floatingPanel.ApplyTracking(job.Match,job.Region.Id,job.CapturedAt);
-                if(job.Match!=null){trackingMisses=0;trackedMinimap=Rectangle.Inflate(job.Match.Viewport,5,5);}
+                if(job.Match!=null){trackingMisses=0;trackedMinimap=Rectangle.Inflate(job.Match.Viewport,30,30);}
                 else if(++trackingMisses>=2)trackedMinimap=Rectangle.Empty;
                 nextTracking=DateTime.UtcNow.AddMilliseconds(100);
                 }

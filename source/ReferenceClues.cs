@@ -268,7 +268,7 @@ namespace KavrosClueHelper
             double best=0,runner=0;ReferenceClue winner=null;
             foreach(ReferenceClue c in Clues)
             {
-                if(c.Type=="map"||c.Card.Id==188||c.Card.Id==900001)continue;
+                if(c.Type=="map"||c.Card.Id==900001)continue;
                 double score=c.Text.Max(t=>WindowScore(cleaned,Normalize(t)));
                 if(c.Type=="coordinates")
                 {
@@ -349,7 +349,7 @@ namespace KavrosClueHelper
             {
                 var ranked=maps.Concat(variants).GroupBy(m=>m.Key).Select(group=>new{Id=group.Key,Score=group.Max(m=>m.Value.Compare(signature))}).OrderByDescending(v=>v.Score).Take(2).ToArray();
                 MapScores=paper+" "+signature.Info+" "+String.Join(" / ",ranked.Select(v=>v.Id+":"+v.Score.ToString("0.000")));
-                if(ranked.Length>0&&ranked[0].Id!=188&&ranked[0].Id!=900001&&ranked[0].Score>=0.83&&(ranked.Length<2||ranked[0].Score-ranked[1].Score>=0.07))found=Clues.First(c=>c.Card.Id==ranked[0].Id);
+                if(ranked.Length>0&&ranked[0].Id!=900001&&ranked[0].Score>=0.83&&(ranked.Length<2||ranked[0].Score-ranked[1].Score>=0.07))found=Clues.First(c=>c.Card.Id==ranked[0].Id);
             }
             if(found==null)
             {

@@ -41,7 +41,7 @@ namespace KavrosClueHelper
                 Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 192)[0] - 2.5F) < 0.02F, "1440p at 200% searches 2.5 first");
                 Check(Math.Abs(PuzzleDetector.SearchOrder(1369, 96, 1080, 100, 1440, 125)[0] - 1F) < 0.02F, "a manual 1080p choice overrides the window height");
                 Check(Math.Abs(PuzzleDetector.SearchOrder(0, 0, 0, 0, 1440, 125)[0] - 1.75F) < 0.02F, "auto with no window uses the last manual 1440p and 125%");
-                Check(AppBranding.Shown("0.8.0") == "v0.8" && AppBranding.Shown("v0.8.0") == "v0.8" && AppBranding.Shown(new Version(0, 8, 0, 0)) == "v0.8" && AppBranding.Shown("0.8.1") == "v0.8.1" && AppBranding.Shown("v0.8.1") == "v0.8.1" && AppBranding.Shown(new Version(0, 8, 1, 0)) == "v0.8.1", "a zero patch shows major.minor and any other patch shows three parts");
+                Check(AppBranding.Shown("0.8.0") == "v0.8" && AppBranding.Shown("v0.8.0") == "v0.8" && AppBranding.Shown(new Version(0, 8, 0, 0)) == "v0.8" && AppBranding.Shown("0.8.1") == "v0.8.1" && AppBranding.Shown("v0.8.1") == "v0.8.1" && AppBranding.Shown(new Version(0, 8, 1, 0)) == "v0.8.1" && AppBranding.Shown("0.9.0") == "v0.9" && AppBranding.Shown(new Version(0, 9, 0, 0)) == "v0.9", "a zero patch shows major.minor and any other patch shows three parts");
                 string prefsPath = Path.Combine(Path.GetTempPath(), "kavros-overlay-" + DateTime.UtcNow.Ticks.ToString() + ".txt");
                 try
                 {
@@ -94,6 +94,8 @@ namespace KavrosClueHelper
                     view.SetClue(charm, assets);
                     Check(view.MapPath.Replace('\\', '/').EndsWith("/compass/world.png"), "master emote map is the world map");
                     Check(view.MapPath.IndexOf("master-maps", StringComparison.OrdinalIgnoreCase) < 0, "master emote map is not the local square");
+                    view.SetClue(MasterClues.ById(233), assets);
+                    Check(view.MapPath.Replace('\\', '/').EndsWith("/location-maps/233.jpg"), "sulphur pit uses its dungeon map");
                 }
                 var routes = File.ReadAllLines(Path.Combine(assets, "data", "scan-routes.tsv")).Select(l => l.Split('\t')).Where(f => f.Length == 2).ToDictionary(f => int.Parse(f[0]), f => f[1]);
                 Check(routes[358] == "Not available on Kavros.", "Mos Le'Harmless is not available on Kavros");
