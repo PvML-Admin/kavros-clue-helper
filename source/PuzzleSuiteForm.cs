@@ -194,14 +194,14 @@ namespace KavrosClueHelper
             detected.SetBounds(16, 304, 484, 34); detected.Font = new Font("Segoe UI", 12F, FontStyle.Bold); detected.ForeColor = KavrosTheme.Ok; detected.Text = "Waiting for a puzzle"; Controls.Add(detected);
             preview.SetBounds(28, 366, 460, 222); preview.SizeMode = PictureBoxSizeMode.Zoom; preview.BackColor = KavrosTheme.BgDeep; Controls.Add(preview);
             canvas.SetBounds(28, 602, 260, 235); Controls.Add(canvas);
-            instructions = new PaintedLabel { Text = InstructionsText(), Left = 300, Top = 602, Width = 188, Height = 120, Renderer = StatusText.DrawLegend }; Controls.Add(instructions);
+            instructions = new PaintedLabel { Text = InstructionsText(), Left = 300, Top = 602, Width = 188, Height = 46, Renderer = StatusText.DrawLegend }; Controls.Add(instructions);
             masterView.SetBounds(28,366,460,471); masterView.Visible=false; Controls.Add(masterView);
             summary.SetBounds(16, 857, 484, 36); summary.Font = KavrosTheme.Ui(9F, true); summary.ForeColor = KavrosTheme.Ok; summary.Text = "Open a clue or puzzle and keep it visible in Kavros."; Controls.Add(summary);
             status.SetBounds(16, 893, 484, 32); status.ForeColor = KavrosTheme.TextSoft; status.Text = "Ctrl+Shift+L: scan  /  Ctrl+Shift+H: hide overlay"; Controls.Add(status);
             scanProgress.SetBounds(16,927,484,3);scanProgress.Style=ProgressBarStyle.Marquee;scanProgress.MarqueeAnimationSpeed=25;scanProgress.Visible=false;Controls.Add(scanProgress);
             reverse.Text = "Reverse lockbox cycle"; reverse.SetBounds(300, 772, 188, 24); Controls.Add(reverse);
             reverse.CheckedChanged += delegate { if (current != null && current.Kind == PuzzleKind.Lockbox) SolveAndShow(current); };
-            towerCountdown.Text = "Tower countdown"; towerCountdown.SetBounds(300, 724, 188, 24); Controls.Add(towerCountdown);
+            towerCountdown.Text = "Tower countdown"; towerCountdown.SetBounds(300, 652, 188, 24); Controls.Add(towerCountdown);
             towerCountdown.CheckedChanged += delegate { instructions.Text = InstructionsText(); if (current != null && current.Kind == PuzzleKind.Towers) SolveAndShow(current); };
             SetupShortestSlider();
 
@@ -426,7 +426,7 @@ namespace KavrosClueHelper
         }
         private string InstructionsText()
         {
-            return "Automatic detection\n\nKeep the full puzzle visible.\n\nGreen = next action\nGold = other actions\n" + (towerCountdown.Checked ? "Towers = clicks left\nGreen 0 = square complete" : "Towers = target heights");
+            return "Automatic detection\n\nKeep the full puzzle visible.";
         }
         private Label LabelAt(string text, int x, int y, int w, int h) { Label l = new Label { Text = text, Left = x, Top = y, Width = w, Height = h }; Controls.Add(l); return l; }
         private void ButtonAt(string text, int x, int y, int w, Action action, ButtonTone tone = ButtonTone.Secondary)

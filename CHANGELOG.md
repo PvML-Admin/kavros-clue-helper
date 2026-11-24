@@ -1,5 +1,19 @@
 # Kavros Clue Helper
 
+## 0.7.28
+
+**Puzzles**
+- The automatic-detection note now only says to keep the full puzzle visible. The tower countdown switch is unchanged.
+
+**Clues**
+- Queen Sigrid's map is the Etceteria castle throne room, floor 1.
+- Hamid: bonfire teleport, then west to the waterfront. The other ways are the Menaphos lodestone and the Menaphos cactus patch.
+- The coordinate clue north of the Lava Maze names the phasmatite rocks.
+- Draynor Village fishing shore: willow teleport, then a short walk. The other ways are the Wizard's Tower and the amulet of glory to Draynor Village.
+- A large framed treasure map is still matched. A sandy sheet and the minimap are still ignored.
+- A scroll title that the text reader misses is still passed to the map and master readers. The board search stays skipped.
+- An anagram still matches when the name is run together or split differently, including after the intro line.
+
 ## 0.7.27
 
 **Slider**

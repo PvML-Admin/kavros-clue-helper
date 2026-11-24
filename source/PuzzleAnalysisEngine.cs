@@ -218,12 +218,17 @@ namespace KavrosClueHelper
                 if (puzzle == null && !trackingBoard)
                 {
                     DetectedPuzzle scroll=detector.TryScroll(image,pixels);
-                    if(detector.LastScrollFast)
+                    if(scroll!=null)puzzle=scroll;
+                    else if(detector.LastScrollFast)
                     {
-                        if(scroll!=null)puzzle=scroll;
-                        else if(cached!=null&&last!=null&&last.Kind==PuzzleKind.EmoteClue)
+                        // The frame is a scroll, but the sheet was not read.
+                        // Maps and the other clue readers still run. The board
+                        // search stays skipped, so sand behind a real scroll
+                        // is not walked as a puzzle.
+                        puzzle=detector.DetectClues(image,pixels,detector.LastScrollBounds);
+                        if(puzzle==null&&cached!=null&&last!=null&&last.Kind==PuzzleKind.EmoteClue)
                             return new AnalysisResult{Plan=cached,Unchanged=true,Milliseconds=timer.ElapsedMilliseconds};
-                        else
+                        if(puzzle==null)
                             return new AnalysisResult{Preview=MakePreview(image,new Rectangle(Point.Empty,image.Size)),Milliseconds=timer.ElapsedMilliseconds};
                     }
                 }

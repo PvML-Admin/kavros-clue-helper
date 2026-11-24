@@ -8483,21 +8483,6 @@
           {
             "range": {
               "origin": {
-                "x": 2499,
-                "y": 3861,
-                "level": 1
-              },
-              "size": {
-                "x": 4,
-                "y": 4
-              }
-            },
-            "note": "After 'Blood Runs Deep'",
-            "description": "in Miscellania's Throneroom"
-          },
-          {
-            "range": {
-              "origin": {
                 "x": 2612,
                 "y": 3871,
                 "level": 1
@@ -8509,6 +8494,21 @@
             },
             "note": "Before 'Blood Runs Deep'",
             "description": "in Etceteria Castle"
+          },
+          {
+            "range": {
+              "origin": {
+                "x": 2499,
+                "y": 3861,
+                "level": 1
+              },
+              "size": {
+                "x": 4,
+                "y": 4
+              }
+            },
+            "note": "After 'Blood Runs Deep'",
+            "description": "in Miscellania's Throneroom"
           }
         ],
         "npc": "Queen Sigrid"

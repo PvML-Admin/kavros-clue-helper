@@ -67,6 +67,12 @@ namespace KavrosClueHelper
         }
         private static List<Rectangle> Papers(Pixels p,bool trim=true)
         {
+            bool ignored;
+            return Papers(p,trim,out ignored);
+        }
+        private static List<Rectangle> Papers(Pixels p,bool trim,out bool scrollFirst)
+        {
+            scrollFirst=false;
             var scrolls=ParagraphVision.FindScrolls(p);
             var papers=ParagraphVision.FindPapers(p);
             for(int i=0;i<papers.Count;i++)
@@ -93,7 +99,11 @@ namespace KavrosClueHelper
             foreach(Rectangle scroll in scrolls)
             {
                 Rectangle sheet=TrimToPaper(p,scroll);
-                if(sheet.Width>=180&&sheet.Height>=90)framed.Add(sheet);
+                if(sheet.Width>=180&&sheet.Height>=90)
+                {
+                    if(framed.Count==0)scrollFirst=true;
+                    framed.Add(sheet);
+                }
             }
             foreach(Rectangle r in candidates)
             {
@@ -199,6 +209,22 @@ namespace KavrosClueHelper
                 if(known.Contains(word)||word.All(char.IsDigit))kept.Add(word);
             return kept.Count==0?text:String.Join(" ",kept.ToArray());
         }
+        static bool LetterBagWindow(string normalized, string bag)
+        {
+            if(bag==null||bag.Length<4)return false;
+            string[] words=normalized.Split(new[]{' '},StringSplitOptions.RemoveEmptyEntries);
+            for(int i=0;i<words.Length;i++)
+            {
+                string joined="";
+                for(int j=i;j<words.Length&&joined.Length<=bag.Length;j++)
+                {
+                    joined+=words[j];
+                    if(joined.Length==bag.Length&&Letters(joined)==bag)return true;
+                    if(joined.Length>bag.Length)break;
+                }
+            }
+            return false;
+        }
         static double WindowScore(string hay, string needle)
         {
             if(hay.Length==0||needle.Length==0)return 0;
@@ -231,7 +257,13 @@ namespace KavrosClueHelper
             // A bare anagram such as "R AK MI" is shorter than eight characters
             // after spaces are collapsed, so it still has to be matched.
             if(text.Length<8 && letters.Length<4)return null;
-            var dictionary=Clues.SelectMany(c=>c.Text.Concat(c.Anagrams)).SelectMany(t=>Normalize(t).Split(new[]{' '},StringSplitOptions.RemoveEmptyEntries));
+            var pieces=new List<string>();
+            foreach(ReferenceClue clue in Clues)
+            {
+                foreach(string part in clue.Text)pieces.Add(part);
+                foreach(string part in clue.Anagrams){pieces.Add(part);pieces.Add(Normalize(part).Replace(" ",""));}
+            }
+            var dictionary=pieces.SelectMany(t=>Normalize(t).Split(new[]{' '},StringSplitOptions.RemoveEmptyEntries));
             string cleaned=KeepKnownWords(text,dictionary);
             double best=0,runner=0;ReferenceClue winner=null;
             foreach(ReferenceClue c in Clues)
@@ -246,15 +278,21 @@ namespace KavrosClueHelper
                 }
                 if(c.Type=="anagram")
                 {
-                    string flat=cleaned.Replace(" ","");
+                    string flat=text.Replace(" ","");
                     double anagram=0;
                     foreach(string a in c.Anagrams)
                     {
                         string n=Normalize(a);
-                        if(cleaned==n||cleaned.EndsWith(" "+n)||cleaned.EndsWith(n))anagram=1;
-                        else anagram=Math.Max(anagram,WindowScore(cleaned,n));
-                        string nLetters=Letters(n);
-                        if(letters.Length>=4 && Math.Abs(text.Length-n.Length)<=8 && letters==nLetters)anagram=1;
+                        string nFlat=n.Replace(" ","");
+                        // Spacing is not part of the anagram. "ARC OLINE" and
+                        // "ARCOLINE" are the same name, including after the intro.
+                        // A packed name has to be long enough that it is not an
+                        // accidental piece of a normal sentence. An exact clue
+                        // line still outranks a letter-bag hit.
+                        bool packed=nFlat.Length>=6&&(flat==nFlat||flat.EndsWith(nFlat)||flat.Contains(nFlat));
+                        if(nFlat.Length>0&&(text==n||text.EndsWith(" "+n)||packed))anagram=1;
+                        else anagram=Math.Max(anagram,WindowScore(text,n));
+                        if(anagram<1&&LetterBagWindow(text,Letters(n)))anagram=Math.Max(anagram,0.96);
                     }
                     if(anagram>=0.9)score=Math.Max(score,anagram);
                     else if(!flat.Contains("anagram"))score=0;
@@ -281,14 +319,20 @@ namespace KavrosClueHelper
         {
             Rectangle paper=TrimToPaper(pixels,scroll);
             if(paper.Width<180||paper.Height<90)paper=scroll;
-            if(ParagraphVision.SkipClueSheet(paper,pixels.Width))return null;
+            if(ParagraphVision.SkipClueSheet(paper,pixels.Width,true))return null;
             return ReadPaper(image,pixels,paper);
         }
         public DetectedPuzzle Detect(Bitmap image,Pixels pixels)
         {
-            foreach(Rectangle paper in Papers(pixels).Take(3))
+            bool scrollFirst;
+            foreach(Rectangle paper in Papers(pixels,true,out scrollFirst).Take(3))
             {
-                if(ParagraphVision.SkipClueSheet(paper,pixels.Width))continue;
+                // FindScrolls already proved this is a titled sheet. The frame
+                // can sit further out than the title ink, so do not re-test it
+                // with the small-sheet cap.
+                bool framed=scrollFirst||HasMysteriousFrame(pixels,paper);
+                scrollFirst=false;
+                if(ParagraphVision.SkipClueSheet(paper,pixels.Width,framed))continue;
                 DetectedPuzzle found=ReadPaper(image,pixels,paper);
                 if(found!=null)return found;
             }
