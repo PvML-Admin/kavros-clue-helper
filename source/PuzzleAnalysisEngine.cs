@@ -236,19 +236,15 @@ namespace KavrosClueHelper
                         if(puzzle==null)
                             return new AnalysisResult{Preview=MakePreview(image,new Rectangle(Point.Empty,image.Size)),Milliseconds=timer.ElapsedMilliseconds};
                     }
-                    else
+                    else if(!hashUnchanged)
                     {
+                        // A confirmed clue whose pixels have not changed keeps
+                        // the cache below, after the board search. A new frame
+                        // tries the narrow panel at scale 1 before any board.
+                        // A miss falls through, so a slider is still read.
                         bool narrowSheet;
                         DetectedPuzzle narrow=detector.ReadNarrowSheet(image,pixels,out narrowSheet);
                         if(narrow!=null)puzzle=narrow;
-                        else if(narrowSheet)
-                        {
-                            // The sheet is too narrow for the scroll-title
-                            // search. Read it here and skip the board search.
-                            if(detector.DueForHeavyClues())puzzle=detector.DetectClues(image,pixels);
-                            if(puzzle==null)
-                                return new AnalysisResult{Preview=MakePreview(image,new Rectangle(Point.Empty,image.Size)),Milliseconds=timer.ElapsedMilliseconds};
-                        }
                     }
                 }
                 if (puzzle == null)

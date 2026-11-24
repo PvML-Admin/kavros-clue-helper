@@ -29,22 +29,12 @@ namespace KavrosClueHelper
         {
             return CollectPapers(p,180,90,8);
         }
-        // A compass is about 176 px wide and a scan about 222 px wide at
-        // scale 1. Both are taller than they are wide, and both are too
-        // narrow for the 340 px scroll-title search.
+        // A compass or scan in a side panel is darker than clue parchment and
+        // can be split by a shadow. Scroll areas still see that sheet. Wide
+        // titled scrolls stay on FindScrolls, which asks for 340 px.
         public static List<Rectangle> NarrowSheets(Pixels p)
         {
-            var found=new List<Rectangle>();
-            if(p==null)return found;
-            foreach(Rectangle r in CollectPapers(p,140,190,12))
-            {
-                if(r.Width<140||r.Width>480)continue;
-                if(r.Height<190||r.Height>820)continue;
-                if(r.Height<=r.Width)continue;
-                found.Add(r);
-                if(found.Count==3)break;
-            }
-            return found;
+            return ScrollAreas.NarrowPanels(p);
         }
         static List<Rectangle> CollectPapers(Pixels p,int minWidth,int minHeight,int take)
         {

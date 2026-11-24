@@ -1,5 +1,12 @@
 # Kavros Clue Helper
 
+## 0.9.1
+
+**Scan clues**
+- A darker scan in the minigames panel is read on the first look. The sheet is taken from the scroll area, and scale 1.0 is tried on that box before the rest of the window.
+- Prifddinas and the Heart of Gielinor can be named from their title letters.
+- A wide titled clue scroll is still read the same way, ahead of that panel search.
+
 ## 0.9
 
 **Compass and scan**
