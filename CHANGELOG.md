@@ -1,5 +1,11 @@
 # Kavros Clue Helper
 
+## 0.9.5
+
+**Scan clues**
+- Elite dungeon scans lock your position on the minimap. Those maps now have white wall lines, the same way Prifddinas already did.
+- The pictures on the clue card are unchanged. The right-click line stays hidden while auto-follow is on.
+
 ## 0.9.4
 
 **Scan clues**
