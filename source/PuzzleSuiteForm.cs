@@ -237,7 +237,9 @@ namespace KavrosClueHelper
             ButtonAt("Check for updates",305,971,195,delegate{AppUpdates.Check(this,true);});
             ButtonAt("What's new",305,1012,195,ToggleWhatsNew);
             SetupClientOptions();
-            ClientSize=new Size(ClientSize.Width,1164);
+            int contentBottom = 0;
+            foreach (Control placed in Controls) if (placed.Bottom > contentBottom) contentBottom = placed.Bottom;
+            ClientSize = new Size(ClientSize.Width, contentBottom + 16);
             AppUpdates.Present=ShowToast;
             var trayMenu=new ContextMenuStrip();trayMenu.Items.Add("Open panel",null,delegate{OpenPanel();});trayMenu.Items.Add("Settings",null,delegate{ShowSettings();});trayMenu.Items.Add("Exit helper",null,delegate{ExitHelper();});
             AppBranding.ArrangeSettings(this);
@@ -439,15 +441,19 @@ namespace KavrosClueHelper
         private Label LabelAt(string text, int x, int y, int w, int h) { Label l = new Label { Text = text, Left = x, Top = y, Width = w, Height = h }; Controls.Add(l); return l; }
         private void SetupClientOptions()
         {
-            Label interfaceLabel = LabelAt("Interface", 28, 1052, 200, 18);
+            // The heading is drawn 9px into the Client card. This label starts
+            // a full line below that, so the heading is not covered.
+            Label interfaceLabel = LabelAt("Interface", 28, 1088, 200, 22);
+            interfaceLabel.Name = "InterfaceLabel";
             interfaceLabel.ForeColor = KavrosTheme.TextSoft;
+            interfaceLabel.BackColor = KavrosTheme.Panel;
             modernInterface.Name = "ModernInterface";
             modernInterface.Text = "Modern / DarkScape";
-            modernInterface.SetBounds(28, 1074, 214, 32);
+            modernInterface.SetBounds(28, 1114, 214, 32);
             modernInterface.Font = KavrosTheme.Ui(9F, true);
             legacyInterface.Name = "LegacyInterface";
             legacyInterface.Text = "Legacy";
-            legacyInterface.SetBounds(254, 1074, 214, 32);
+            legacyInterface.SetBounds(254, 1114, 214, 32);
             legacyInterface.Font = KavrosTheme.Ui(9F, true);
             Controls.Add(modernInterface);
             Controls.Add(legacyInterface);
@@ -457,19 +463,25 @@ namespace KavrosClueHelper
             modernInterface.Checked = !preferences.LegacyInterface;
             legacyInterface.Checked = preferences.LegacyInterface;
             choosingInterface = false;
-            Label resolutionLabel = LabelAt("Resolution", 28, 1118, 88, 22);
+            // Below the Client card, on the same flat background as the other
+            // settings rows. The dropdown styling is unchanged.
+            Label resolutionLabel = LabelAt("Resolution", 28, 1178, 88, 22);
+            resolutionLabel.Name = "ResolutionLabel";
             resolutionLabel.ForeColor = KavrosTheme.TextSoft;
+            resolutionLabel.BackColor = KavrosTheme.Bg;
             resolutionChoice.Name = "ResolutionChoice";
             resolutionChoice.DropDownStyle = ComboBoxStyle.DropDownList;
-            resolutionChoice.SetBounds(118, 1114, 150, 28);
+            resolutionChoice.SetBounds(118, 1174, 150, 28);
             resolutionChoice.Items.AddRange(new object[] { "Auto", "1080p", "1440p", "4K" });
             KavrosTheme.StyleCombo(resolutionChoice);
             Controls.Add(resolutionChoice);
-            Label scalingLabel = LabelAt("Scaling", 280, 1118, 64, 22);
+            Label scalingLabel = LabelAt("Scaling", 280, 1178, 64, 22);
+            scalingLabel.Name = "ScalingLabel";
             scalingLabel.ForeColor = KavrosTheme.TextSoft;
+            scalingLabel.BackColor = KavrosTheme.Bg;
             scalingChoice.Name = "ScalingChoice";
             scalingChoice.DropDownStyle = ComboBoxStyle.DropDownList;
-            scalingChoice.SetBounds(348, 1114, 140, 28);
+            scalingChoice.SetBounds(348, 1174, 140, 28);
             scalingChoice.Items.AddRange(new object[] { "Auto", "100%", "125%", "150%", "200%" });
             KavrosTheme.StyleCombo(scalingChoice);
             Controls.Add(scalingChoice);

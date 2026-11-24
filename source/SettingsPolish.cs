@@ -55,7 +55,13 @@ namespace KavrosClueHelper
             body.Cards.Add(new MainSurface.Card { Label = "CAPTURE", Bounds = new Rectangle(16, 112, 484, 96) });
             body.Cards.Add(new MainSurface.Card { Label = "DETECTION OPTIONS", Bounds = new Rectangle(16, 216, 484, 80) });
             body.Cards.Add(new MainSurface.Card { Label = "SOLUTION", Bounds = new Rectangle(16, 346, 484, 503) });
-            body.Cards.Add(new MainSurface.Card { Label = "CLIENT", Bounds = new Rectangle(16, 1036, 484, 120) });
+            Control interfaceLabel = body.Controls.Find("InterfaceLabel", true)[0];
+            Control legacyToggle = body.Controls.Find("LegacyInterface", true)[0];
+            // Heading band is the label offset. The card stops at the toggles,
+            // so Resolution and Scaling stay on the page background.
+            int cardTop = interfaceLabel.Top - 32;
+            int cardBottom = legacyToggle.Bottom + 16;
+            body.Cards.Add(new MainSurface.Card { Label = "CLIENT", Bounds = new Rectangle(16, cardTop, 484, cardBottom - cardTop) });
             foreach (CheckBox c in body.Controls.OfType<CheckBox>())
                 if (c != floatingEnabled && c != checkUpdates && c != blurPreview) c.BackColor = KavrosTheme.Panel;
             instructions.BackColor = KavrosTheme.Panel;
