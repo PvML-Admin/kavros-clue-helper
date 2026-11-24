@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.7.28
+
+v0.7.28: Queen Sigrid's map shows Etceteria castle. Hamid starts at the Menaphos bonfire, the Lava Maze coordinate names the phasmatite rocks, and the Draynor fishing shore starts at the willows. Large framed treasure maps are recognised, and an anagram still matches when the spacing changes. The puzzle note only asks you to keep the full puzzle visible.
+
+Settings shows **Made by Zenity · v0.7.28**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.7.27
 
 v0.7.27: Opening a slider shows the guide on the first look at the scale the client is using. A tracked text clue still notices a puzzle that opens somewhere else, and a mysterious scroll still needs its dark title bar and frame.

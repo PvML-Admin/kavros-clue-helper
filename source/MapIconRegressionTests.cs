@@ -199,6 +199,38 @@ namespace KavrosClueHelper
                 }
                 string dave = clues.Clues.Single(c => c.Card.Id == 174).Card.Travel;
                 Check(dave.Contains("Dave's spellbook > Varrock (Museum)") && dave.IndexOf("bought from the Vote shop", StringComparison.OrdinalIgnoreCase) < 0, "Dave's spellbook note is not written into the card");
+                string hamidCard = clues.Clues.Single(c => c.Card.Id == 144).Card.Travel;
+                Check(hamidCard.Contains("Ctrl+T or ;;t > Skilling > Firemaking > Menaphos Bonfire") && hamidCard.Contains("Alternatively: Menaphos lodestone") && hamidCard.Contains("7. Menaphos Cactus Patch") && hamidCard.Contains("Run west from the bonfire to Hamid"), "hamid card routes");
+                Check(hamidCard.IndexOf("Bandit Camp", StringComparison.OrdinalIgnoreCase) < 0, "hamid card drops the Bandit Camp lodestone");
+                string shore = clues.Clues.Single(c => c.Card.Id == 62).Card.Travel;
+                Check(shore.Contains("Ctrl+T or ;;t > Skilling > Woodcutting > Willow") && shore.Contains("Alternatively: Ctrl+T > Locations > Wizard's Tower") && shore.Contains("Third option: Amulet of glory > Draynor Village"), "draynor fishing shore routes");
+                Check(shore.IndexOf("Draynor Village lodestone", StringComparison.OrdinalIgnoreCase) < 0, "draynor fishing shore drops the lodestone");
+                MasterClue rocks = clues.Clues.Single(c => c.Card.Id == 463).Card;
+                Check(rocks.Location.IndexOf("Phasmatite rocks", StringComparison.Ordinal) >= 0 && rocks.Travel.IndexOf("Runite", StringComparison.OrdinalIgnoreCase) < 0 && rocks.Travel.IndexOf("phasmatite rocks", StringComparison.OrdinalIgnoreCase) >= 0, "phasmatite card replaces runite rocks");
+                MasterClue sigrid = clues.Clues.Single(c => c.Card.Id == 298).Card;
+                Check(sigrid.Area.X == 2612 && sigrid.Area.Y == 3871 && sigrid.Area.Width == 6 && sigrid.Area.Height == 9 && sigrid.Floor == 1, "Queen Sigrid map marks the Etceteria throne room");
+                string intro = "This anagram reveals who to speak to next: ";
+                foreach (string variant in new[] { "ARC O LINE", "ARCOLINE", "ARC OLINE", "ArcO Line" })
+                {
+                    ReferenceClue bare = clues.MatchText(variant);
+                    ReferenceClue withIntro = clues.MatchText(intro + variant);
+                    Check(bare != null && bare.Card.Id == 329, "anagram 329 matches " + variant);
+                    Check(withIntro != null && withIntro.Card.Id == 329, "anagram 329 matches the intro plus " + variant);
+                }
+                foreach (int id in new[] { 45, 57, 62 })
+                using (Bitmap original = new Bitmap(Path.Combine(assets, "reference-maps", id + ".png")))
+                foreach (float scale in new[] { 1F, 1.25F, 1.5F, 2F, 2.5F })
+                using (Bitmap sized = Math.Abs(scale - 1F) < 0.01F ? (Bitmap)original.Clone() : Pixels.ScaleNearest(original, scale))
+                using (Bitmap scene = new Bitmap(2560, 1369))
+                {
+                    using (Graphics g = Graphics.FromImage(scene))
+                    {
+                        g.Clear(Color.FromArgb(30, 40, 50));
+                        g.DrawImageUnscaled(sized, Math.Max(0, (scene.Width - sized.Width) / 2), Math.Max(0, (scene.Height - sized.Height) / 2));
+                    }
+                    DetectedPuzzle map = clues.Detect(scene, new Pixels(scene));
+                    Check(map != null && map.Master != null && map.Master.Id == id, "framed map " + id + " at scale " + scale.ToString("0.00"));
+                }
                 File.AppendAllText(report, "Map icon checks passed: " + assertions + "\n");
                 return 0;
             }

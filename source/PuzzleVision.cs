@@ -700,6 +700,7 @@ namespace KavrosClueHelper
         public int BoardPasses { get; private set; }
         public int ScrollFastPaths { get; private set; }
         public bool LastScrollFast { get; private set; }
+        public Rectangle LastScrollBounds { get; private set; }
         public float LastFirstScale { get; private set; }
         private float lastMatchedScale;
         private bool preferLegacy;
@@ -844,6 +845,20 @@ namespace KavrosClueHelper
             if(direction!=null) return direction;
             return scans.Find(screenshot,pixels);
         }
+        // The titled sheet was found but not read. Run the same clue readers
+        // on that sheet. The full-window scan search stays off this path:
+        // it looks for scenery, and it is what makes a scroll frame slow.
+        internal DetectedPuzzle DetectClues(Bitmap screenshot, Pixels pixels, Rectangle sheet)
+        {
+            DetectedPuzzle scanTitle=scans.FindNativeTitle(pixels);if(scanTitle!=null)return scanTitle;
+            // The title run can be tighter than the writing. Search that sheet
+            // first, then the whole window, so a real paragraph is not missed.
+            DetectedPuzzle emote=masterClues.Detect(screenshot,pixels,sheet);
+            if(emote==null)emote=masterClues.Detect(screenshot,pixels);
+            if(emote!=null) return emote;
+            DetectedPuzzle reference=referenceClues.Detect(screenshot,pixels);if(reference!=null)return reference;
+            return compass.Find(screenshot,pixels,sheet);
+        }
         private int nextSearchScale;
         private int towerScanY = 25;
         private int lockScaleCursor;
@@ -897,9 +912,11 @@ namespace KavrosClueHelper
         internal DetectedPuzzle TryScroll(Bitmap image, Pixels pixels)
         {
             LastScrollFast = false;
+            LastScrollBounds = Rectangle.Empty;
             var scrolls = ParagraphVision.FindScrolls(pixels);
             if (scrolls == null || scrolls.Count == 0) return null;
             LastScrollFast = true;
+            LastScrollBounds = scrolls[0];
             ScrollFastPaths++;
             return referenceClues.ReadSheet(image, pixels, scrolls[0]);
         }

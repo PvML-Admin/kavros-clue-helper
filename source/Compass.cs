@@ -97,9 +97,13 @@ namespace KavrosClueHelper
         }
         public DetectedPuzzle Find(Bitmap image,Pixels pixels)
         {
-            Rectangle all=new Rectangle(Point.Empty,image.Size);
-            List<Rectangle> areas=ScrollAreas.Find(pixels);
-            foreach(float scale in ScaleOrder()) foreach(Rectangle area in (scale==0.8F||scale==1F?new List<Rectangle>{all}:areas)) foreach(Point anchor in anchors[scale].Find(pixels,area,12,47,q=>NorthBackground(pixels,q,scale)))
+            return Find(image,pixels,null);
+        }
+        public DetectedPuzzle Find(Bitmap image,Pixels pixels,Rectangle? clip)
+        {
+            Rectangle all=clip??new Rectangle(Point.Empty,image.Size);
+            List<Rectangle> areas=clip.HasValue?new List<Rectangle>{all}:ScrollAreas.Find(pixels);
+            foreach(float scale in ScaleOrder()) foreach(Rectangle area in (clip.HasValue||scale==0.8F||scale==1F?new List<Rectangle>{all}:areas)) foreach(Point anchor in anchors[scale].Find(pixels,area,12,47,q=>NorthBackground(pixels,q,scale)))
             {
                 Rectangle body=new Rectangle(anchor.X-(int)Math.Round(78*scale),anchor.Y-(int)Math.Round(20*scale),(int)Math.Round(176*scale),(int)Math.Round(259*scale));
                 DetectedPuzzle best=null;

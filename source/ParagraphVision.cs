@@ -117,7 +117,10 @@ namespace KavrosClueHelper
                     if(start>=0&&(x>=p.Width||(!ink&&x-last>=16)))
                     {
                         int width=last-start;
-                        if(width>=340&&width<=680&&hits*8>=width*0.7)ConsiderScroll(p,y,start,last,found);
+                        // A 2560 client draws a treasure map about 1300 wide, and a
+                        // scaled UI is wider still. The dark title and frame checks
+                        // below are what reject sand.
+                        if(width>=340&&width<=1800&&hits*8>=width*0.7)ConsiderScroll(p,y,start,last,found);
                         start=-1;last=-1;hits=0;
                     }
                 }
@@ -137,22 +140,16 @@ namespace KavrosClueHelper
             for(int x=left;x<right;x+=8){n++;if(Beige(p.Get(x,y)))good++;}
             return n==0?0:good/(double)n;
         }
-        static bool EdgeDark(Pixels p,int edge,int y,bool left)
+        static bool EdgeDark(Pixels p,int edge,int y,bool left,int reach)
         {
             if(y<0||y>=p.Height)return false;
-            // The measured bar can sit a few pixels outside the thin frame.
-            int x0=left?Math.Max(0,edge-18):Math.Max(0,edge-24);
-            int x1=left?Math.Min(p.Width-1,edge+24):Math.Min(p.Width-1,edge+18);
+            // The title ink can sit inside the border. Look outward as far as
+            // that border, and only a little back into the bar.
+            int x0=left?Math.Max(0,edge-reach):Math.Max(0,edge-24);
+            int x1=left?Math.Min(p.Width-1,edge+24):Math.Min(p.Width-1,edge+reach);
             int dark=0;
             for(int x=x0;x<=x1;x+=2)if(Dark(p.Get(x,y),80))dark++;
             return dark>=2;
-        }
-        static bool FlankingDark(Pixels p,int y,int x0,int x1)
-        {
-            int row=Math.Max(0,y-6),leftDark=0,leftN=0,rightDark=0,rightN=0;
-            for(int x=Math.Max(0,x0-48);x<x0;x+=4){leftN++;if(Dark(p.Get(x,row),70))leftDark++;}
-            for(int x=x1+1;x<Math.Min(p.Width,x1+49);x+=4){rightN++;if(Dark(p.Get(x,row),70))rightDark++;}
-            return leftN>=3&&rightN>=3&&leftDark*2>=leftN&&rightDark*2>=rightN;
         }
         static bool DarkBand(Pixels p,int x0,int x1,int y)
         {
@@ -169,21 +166,21 @@ namespace KavrosClueHelper
             double above=PaperBand(p,x0,x1,y-28),below=PaperBand(p,x0,x1,y+32);
             if(above>=0.30)return;
             if(below<0.72)return;
-            // A parchment sitting on a dark surface has dark pixels on both
-            // sides of any dark row. A title bar stops at the frame.
-            if(FlankingDark(p,y,x0,x1))return;
-            int sideRows=0,sideHit=0;
+            // The world behind a map can be as dark as the title, so the
+            // side borders and the bottom band are what separate a scroll
+            // from sand. A sandy row never passes the solid dark-bar test.
+            int reach=Math.Max(48,(x1-x0)/3),sideRows=0,sideHit=0;
             for(int dy=40;dy<=160;dy+=60)
             {
                 int yy=y+dy;if(yy>=p.Height)break;
                 sideRows++;
-                if(EdgeDark(p,x0,yy,true)&&EdgeDark(p,x1,yy,false))sideHit++;
+                if(EdgeDark(p,x0,yy,true,reach)&&EdgeDark(p,x1,yy,false,reach))sideHit++;
             }
             if(sideRows<2||sideHit<sideRows)return;
             int bottom=-1;
-            for(int yy=y+16;yy<Math.Min(p.Height,y+460);yy+=8)
+            for(int yy=y+16;yy<Math.Min(p.Height,y+1300);yy+=8)
             {
-                bool sides=EdgeDark(p,x0,yy,true)&&EdgeDark(p,x1,yy,false);
+                bool sides=EdgeDark(p,x0,yy,true,reach)&&EdgeDark(p,x1,yy,false,reach);
                 if(PaperBand(p,x0,x1,yy)>=0.55&&sides)continue;
                 if(DarkBand(p,x0,x1,yy)&&yy-y>=150){bottom=yy;break;}
                 if(!sides&&yy-y>80)
@@ -192,7 +189,7 @@ namespace KavrosClueHelper
                     break;
                 }
             }
-            if(bottom<0||bottom-y<150||bottom-y>450)return;
+            if(bottom<0||bottom-y<150||bottom-y>1200)return;
             found.Add(Rectangle.FromLTRB(Math.Max(0,x0-6),Math.Max(0,y-6),Math.Min(p.Width,x1+10),Math.Min(p.Height,bottom+10)));
         }
         public static List<Line> Template(Bitmap image)
@@ -311,10 +308,16 @@ namespace KavrosClueHelper
             return true;
         }
         // A full-window beige run can be the sand behind a scroll, or the
-        // minimap. Neither is a clue sheet. Framed scrolls are smaller than this.
+        // minimap. Neither is a clue sheet. A framed treasure map is kept
+        // even when it is larger than that sand cap.
         public static bool SkipClueSheet(Rectangle r, int imageWidth)
         {
-            if (r.Width > 1100 || r.Height > 700) return true;
+            return SkipClueSheet(r, imageWidth, false);
+        }
+        public static bool SkipClueSheet(Rectangle r, int imageWidth, bool framed)
+        {
+            if (!framed && (r.Width > 1100 || r.Height > 700)) return true;
+            if (framed && (r.Width > 2200 || r.Height > 1600)) return true;
             if (r.Top < 48 && r.Left > imageWidth * 0.62 && r.Width < 560 && r.Height < 320) return true;
             return false;
         }
@@ -322,7 +325,7 @@ namespace KavrosClueHelper
         {
             var result = new List<Rectangle>();
             if (p == null) return result;
-            foreach (Rectangle scroll in FindScrolls(p)) if (!SkipClueSheet(scroll, p.Width)) result.Add(scroll);
+            foreach (Rectangle scroll in FindScrolls(p)) if (!SkipClueSheet(scroll, p.Width, true)) result.Add(scroll);
             foreach (Rectangle paper in FindPapers(p))
             {
                 if (SkipClueSheet(paper, p.Width) || paper.Width < 180 || paper.Height < 90) continue;

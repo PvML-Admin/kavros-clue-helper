@@ -989,10 +989,10 @@ Tile 2134, 5162 | level 0</details>
   </clue>
   <clue id="144" tier="hard" type="cryptic" heading="Menaphos Worker district" action="Talk to Hamid" x="3131" y="2800" width="5" height="5" level="0">
     <text>Identify the back of this over-acting brother. (He's a long way from home.)</text>
-    <details>Fastest: Menaphos lodestone.
-Alternatively: Amulet of farming &gt; Bushes and Cacti Patches &gt; 7. Menaphos Cactus Patch, run north-west to the waterfront.
-Third option: Bandit Camp lodestone, run south-west to Menaphos.
-Final step: Run north-west to the west waterfront of the Worker district, then speak to Hamid at the waterfront.
+    <details>Fastest: Ctrl+T or ;;t &gt; Skilling &gt; Firemaking &gt; Menaphos Bonfire, then run west to Hamid at the west waterfront.
+Alternatively: Menaphos lodestone, then run north-west to the west waterfront.
+Third option: Amulet of farming &gt; Bushes and Cacti Patches &gt; 7. Menaphos Cactus Patch, then run north-west to the waterfront.
+Final step: Run west from the bonfire to Hamid at the west waterfront.
 Clue: Talk to Hamid (Menaphos Worker district). An NPC may give you a puzzle box. Open it for the puzzle helper.</details>
   </clue>
   <clue id="145" tier="hard" type="cryptic" heading="Nardah carpet stop" action="Dig" x="3396" y="2918" width="1" height="1" level="0">
@@ -2072,7 +2072,7 @@ Answer: 13
 Tip: make a portable fairy ring in ;;ig, or buy an unlimited one for 5 Kavros dollars.
 Tile 2525, 3160 | level 1</details>
   </clue>
-  <clue id="298" tier="hard" type="anagram" heading="Talk to Queen Sigrid in Etceteria Castle" action="Talk to Queen Sigrid" x="2499" y="3861" width="4" height="4" level="1">
+  <clue id="298" tier="hard" type="anagram" heading="Talk to Queen Sigrid in Etceteria Castle" action="Talk to Queen Sigrid" x="2612" y="3871" width="6" height="9" level="1">
     <text>This anagram reveals who to speak to next: Sequin Dirge</text>
     <anagram>Sequin Dirge</anagram>
     <details>Fastest: Ctrl+T or ;;t &gt; Locations &gt; Miscellania.
@@ -2080,7 +2080,7 @@ Alternatively: Ring of wealth &gt; 1. Miscellania or fairy ring CIP, then walk s
 Final step: Walk east across the bridge to Etceteria castle, throne room floor 1, then talk to Queen Sigrid (Etceteria castle, floor 1). Use the stairs to floor 1 above ground.
 Clue: Talk to Queen Sigrid in Etceteria Castle. An NPC may give you a puzzle box. Open it for the puzzle helper.
 Tip: make a portable fairy ring in ;;ig, or buy an unlimited one for 5 Kavros dollars.
-Tile 2499, 3861 | level 1</details>
+Tile 2612, 3871 | level 1</details>
   </clue>
   <clue id="299" tier="hard" type="anagram" heading="Talk to Zenesha in her house south of Ardougne Market" action="Talk to Zenesha" x="2657" y="3291" width="5" height="3" level="0">
     <text>This anagram reveals who to speak to next: A Zen She</text>
@@ -2265,10 +2265,10 @@ Tile 3434, 3265 | level 0</details>
   </clue>
   <clue id="62" tier="medium" type="map" heading="Draynor Village fishing shore" action="Dig" x="3092" y="3225" width="1" height="1" level="0">
     <text>X marks the spot at the end of a path starting from a rock and near a fishing spot.</text>
-    <details>Fastest: Ctrl+T &gt; Locations &gt; Wizard's Tower.
-Alternatively: Amulet of glory &gt; Draynor Village, run south-east to the willows.
-Third option: Draynor Village lodestone, run south to the willows by the fishing spots.
-Final step: Run north to the willows, over the bridge north of the tower.
+    <details>Fastest: Ctrl+T or ;;t &gt; Skilling &gt; Woodcutting &gt; Willow, then a short walk to the dig spot.
+Alternatively: Ctrl+T &gt; Locations &gt; Wizard's Tower, then run north to the willows.
+Third option: Amulet of glory &gt; Draynor Village, then run south-east to the willows.
+Final step: Walk to the dig between the southernmost willow and the small obelisk.
 Clue: Dig between the southernmost willow and the small obelisk.
 Tile 3092, 3225 | level 0</details>
   </clue>
@@ -2881,13 +2881,13 @@ Final step: Run south-east to the fenced lesser demons, then dig at the indicate
 Clue: Dig at Lesser demon enclosure, level 41 Wilderness. Be ready to fight the wizard when digging.
 Tile 3013, 3846 | level 0</details>
   </clue>
-  <clue id="463" tier="hard" type="coordinates" heading="Runite rocks north of the Lava Maze" action="Dig" x="3058" y="3884" width="1" height="1" level="0">
+  <clue id="463" tier="hard" type="coordinates" heading="Phasmatite rocks north of the Lava Maze" action="Dig" x="3058" y="3884" width="1" height="1" level="0">
     <text>22 degrees 35 minutes north,19 degrees 18 minutes east</text>
     <details>Fastest: Ctrl+T &gt; Skilling &gt; Agility &gt; 52 - Wilderness Course.
-Alternatively: Ancient spellbook &gt; Ghorrock Teleport (Frozen Waste Plateau), run east to the runite rocks.
-Third option: Ctrl+T &gt; Skilling &gt; Prayer &gt; Wilderness Chaos Altar, run north-east to the runite rocks.
-Final step: Run south-east to the runite rocks. Dig two tiles west of the eastern rock.
-Clue: Dig at Runite rocks north of the Lava Maze. Be ready to fight the wizard when digging.
+Alternatively: Ancient spellbook &gt; Ghorrock Teleport (Frozen Waste Plateau), run east to the phasmatite rocks.
+Third option: Ctrl+T &gt; Skilling &gt; Prayer &gt; Wilderness Chaos Altar, run north-east to the phasmatite rocks.
+Final step: Run south-east to the phasmatite rocks. Dig two tiles west of the eastern rock.
+Clue: Dig at Phasmatite rocks north of the Lava Maze. Be ready to fight the wizard when digging.
 Tile 3058, 3884 | level 0</details>
   </clue>
   <clue id="464" tier="hard" type="coordinates" heading="Greater demon ruins, level 47 Wilderness" action="Dig" x="3290" y="3889" width="1" height="1" level="0">
