@@ -1,3 +1,11 @@
+# Kavros Clue Helper v0.8.1
+
+The Resolution and Scaling row no longer sits on a dark box. Those labels and dropdowns sit flat on the settings background, like Check for updates and Blur live preview. The dropdowns themselves are unchanged.
+
+The CLIENT heading is shown in full. The Client section, including Interface and the Resolution and Scaling row, sits below What's new with a clear gap. The Interface label sits flat on that section.
+
+Settings shows **Made by Zenity  ·  v0.8.1**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.8
 
 The interface is two toggle boxes: Modern / DarkScape and Legacy. Exactly one is selected, the selected box is gold, and there is no Auto. DarkScape uses the full modern template set.

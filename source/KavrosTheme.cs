@@ -445,6 +445,23 @@ namespace KavrosClueHelper
             Rectangle b = child.Bounds; b.Offset(-AutoScrollPosition.X, -AutoScrollPosition.Y);
             return Cards.Any(c => c.Bounds.Contains(b)) ? KavrosTheme.Panel : KavrosTheme.Bg;
         }
+        protected override void ScaleControl(SizeF factor, BoundsSpecified specified)
+        {
+            base.ScaleControl(factor, specified);
+            for (int i = 0; i < Cards.Count; i++)
+            {
+                Rectangle b = Cards[i].Bounds;
+                Cards[i].Bounds = new Rectangle(
+                    (int)Math.Round(b.X * factor.Width),
+                    (int)Math.Round(b.Y * factor.Height),
+                    (int)Math.Round(b.Width * factor.Width),
+                    (int)Math.Round(b.Height * factor.Height));
+            }
+            int lowest = 0;
+            foreach (Control child in Controls) if (child.Bottom > lowest) lowest = child.Bottom;
+            int needed = lowest + 16;
+            if (needed > AutoScrollMinSize.Height) AutoScrollMinSize = new Size(AutoScrollMinSize.Width, needed);
+        }
         protected override void OnScroll(ScrollEventArgs se) { base.OnScroll(se); Invalidate(); }
         protected override void OnMouseWheel(MouseEventArgs e) { base.OnMouseWheel(e); Invalidate(); }
         protected override void OnPaintBackground(PaintEventArgs e)

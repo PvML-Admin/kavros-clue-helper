@@ -1,8 +1,7 @@
 $ErrorActionPreference = 'Stop'
-# Product versions show one digit after the decimal, rounding up:
-# 0.8, 0.9, 1.0, 1.1 ... 1.9, 2.0. Never 0.10 or 1.10.
-# The tag and app.manifest keep a trailing .0 (v0.8.0, 0.8.0.0) so Velopack
-# can compare 0.8.0 with 0.7.28. The app shows the short form (v0.8).
+# A full step is major.minor (0.8, 0.9, 1.0). A small update adds a patch
+# (0.8.1, 0.8.2, 0.8.3, 0.8.4). The tag matches app.manifest ToString(3)
+# (v0.8.0, v0.8.1). The app shows v0.8 when the patch is 0, and v0.8.1 when it is not.
 # Velopack CLI. Keep this version aligned with the Velopack package in build.ps1.
 $vpkVersion = '1.2.161'
 $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
@@ -33,7 +32,7 @@ foreach ($doc in @('README.txt', 'LICENSE.txt', 'THIRD_PARTY.txt', 'PATCH-NOTES.
     Copy-Item -LiteralPath (Join-Path $root $doc) -Destination (Join-Path $stage $doc)
 }
 # Velopack and the GitHub release use this version's CHANGELOG section, not the whole history.
-# The heading may be the pack version (0.8.0) or the shown version (0.8).
+# The heading may be the pack version (0.8.1 or 0.8.0) or the shown version (0.8.1 or 0.8).
 $display = $version
 if ($version -match '^(\d+)\.(\d+)\.0$') { $display = "$($Matches[1]).$($Matches[2])" }
 $changelog = [IO.File]::ReadAllText((Join-Path $root 'CHANGELOG.md'))

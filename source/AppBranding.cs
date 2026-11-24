@@ -17,11 +17,13 @@ namespace KavrosClueHelper
             get { return Shown(App.GetName().Version); }
         }
 
-        // The assembly and the updater keep three parts (0.8.0). The app shows
-        // major.minor only, so 0.8.0.0 reads as v0.8.
+        // The assembly and the updater keep three parts (0.8.0, 0.8.1). A zero
+        // patch is shown as major.minor (v0.8). Any other patch is shown in full
+        // (v0.8.1) so a small update is visible.
         internal static string Shown(Version version)
         {
             if (version == null) return "";
+            if (version.Build > 0) return "v" + version.Major + "." + version.Minor + "." + version.Build;
             return "v" + version.Major + "." + version.Minor;
         }
 
@@ -31,9 +33,13 @@ namespace KavrosClueHelper
             string text = version.Trim();
             if (text.StartsWith("v") || text.StartsWith("V")) text = text.Substring(1);
             string[] parts = text.Split('.');
-            int major, minor;
+            int major, minor, patch;
             if (parts.Length >= 2 && int.TryParse(parts[0], out major) && int.TryParse(parts[1], out minor))
+            {
+                if (parts.Length >= 3 && int.TryParse(parts[2], out patch) && patch > 0)
+                    return "v" + major + "." + minor + "." + patch;
                 return "v" + major + "." + minor;
+            }
             return "v" + text;
         }
 

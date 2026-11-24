@@ -1,8 +1,17 @@
 # Kavros Clue Helper
 
+## 0.8.1
+
+**Settings**
+- Resolution and Scaling sit on the settings background, in the same flat row style as Check for updates and Blur live preview. The dropdowns themselves are unchanged.
+- The CLIENT heading is shown in full, at the same size as the other section headings.
+- The Client section sits below What's new, with a clear gap. The Interface label sits flat on that section.
+
+A small update keeps its patch number: 0.8.1, 0.8.2, 0.8.3, 0.8.4. The app shows v0.8.1. When the patch is zero it still shows v0.8.
+
 ## 0.8
 
-Versions show one digit after the decimal, rounding up: 0.8, 0.9, 1.0, 1.1, and on through 1.9, then 2.0. Never two digits after the decimal (no 0.10 or 1.10). The release tag and the assembly version keep a trailing .0 (v0.8.0 and 0.8.0.0) so the updater can tell that 0.8.0 is newer than 0.7.28. The app shows v0.8.
+A full step shows one digit after the decimal: 0.8, 0.9, 1.0, 1.1, and on through 1.9, then 2.0. A small update adds a patch (0.8.1, 0.8.2, 0.8.3, 0.8.4). The app shows the patch only when it is not zero, so this release shows v0.8. The tag is v0.8.0 and the assembly version is 0.8.0.0, which the updater treats as newer than 0.7.28.
 
 **Settings**
 - Interface is two toggle boxes, Modern / DarkScape and Legacy. Exactly one is selected, the selected box is gold, and there is no Auto. DarkScape uses the full modern template set.

@@ -1,4 +1,4 @@
-﻿KAVROS CLUE HELPER v0.8
+﻿KAVROS CLUE HELPER v0.8.1
 =========================
 
 Close the previous helper with Exit. Extract the WHOLE ZIP into a new folder,
