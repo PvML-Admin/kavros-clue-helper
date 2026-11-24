@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.9.5
+
+Elite dungeon scans lock your position on the minimap. The wall lines on those maps are white, the same way Prifddinas already was. The pictures on the clue card are unchanged. The right-click line stays hidden while auto-follow is on.
+
+Settings shows **Made by Zenity  ·  v0.9.5**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.9.4
 
 A scan that says you are too far away still tracks your minimap. The card keeps the steps, the too-far note, and the position once it is found. Coming into range keeps that lock.

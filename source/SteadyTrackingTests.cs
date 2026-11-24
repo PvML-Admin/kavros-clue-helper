@@ -120,6 +120,9 @@ namespace KavrosClueHelper
                     check(!outside.Outside&&outside.PositionTracked&&CompassMath.Distance(outside.Position.Value,locked)<1,"coming into range on "+sample.Name+" keeps the same lock");
                     check(outside.FloorLine().IndexOf(ScanSession.OutsideNote,StringComparison.Ordinal)<0,"the too-far note goes away once "+sample.Name+" is in range");
                     check(sample.Levels.Length>=1&&sample.Level==0,"the scan floor is unchanged by tracking");
+                    check(outside.AutoTracking&&outside.FloorLine().IndexOf("Right-click your position on the map",StringComparison.Ordinal)<0,"the right-click line stays hidden while "+sample.Name+" follows the minimap");
+                    outside.SetAutomatic(false);
+                    check(!outside.AutoTracking&&outside.FloorLine().Contains("Right-click your position on the map"),"the right-click line appears only when "+sample.Name+" auto-follow is off");
                 }
                 File.WriteAllText(report,log.ToString()+"Steady tracking checks passed: "+count+Environment.NewLine);
                 return 0;
