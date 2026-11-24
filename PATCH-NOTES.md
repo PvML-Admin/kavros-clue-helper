@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.9.1
+
+A scan clue open in the minigames panel is read on the first look, including the darker Prifddinas parchment. Scale 1.0 is tried on that sheet before the rest of the window. Prifddinas and the Heart of Gielinor are named from their titles. Wide clue scrolls are unchanged.
+
+Settings shows **Made by Zenity  ·  v0.9.1**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.9
 
 Compass and scan clues are read on the parchment first, with scale 1.0 right after the Auto guess. A tall narrow sheet skips the board search, and the next capture stays on that sheet.

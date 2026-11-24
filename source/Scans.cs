@@ -290,7 +290,9 @@ namespace KavrosClueHelper
                 if(box.Width>=80&&box.Height>=80)areas.Add(box);
             }
             if(areas.Count==0)areas.Add(new Rectangle(Point.Empty,image.Size));
-            foreach(Model model in OrderedModels())
+            // A parchment box is small, so scale 1.0 is tried before the Auto guess.
+            IEnumerable<Model> ordered=clip.HasValue?models.OrderBy(m=>ScaleRank(m.Scale,1F)).ThenBy(m=>Math.Abs(m.Scale-1F)).ThenBy(m=>m.Scale):OrderedModels();
+            foreach(Model model in ordered)
             foreach(Rectangle area in areas)
             foreach(Point hit in model.Title.Find(p,area,8,35,q=>PaperAround(p,q,model)))
             {

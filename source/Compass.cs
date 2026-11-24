@@ -113,7 +113,7 @@ namespace KavrosClueHelper
         {
             Rectangle all=clip??new Rectangle(Point.Empty,image.Size);
             List<Rectangle> areas=clip.HasValue?new List<Rectangle>{all}:ScrollAreas.Find(pixels);
-            foreach(float scale in ScaleOrder()) foreach(Rectangle area in (clip.HasValue||scale==0.8F||scale==1F?new List<Rectangle>{all}:areas)) foreach(Point anchor in anchors[scale].Find(pixels,area,12,47,q=>NorthBackground(pixels,q,scale)))
+            foreach(float scale in (clip.HasValue?scales.OrderBy(s=>ScaleRank(s,1F)).ThenBy(s=>Math.Abs(s-1F)).ThenBy(s=>s):ScaleOrder())) foreach(Rectangle area in (clip.HasValue||scale==0.8F||scale==1F?new List<Rectangle>{all}:areas)) foreach(Point anchor in anchors[scale].Find(pixels,area,12,47,q=>NorthBackground(pixels,q,scale)))
             {
                 Rectangle body=new Rectangle(anchor.X-(int)Math.Round(78*scale),anchor.Y-(int)Math.Round(20*scale),(int)Math.Round(176*scale),(int)Math.Round(259*scale));
                 DetectedPuzzle best=null;

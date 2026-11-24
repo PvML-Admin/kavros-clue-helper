@@ -11,6 +11,42 @@ namespace KavrosClueHelper
     public static class UpdateRegressionTests
     {
         private static int count;
+        private static void DarkPanel(PuzzleAnalysisEngine engine,string assets,string report)
+        {
+            const int px=480,py=40,pw=255,ph=322;
+            using(Bitmap image=new Bitmap(900,640,PixelFormat.Format32bppArgb))
+            {
+                for(int y=0;y<image.Height;y++)for(int x=0;x<image.Width;x++)image.SetPixel(x,y,Color.FromArgb(18,28,36));
+                for(int y=py;y<py+ph;y++)for(int x=px;x<px+pw;x++)image.SetPixel(x,y,Color.FromArgb(148,122,70));
+                for(int y=py;y<py+ph;y++)for(int x=px+96;x<px+110;x++)image.SetPixel(x,y,Color.FromArgb(110,100,45));
+                for(int y=py+28;y<py+40;y++)for(int x=px;x<px+pw;x++)
+                {
+                    if(x>=px+96&&x<px+110)continue;
+                    image.SetPixel(x,y,Color.FromArgb(176,150,96));
+                }
+                using(Bitmap title=new Bitmap(Path.Combine(assets,"scan","368-title.png")))
+                using(Graphics g=Graphics.FromImage(image))g.DrawImage(title,px+98,py+84);
+                int hitX=px+98,hitY=py+84;
+                for(int y=hitY+30;y<hitY+70;y+=2)for(int x=hitX-20;x<hitX+80;x+=2)
+                    if(x>=px&&x<px+pw&&y>=py&&y<py+ph)image.SetPixel(x,y,Color.White);
+                Pixels pixels=new Pixels(image);
+                Check(ParagraphVision.FindPapers(pixels).All(r=>r.Width<140||r.Height<190),"strict beige does not see the darker split panel");
+                Check(ParagraphVision.NarrowSheets(pixels).Count>0,"scroll areas see the darker narrow panel");
+                Check(ParagraphVision.FindScrolls(pixels).Count==0,"the narrow panel is not a wide titled scroll");
+                int boards=engine.BoardPasses;
+                using(AnalysisResult found=engine.Analyze(image,368,false,CancellationToken.None,true))
+                {
+                    File.AppendAllText(report,"dark panel scan: "+(found.Plan==null?"none":found.Plan.Puzzle.Kind.ToString())+" in "+found.Milliseconds+" ms, boards "+engine.BoardPasses+"\r\n");
+                    Check(found.Plan!=null&&found.Plan.Puzzle.Kind==PuzzleKind.Scan&&found.Plan.Puzzle.Scan!=null&&found.Plan.Puzzle.Scan.Region!=null&&found.Plan.Puzzle.Scan.Region.Id==368,"darker narrow panel is a Prifddinas scan on the first look");
+                    Check(engine.BoardPasses==boards,"the first look does not run the board search");
+                }
+            }
+            using(Bitmap wide=new Bitmap(800,600,PixelFormat.Format32bppArgb))
+            {
+                for(int y=40;y<440;y++)for(int x=40;x<540;x++)wide.SetPixel(x,y,Color.FromArgb(176,150,96));
+                Check(ScrollAreas.NarrowPanels(new Pixels(wide)).Count==0,"a wide sheet is not treated as a narrow scan panel");
+            }
+        }
         private static void Check(bool condition,string message){count++;if(!condition)throw new Exception("FAILED: "+message);}
         public static int Run(string report)
         {
@@ -19,6 +55,7 @@ namespace KavrosClueHelper
                 string assets=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"assets"),root=Path.Combine(assets,"test_assets","reported");
                 var init=System.Diagnostics.Stopwatch.StartNew();var engine=new PuzzleAnalysisEngine(assets);
                 File.AppendAllText(report,"Reader initialisation: "+init.ElapsedMilliseconds+" ms.\r\n");
+                DarkPanel(engine,assets,report);
                 foreach(var expected in new[]{
                     new{File="lumbridge-native.png",Kind=PuzzleKind.EmoteClue,Id=242},
                     new{File="compass-edgeville.png",Kind=PuzzleKind.Compass,Id=0},
