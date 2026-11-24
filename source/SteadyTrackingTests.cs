@@ -95,6 +95,8 @@ namespace KavrosClueHelper
                 check(scan.PositionTracked&&scan.Position.HasValue,"a match near the last position picks up again at once");
                 scan.ApplyMatch(new MinimapMatch{Position=new PointF(last.X+300,last.Y)},t.AddMilliseconds(3750));
                 check(scan.PositionTracked&&CompassMath.Distance(scan.Position.Value,new PointF(last.X+3,last.Y))<10,"a far misread does not move the marker");
+                scan.ApplyMatch(new MinimapMatch{Position=new PointF(last.X+304,last.Y)},t.AddMilliseconds(4000));
+                check(scan.PositionTracked&&CompassMath.Distance(scan.Position.Value,new PointF(last.X+304,last.Y))<2,"a far fix seen twice in a row relocks as a teleport");
                 scan.Observe(new ScanReading{Region=region});
                 check(scan.PositionTracked,"re-reading the same scan clue keeps tracking");
                 File.WriteAllText(report,log.ToString()+"Steady tracking checks passed: "+count+Environment.NewLine);

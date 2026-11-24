@@ -41,7 +41,15 @@ namespace KavrosClueHelper
         {
             float aim=targetScale>0.01F?targetScale:(dpi==96?0F:dpi/96F);
             if(aim<=0F)return scales;
-            return scales.OrderBy(s=>Math.Abs(s-aim)).ThenBy(s=>s);
+            // The Auto guess stays first. Scale 1.0 is next, so a 100% client
+            // is not stuck behind 1.25 and 1.5 on the full window.
+            return scales.OrderBy(s=>ScaleRank(s,aim)).ThenBy(s=>Math.Abs(s-aim)).ThenBy(s=>s);
+        }
+        private static int ScaleRank(float scale,float aim)
+        {
+            if(Math.Abs(scale-aim)<0.02F)return 0;
+            if(Math.Abs(scale-1F)<0.02F)return 1;
+            return 2;
         }
         public CompassVision(string assets)
         {

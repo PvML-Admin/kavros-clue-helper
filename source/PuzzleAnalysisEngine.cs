@@ -236,6 +236,20 @@ namespace KavrosClueHelper
                         if(puzzle==null)
                             return new AnalysisResult{Preview=MakePreview(image,new Rectangle(Point.Empty,image.Size)),Milliseconds=timer.ElapsedMilliseconds};
                     }
+                    else
+                    {
+                        bool narrowSheet;
+                        DetectedPuzzle narrow=detector.ReadNarrowSheet(image,pixels,out narrowSheet);
+                        if(narrow!=null)puzzle=narrow;
+                        else if(narrowSheet)
+                        {
+                            // The sheet is too narrow for the scroll-title
+                            // search. Read it here and skip the board search.
+                            if(detector.DueForHeavyClues())puzzle=detector.DetectClues(image,pixels);
+                            if(puzzle==null)
+                                return new AnalysisResult{Preview=MakePreview(image,new Rectangle(Point.Empty,image.Size)),Milliseconds=timer.ElapsedMilliseconds};
+                        }
+                    }
                 }
                 if (puzzle == null)
                 {

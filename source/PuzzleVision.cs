@@ -906,9 +906,47 @@ namespace KavrosClueHelper
             }
             return null;
         }
+        internal DetectedPuzzle ReadNarrowSheet(Bitmap image,Pixels pixels,out bool visible)
+        {
+            visible=false;
+            if(image==null||pixels==null)return null;
+            List<Rectangle> boxes=ParagraphVision.NarrowSheets(pixels);
+            visible=boxes.Count>0;
+            foreach(Rectangle box in boxes)
+            {
+                DetectedPuzzle scan=scans.Find(image,pixels,box);
+                if(scan!=null)return scan;
+                DetectedPuzzle direction=compass.Find(image,pixels,box);
+                if(direction!=null)return direction;
+            }
+            return null;
+        }
+        DetectedPuzzle ReadParchment(Bitmap image,Pixels pixels)
+        {
+            var boxes=new List<Rectangle>();
+            foreach(Rectangle scroll in ParagraphVision.FindScrolls(pixels))boxes.Add(scroll);
+            foreach(Rectangle narrow in ParagraphVision.NarrowSheets(pixels))boxes.Add(narrow);
+            foreach(Rectangle paper in ParagraphVision.FindPapers(pixels))
+            {
+                if(paper.Width<180||paper.Height<140)continue;
+                boxes.Add(paper);
+            }
+            int used=0;
+            foreach(Rectangle box in boxes)
+            {
+                if(used==4)break;
+                used++;
+                DetectedPuzzle scan=scans.Find(image,pixels,box);
+                if(scan!=null)return scan;
+                DetectedPuzzle direction=compass.Find(image,pixels,box);
+                if(direction!=null)return direction;
+            }
+            return null;
+        }
         internal DetectedPuzzle DetectClues(Bitmap screenshot, Pixels pixels)
         {
             DetectedPuzzle scanTitle=scans.FindNativeTitle(pixels);if(scanTitle!=null)return scanTitle;
+            DetectedPuzzle boxed=ReadParchment(screenshot,pixels);if(boxed!=null)return boxed;
             DetectedPuzzle emote=masterClues.Detect(screenshot,pixels); if(emote!=null) return emote;
             DetectedPuzzle reference=referenceClues.Detect(screenshot,pixels);if(reference!=null)return reference;
             DetectedPuzzle direction=compass.Find(screenshot,pixels);

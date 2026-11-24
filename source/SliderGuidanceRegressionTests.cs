@@ -412,6 +412,8 @@ namespace KavrosClueHelper
    Check(ParagraphVision.SkipClueSheet(new Rectangle(100,200,1288,824),2560),"a sand sheet is not sent to OCR or master matching");
    Check(ParagraphVision.SkipClueSheet(new Rectangle(2040,16,432,227),2560),"the minimap is not sent to OCR or master matching");
    Check(!ParagraphVision.SkipClueSheet(new Rectangle(922,490,520,320),2560),"a framed scroll is still read");
+   Check(!ParagraphVision.SkipClueSheet(new Rectangle(2200,20,500,280),3440),"a clue on an ultrawide client is not treated as the minimap");
+   Check(ParagraphVision.SkipClueSheet(new Rectangle(3000,16,400,220),3440),"the ultrawide minimap is still skipped");
    TimeOneScroll(report,"hamid-full-2560",Path.Combine(assets,"test_assets","reported","hamid-full-2560.png"),assets,false);
    TimeOneScroll(report,"rogues-yawn",Path.Combine(assets,"test_assets","reported","mysterious-rogues-yawn.png"),assets,true);
    using(Bitmap master=new Bitmap(Path.Combine(assets,"test_assets","master","242.png")))

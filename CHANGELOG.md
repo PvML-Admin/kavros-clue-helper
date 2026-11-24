@@ -1,5 +1,25 @@
 # Kavros Clue Helper
 
+## 0.9
+
+**Compass and scan**
+- The first look tries scale 1.0 right after the Auto guess, then searches the parchment before the rest of the window.
+- A tall narrow compass or scan is read on that sheet, and the board search is skipped while it is open.
+- After a hit, the next capture stays on that sheet.
+
+**Scan tracking**
+- The search radius grows with the time since the last fix and how fast you can run.
+- A fix that is far from the last spot, seen twice in a row, is treated as a teleport and the marker locks there.
+- Two missed frames, or a clear jump of the player dot, start a full search.
+- The minimap crop is wider. A result older than 1.5 seconds stays as the seed for the next search.
+- On the Heart, the north arrow cuts the angles, and the scan area is searched before the full track map.
+
+**Clues**
+- A scan card clears itself 3 seconds after the scan window closes.
+- Clue 188, the Fishing Platform crate, is removed. It can be added back if players get it on Kavros.
+- On an ultrawide client, only the minimap at the right edge is skipped.
+- The sulphur pit master clue shows the TzHaar City map.
+
 ## 0.8.1
 
 **Settings**

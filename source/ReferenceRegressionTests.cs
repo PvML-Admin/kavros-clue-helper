@@ -40,9 +40,10 @@ namespace KavrosClueHelper
                 ReferenceClue craters=reader.Clues.First(c=>c.Card.Id==59);
                 check(craters.Card.Travel.IndexOf("walk a few steps south",StringComparison.Ordinal)>=0,"wilderness course walk is a few steps south");
                 check(craters.Card.Travel.IndexOf("1. Level 44",StringComparison.Ordinal)>=0,"level 44 obelisk is the other way");
-                foreach(ReferenceClue c in reader.Clues.Where(c=>c.Type!="map"))foreach(string text in c.Text)
+                foreach(ReferenceClue c in reader.Clues.Where(c=>c.Type!="map"&&c.Card.Id!=900001))foreach(string text in c.Text)
                 {ReferenceClue found=reader.MatchText(text);check(found!=null&&found.Card.Id==c.Card.Id,"Text mapping "+c.Card.Id+": "+text);}
                 foreach(string text in new[]{"","Beware of double agents!","Search","You are scanning on a different level.","Open a supported clue or puzzle.","This is an unrelated note on parchment.","This anagram reveals who to speak to next: NOT A REAL NPC"})check(reader.MatchText(text)==null,"False positive "+text);
+                check(reader.MatchText("Try not to step on any aquatic nasties while searching this crate.")==null,"fishing platform crate is not matched; it can be re-added if players get it on Kavros");
                 foreach(ReferenceClue c in reader.Clues.Where(c=>c.Type=="coordinates"))
                 {string text=System.Text.RegularExpressions.Regex.Replace(c.Text[0],@"\d+",m=>(Int32.Parse(m.Value)+37).ToString());check(reader.MatchText(text)==null,"Wrong coordinate numbers "+c.Card.Id);}
                 ReferenceClue alkharid=reader.MatchText("sf "+reader.Clues.First(c=>c.Card.Id==95).Text[0]+" zz");

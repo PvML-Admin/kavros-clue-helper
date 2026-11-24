@@ -1,3 +1,13 @@
+# Kavros Clue Helper v0.9
+
+Compass and scan clues are read on the parchment first, with scale 1.0 right after the Auto guess. A tall narrow sheet skips the board search, and the next capture stays on that sheet.
+
+Scan tracking follows a run or a teleport. Two misses, or a clear jump, search the whole minimap. The Heart uses north to cut the angles and checks the scan area before the full track map. A scan card clears 3 seconds after the scan window closes.
+
+The Fishing Platform crate clue is removed until players get it on Kavros. An ultrawide minimap is ignored from the right edge, so a clue further left is still read. The sulphur pit master clue shows the TzHaar City map.
+
+Settings shows **Made by Zenity  ·  v0.9**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.8.1
 
 The Resolution and Scaling row no longer sits on a dark box. Those labels and dropdowns sit flat on the settings background, like Check for updates and Blur live preview. The dropdowns themselves are unchanged.

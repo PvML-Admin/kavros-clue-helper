@@ -93,6 +93,7 @@ namespace KavrosClueHelper
         // A scan clue stays locked until a different clue is read twice in a row.
         private readonly ChangeConfirmation scanChange=new ChangeConfirmation();
         private readonly ClueRetention retainedClue=new ClueRetention();
+        private DateTime scanClosedAt=DateTime.MinValue;
         private volatile string analysisStage;
         private readonly ProgressBar scanProgress=new KavrosProgressBar();
         private string pendingKey;
@@ -662,6 +663,7 @@ namespace KavrosClueHelper
             {
             RefreshClientLabels();
             FollowWindow();
+            ReleaseClosedScan();
             ShowGuidance();
             PollShortestSlider();
             TickTracking();
@@ -729,7 +731,8 @@ namespace KavrosClueHelper
             try
             {
                 Rectangle fullClient=new Rectangle(Point.Empty,bounds.Size);
-                Rectangle captureArea=captureSearch.Choose(bounds.Size,lastLocated==null||!DetectionPolicy.IsBoardPuzzle(lastLocated.Kind) ? towerHint : lastLocated.Bounds);
+                bool followSheet=lastLocated!=null&&(DetectionPolicy.IsBoardPuzzle(lastLocated.Kind)||lastLocated.Kind==PuzzleKind.Compass||lastLocated.Kind==PuzzleKind.Scan);
+                Rectangle captureArea=captureSearch.Choose(bounds.Size,followSheet?lastLocated.Bounds:towerHint);
                 towerHint=null;
                 if(lastLocated!=null&&lastLocated.Kind==PuzzleKind.Sliding&&captureArea!=fullClient)captureArea=Rectangle.Intersect(fullClient,Rectangle.Inflate(captureArea,20,20));
                 captureArea = Rectangle.Intersect(captureArea, visible);
@@ -966,7 +969,8 @@ namespace KavrosClueHelper
                 {nextRead=DateTime.UtcNow.AddMilliseconds(100);return;}
                 if(puzzle.Kind==PuzzleKind.Sliding)sliderRereadMisses=0;
                 lastLocated=puzzle;
-                if(DetectionPolicy.IsBoardPuzzle(puzzle.Kind))captureSearch.Complete(true,true);
+                if(DetectionPolicy.IsBoardPuzzle(puzzle.Kind)||puzzle.Kind==PuzzleKind.Compass||puzzle.Kind==PuzzleKind.Scan)captureSearch.Complete(true,true);
+                if(puzzle.Kind==PuzzleKind.Scan)scanClosedAt=DateTime.MinValue;
                 retainedClue.Accept(puzzle);
                 if(puzzle.Kind==PuzzleKind.Compass){compassSession.Observe(puzzle.Compass,job.Offline?DateTime.UtcNow:job.CapturedAt);compassLeave.Reset();}
                 else if((compassSession.HasHistory||compassSession.Current!=null) && !compassLeave.Accept("compass", puzzle.Key))
@@ -1257,6 +1261,25 @@ namespace KavrosClueHelper
                 status.Text="Debug saved.";
             }
             catch(Exception ex) { status.Text="Could not save debug. "+ex.Message; }
+        }
+        private void ReleaseClosedScan()
+        {
+            DetectedPuzzle saved=retainedClue.Saved;
+            bool scanOpen=current!=null&&current.Kind==PuzzleKind.Scan;
+            bool scanSaved=saved!=null&&saved.Kind==PuzzleKind.Scan;
+            if(scanOpen||!scanSaved)
+            {
+                scanClosedAt=DateTime.MinValue;
+                return;
+            }
+            if(scanClosedAt==DateTime.MinValue)scanClosedAt=DateTime.UtcNow;
+            else if((DateTime.UtcNow-scanClosedAt).TotalSeconds>=3)
+            {
+                retainedClue.Clear();
+                scanClosedAt=DateTime.MinValue;
+                summary.Text="Open a clue or puzzle. Text clues use Windows English OCR.";
+                status.Text="Looking for a clue. Use Screenshot or Details if one is not recognised.";
+            }
         }
         private void ShowGuidance()
         {
