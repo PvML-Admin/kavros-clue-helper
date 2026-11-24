@@ -1,5 +1,11 @@
 # Kavros Clue Helper
 
+## 0.9.4
+
+**Scan clues**
+- A scan that says you are too far away still finds you on the minimap. The card keeps the step-by-step guide, the too-far note, and the position once it locks.
+- Coming back into range keeps that position. This is the same for every scan, elite or master.
+
 ## 0.9.3
 
 **Scan clues**

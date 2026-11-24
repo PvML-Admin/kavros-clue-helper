@@ -448,6 +448,19 @@ namespace KavrosClueHelper
         public const int LostFrames=8;
         public const string FindingHint="Finding your position on the minimap...";
         public const string LostHint="Grey marker shows your last position. Finding you again automatically.";
+        public const string OutsideNote="Too far away for this scan.";
+        // The too-far line is a note on top of the normal status. It does not replace tracking.
+        public string Noted(string status)
+        {
+            if(!Outside||string.IsNullOrEmpty(status))return status??"";
+            if(status.IndexOf(OutsideNote,StringComparison.Ordinal)>=0)return status;
+            return OutsideNote+" "+status;
+        }
+        public string FloorLine()
+        {
+            string status=AutoTracking?Noted(TrackingStatus):Position.HasValue?"Manual position set. Right-click the map to move it.":"Right-click your position on the map.";
+            return (DifferentLevel?"Different level. Check the marked floor. ":"")+"Map level "+(Region==null?0:Region.Level)+". "+status;
+        }
         public readonly HashSet<int> Visited=new HashSet<int>();
         public void NoteCoverage()
         {
@@ -463,11 +476,10 @@ namespace KavrosClueHelper
                 Position=null;LastKnown=null;PositionTracked=false;pending=null;farFix=null;confirmations=0;misses=0;motion.Reset();trackHold.Reset();                MeerkatLocked=false;
                 Visited.Clear();
                 Meerkat=reading.Meerkat;
-                TrackingStatus=reading.Outside?"Too far away for this scan.":AutoTracking?FindingHint:ManualHint;
+                TrackingStatus=AutoTracking?FindingHint:ManualHint;
             }
             else if(!MeerkatLocked&&reading.Meerkat)Meerkat=true;
             Region=reading.Region;DifferentLevel=reading.DifferentLevel;Outside=reading.Outside;
-            if(Outside){Position=null;PositionTracked=false;pending=null;TrackingStatus="Too far away for this scan.";}
         }
         public bool InRange(PointF spot,int factor=1){return (!AutoTracking||PositionTracked)&&!DifferentLevel&&Position.HasValue&&Math.Max(Math.Abs(spot.X-Position.Value.X),Math.Abs(spot.Y-Position.Value.Y))<=Range*factor;}
         public void Clear(){Region=null;Position=null;LastKnown=null;DifferentLevel=false;Outside=false;PositionTracked=false;pending=null;farFix=null;motion.Reset();trackHold.Reset();Visited.Clear();}
@@ -477,12 +489,6 @@ namespace KavrosClueHelper
         public void ApplyMatch(MinimapMatch match,DateTime now)
         {
             if(!AutoTracking)return;
-            if(Outside)
-            {
-                confirmations=0;PositionTracked=false;Position=null;pending=null;
-                TrackingStatus="Too far away for this scan.";
-                return;
-            }
             if(match==null)
             {
                 farFix=null;
@@ -563,7 +569,7 @@ namespace KavrosClueHelper
         public void Expire(DateTime now)
         {if(AutoTracking&&Position.HasValue&&(now-lastMatch).TotalSeconds>12){Position=null;PositionTracked=false;pending=null;TrackingStatus=LastKnown.HasValue?LostHint:FindingHint;}}
 
-        public string Summary {get{return Region==null?"":Region.Name+" | "+Range+" paces"+(Meerkat?" (meerkat)":"")+" | Dig locations: level "+Region.Level+"\n"+(AutoTracking?TrackingStatus:Position.HasValue?"Manual position set. Right-click the map to move it.":ManualHint)+(AutoTracking&&!PositionTracked&&LastKnown.HasValue?"\nGrey marker: last confirmed "+Math.Max(0,(int)(DateTime.UtcNow-lastConfirmed).TotalSeconds)+"s ago.":"");}}
+        public string Summary {get{return Region==null?"":Region.Name+" | "+Range+" paces"+(Meerkat?" (meerkat)":"")+" | Dig locations: level "+Region.Level+"\n"+FloorLine()+(AutoTracking&&!PositionTracked&&LastKnown.HasValue?"\nGrey marker: last confirmed "+Math.Max(0,(int)(DateTime.UtcNow-lastConfirmed).TotalSeconds)+"s ago.":"");}}
 
     }
     public sealed class ScanMap : Control
