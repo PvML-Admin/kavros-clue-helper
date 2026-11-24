@@ -47,6 +47,57 @@ namespace KavrosClueHelper
                 Check(ScrollAreas.NarrowPanels(new Pixels(wide)).Count==0,"a wide sheet is not treated as a narrow scan panel");
             }
         }
+        private static void ElitePanel(string assets,string report)
+        {
+            var named=new ScanVision(assets);
+            ScanRegion tooFar=named.MatchScrollTranscript("Deep Wilderness. You are too far away and nothing scans.");
+            Check(tooFar!=null&&tooFar.Id==36,"a named too-far line is Deep Wilderness");
+            ScanRegion orb=named.MatchScrollTranscript("Deep Wilderness. The scan range of this orb is 99 paces.");
+            Check(orb!=null&&orb.Id==36,"a named orb range is Deep Wilderness");
+            Check(named.MatchScrollTranscript("This scroll will work in Prifddinas.")==null,"a place name without paces is not a scan");
+            const int px=480,py=40,pw=255,ph=322;
+            var engine=new PuzzleAnalysisEngine(assets);
+            using(Bitmap image=new Bitmap(900,640,PixelFormat.Format32bppArgb))
+            {
+                for(int y=0;y<image.Height;y++)for(int x=0;x<image.Width;x++)image.SetPixel(x,y,Color.FromArgb(18,28,36));
+                for(int y=py;y<py+ph;y++)for(int x=px;x<px+pw;x++)image.SetPixel(x,y,Color.FromArgb(148,122,70));
+                for(int y=py;y<py+ph;y++)for(int x=px+96;x<px+110;x++)image.SetPixel(x,y,Color.FromArgb(110,100,45));
+                using(Bitmap title=new Bitmap(Path.Combine(assets,"scan-titles","36.png")))
+                using(Bitmap far=new Bitmap(Path.Combine(assets,"scan-titles","too-far.png")))
+                using(Bitmap none=new Bitmap(Path.Combine(assets,"scan-titles","nothing-scans.png")))
+                {
+                    StampWhite(image,title,px+40,py+48);
+                    StampWhite(image,far,px+36,py+80);
+                    StampWhite(image,none,px+36,py+96);
+                }
+                for(int y=py+112;y<py+120;y++)for(int x=px+40;x<px+120;x+=2)image.SetPixel(x,y,Color.White);
+                int boards=engine.BoardPasses;
+                var watch=System.Diagnostics.Stopwatch.StartNew();
+                using(AnalysisResult found=engine.Analyze(image,36,false,CancellationToken.None,true))
+                {
+                    watch.Stop();
+                    File.AppendAllText(report,"deep wilderness panel: "+(found.Plan==null?"none":found.Plan.Puzzle.Kind.ToString())+" in "+found.Milliseconds+" ms, boards "+engine.BoardPasses+"\r\n");
+                    Check(found.Plan!=null&&found.Plan.Puzzle.Kind==PuzzleKind.Scan&&found.Plan.Puzzle.Scan!=null&&found.Plan.Puzzle.Scan.Region!=null&&found.Plan.Puzzle.Scan.Region.Id==36,"darker narrow panel elite scan is Deep Wilderness on the first look");
+                    Check(found.Plan.Puzzle.Scan.Outside,"the too-far body is out of range");
+                    Check(engine.BoardPasses==boards,"the first elite look does not run the board search");
+                }
+                int after=engine.BoardPasses;
+                using(AnalysisResult again=engine.Analyze(image,36,false,CancellationToken.None,true))
+                {
+                    File.AppendAllText(report,"deep wilderness cached: "+again.Milliseconds+" ms, unchanged "+again.Unchanged+", boards "+engine.BoardPasses+"\r\n");
+                    Check(again.Unchanged&&again.Plan!=null&&again.Plan.Puzzle.Kind==PuzzleKind.Scan&&again.Plan.Puzzle.Scan.Region.Id==36,"cached scan returns without a new read");
+                    Check(engine.BoardPasses==after,"cached scan does not run the board search");
+                }
+            }
+        }
+        private static void StampWhite(Bitmap image,Bitmap glyph,int left,int top)
+        {
+            for(int y=0;y<glyph.Height;y++)for(int x=0;x<glyph.Width;x++)
+            {
+                Color c=glyph.GetPixel(x,y);
+                if(c.R>185&&c.G>185&&c.B>185&&left+x<image.Width&&top+y<image.Height)image.SetPixel(left+x,top+y,Color.White);
+            }
+        }
         private static void Check(bool condition,string message){count++;if(!condition)throw new Exception("FAILED: "+message);}
         public static int Run(string report)
         {
@@ -56,6 +107,7 @@ namespace KavrosClueHelper
                 var init=System.Diagnostics.Stopwatch.StartNew();var engine=new PuzzleAnalysisEngine(assets);
                 File.AppendAllText(report,"Reader initialisation: "+init.ElapsedMilliseconds+" ms.\r\n");
                 DarkPanel(engine,assets,report);
+                ElitePanel(assets,report);
                 foreach(var expected in new[]{
                     new{File="lumbridge-native.png",Kind=PuzzleKind.EmoteClue,Id=242},
                     new{File="compass-edgeville.png",Kind=PuzzleKind.Compass,Id=0},

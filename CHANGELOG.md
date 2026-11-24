@@ -1,5 +1,12 @@
 # Kavros Clue Helper
 
+## 0.9.2
+
+**Scan clues**
+- Every elite scan in the minigames panel is named on the first look, including Deep Wilderness when you are too far away.
+- A scan or compass that has not changed is kept without searching the boards again.
+- Opening a scroll cancels an idle full-window search instead of waiting for it.
+
 ## 0.9.1
 
 **Scan clues**

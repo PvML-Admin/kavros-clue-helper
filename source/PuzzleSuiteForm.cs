@@ -670,7 +670,18 @@ namespace KavrosClueHelper
             bool chosenAlive=SelectedWindow!=IntPtr.Zero&&Native.IsWindow(SelectedWindow);
             bool handleLost=attachedWindow!=null&&!chosenAlive;
             if (!windows.DroppedDown && WindowLocator.ShouldEnumerate(chosenAlive, DateTime.UtcNow>=nextDiscovery, handleLost)) RefreshWindows();
-            if (busy || DateTime.UtcNow < nextRead) return;
+            if (busy || DateTime.UtcNow < nextRead)
+            {
+                // An idle full-window read must not sit in front of a scroll
+                // that just opened. Cancel it, and do not wait out the miss delay.
+                if(IdleSheetAppeared())
+                {
+                    if(busy && analysisCancellation!=null)analysisCancellation.Cancel();
+                    nextRead=DateTime.MinValue;
+                    if(busy)return;
+                }
+                else return;
+            }
             if (requestedScan)
             {
                 if (SelectedWindow == IntPtr.Zero) { overlay.Hide(); status.Text = "Waiting for Kavros to reopen before the requested scan."; }
@@ -693,6 +704,21 @@ namespace KavrosClueHelper
                 }
                 catch (Exception) { }
             }
+        }
+        private bool IdleSheetAppeared()
+        {
+            try
+            {
+                if(current!=null||lastLocated!=null||!automatic.Checked||offline)return false;
+                if(busy && activeJob!=null && activeJob.Image!=null && ParagraphVision.TallSheet(new Pixels(activeJob.Image)))return false;
+                IntPtr window=SelectedWindow;
+                if(window==IntPtr.Zero||!Native.IsWindow(window)||Native.IsIconic(window))return false;
+                Rectangle bounds=Native.ClientBounds(window);
+                if(bounds.Width<60||bounds.Height<60)return false;
+                using(Bitmap shot=ScreenReader.Capture(new Rectangle(bounds.Location,bounds.Size)))
+                    return ParagraphVision.TallSheet(new Pixels(shot));
+            }
+            catch(Exception){return false;}
         }
         private void RequestScan()
         {
