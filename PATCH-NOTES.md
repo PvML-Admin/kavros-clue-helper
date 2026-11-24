@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.9.4
+
+A scan that says you are too far away still tracks your minimap. The card keeps the steps, the too-far note, and the position once it is found. Coming into range keeps that lock.
+
+Settings shows **Made by Zenity  ·  v0.9.4**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.9.3
 
 Opening an elite scan, including Deep Wilderness, no longer freezes the helper or clears the current read. The title matches the letters on the scroll. A failed text read is ignored, and a failed look is written to crash.log.

@@ -450,8 +450,8 @@ namespace KavrosClueHelper
             if(meerkat.Checked!=scanSession.Meerkat){changingMeerkat=true;meerkat.Checked=scanSession.Meerkat;changingMeerkat=false;}
             heading.Text=scanSession.Region.Name+" | "+scanSession.Range+" paces";
             heading.ForeColor=scanSession.DifferentLevel?KavrosTheme.Gold:KavrosTheme.Ice;
-            string status=scanSession.AutoTracking?scanSession.TrackingStatus:scanSession.Position.HasValue?"Manual position set. Right-click the map to move it.":"Right-click your position on the map.";
-            string guidance=DaveRoute(scanSession.Region.Route)+"\n"+(scanSession.DifferentLevel?"Different level. Check the marked floor. ":"")+"Map level "+scanSession.Region.Level+". "+status;
+            // The route stays on the card. Too far away only adds a note to the status line.
+            string guidance=DaveRoute(scanSession.Region.Route)+"\n"+scanSession.FloorLine();
             if(summary.Text!=guidance)summary.Text=guidance;
             string key=scanSession.Region.AssetKey+":"+scanSession.Range+":"+scanSession.Position+":"+scanSession.LastKnown+":"+scanSession.PositionTracked+":"+scanSession.AutoTracking+":"+scanSession.DifferentLevel;
             if(key!=scanPaintKey){scanPaintKey=key;scanMap.RefreshMap();}
