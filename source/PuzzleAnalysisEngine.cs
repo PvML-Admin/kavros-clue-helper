@@ -236,15 +236,32 @@ namespace KavrosClueHelper
                         if(puzzle==null)
                             return new AnalysisResult{Preview=MakePreview(image,new Rectangle(Point.Empty,image.Size)),Milliseconds=timer.ElapsedMilliseconds};
                     }
-                    else if(!hashUnchanged)
+                    else if(hashUnchanged && cached!=null && last!=null && (last.Kind==PuzzleKind.Scan || last.Kind==PuzzleKind.Compass))
                     {
-                        // A confirmed clue whose pixels have not changed keeps
-                        // the cache below, after the board search. A new frame
-                        // tries the narrow panel at scale 1 before any board.
-                        // A miss falls through, so a slider is still read.
+                        // The sheet has not changed. Do not spend this look on
+                        // the board search.
+                        UnchangedFrames++;
+                        return new AnalysisResult{Plan=cached,Unchanged=true,Milliseconds=timer.ElapsedMilliseconds};
+                    }
+                    else
+                    {
+                        // A tall narrow sheet is read on this look. Boards wait
+                        // until it is gone, unless a text clue is already open
+                        // and a puzzle may appear beside it.
                         bool narrowSheet;
                         DetectedPuzzle narrow=detector.ReadNarrowSheet(image,pixels,out narrowSheet);
-                        if(narrow!=null)puzzle=narrow;
+                        // A clue or puzzle that is already open still has to be
+                        // re-read. A fresh narrow sheet does not.
+                        bool keepOpen=cached!=null && cached.Puzzle!=null && (cached.Puzzle.Kind==PuzzleKind.EmoteClue || DetectionPolicy.IsBoardPuzzle(cached.Puzzle.Kind));
+                        if(narrow!=null && !keepOpen)puzzle=narrow;
+                        else if(narrowSheet && !keepOpen)
+                        {
+                            // The sheet was not a scan. A compass can still sit
+                            // outside that box. Boards stay off this look.
+                            puzzle=detector.FindCompass(image,pixels);
+                            if(puzzle==null)
+                                return new AnalysisResult{Preview=MakePreview(image,new Rectangle(Point.Empty,image.Size)),Milliseconds=timer.ElapsedMilliseconds};
+                        }
                     }
                 }
                 if (puzzle == null)

@@ -906,27 +906,44 @@ namespace KavrosClueHelper
             }
             return null;
         }
+        internal DetectedPuzzle FindCompass(Bitmap image,Pixels pixels)
+        {
+            if(image==null||pixels==null)return null;
+            return compass.Find(image,pixels);
+        }
         internal DetectedPuzzle ReadNarrowSheet(Bitmap image,Pixels pixels,out bool visible)
         {
             visible=false;
             if(image==null||pixels==null)return null;
             List<Rectangle> boxes=ParagraphVision.NarrowSheets(pixels);
-            visible=boxes.Count>0;
+            visible=false;
+            foreach(Rectangle box in boxes)if(TitleInk(pixels,box)){visible=true;break;}
             if(!visible)return null;
-            // Scale 1.0 on the sheet, every look, before boards and before
-            // the throttled catalogue. The title glyphs are the fallback.
+            // Glyphs, scale 1.0, the compass, then OCR. Same look, no throttle.
             DetectedPuzzle boxed=ReadParchment(image,pixels);
             if(boxed!=null)return boxed;
             return scans.FindNativeTitle(pixels);
+        }
+        static bool TitleInk(Pixels p,Rectangle box)
+        {
+            int white=0,bottom=box.Top+Math.Max(8,box.Height/2);
+            for(int y=box.Top;y<bottom&&y<p.Height;y+=2)
+            for(int x=box.Left;x<box.Right&&x<p.Width;x+=2)
+            {Color c=p.Get(x,y);if(c.R>185&&c.G>185&&c.B>185)white++;}
+            return white>=12;
         }
         DetectedPuzzle ReadParchment(Bitmap image,Pixels pixels)
         {
             foreach(Rectangle box in ParagraphVision.NarrowSheets(pixels))
             {
-                DetectedPuzzle scan=scans.Find(image,pixels,box);
+                // Title glyphs and the scale-1 models. OCR waits until the
+                // compass has had the same box, so a compass is not delayed.
+                DetectedPuzzle scan=scans.Find(image,pixels,box,false);
                 if(scan!=null)return scan;
                 DetectedPuzzle direction=compass.Find(image,pixels,box);
                 if(direction!=null)return direction;
+                DetectedPuzzle elite=scans.ReadEliteBox(image,pixels,box);
+                if(elite!=null)return elite;
             }
             return null;
         }

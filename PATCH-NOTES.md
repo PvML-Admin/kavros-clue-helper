@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.9.2
+
+Every elite scan in the minigames panel is read on the first look, including Deep Wilderness when the orb says you are too far away. An unchanged scan or compass is kept without another board search. A scroll that opens during an idle search is read straight away.
+
+Settings shows **Made by Zenity  ·  v0.9.2**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.9.1
 
 A scan clue open in the minigames panel is read on the first look, including the darker Prifddinas parchment. Scale 1.0 is tried on that sheet before the rest of the window. Prifddinas and the Heart of Gielinor are named from their titles. Wide clue scrolls are unchanged.

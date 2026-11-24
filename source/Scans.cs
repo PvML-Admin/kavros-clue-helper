@@ -266,7 +266,10 @@ namespace KavrosClueHelper
         private static readonly string[] ScanStates={"orb glows","try scanning","right coordinate","in range of the coordinate","paces away"};
         private ScanRegion MatchRegionOnly(string text)
         {
-            if(text.Contains("nothing scans")||text.Contains("range of this orb")||!ScanStates.Any(s=>text.Contains(s)))return null;
+            // A named scroll that says you are too far away, or quotes the orb
+            // range, is still that scan. A place name on its own is not.
+            bool tooFar=text.Contains("nothing scans")||text.Contains("range of this orb")||text.Contains("too far");
+            if(!tooFar&&!ScanStates.Any(s=>text.Contains(s)))return null;
             int best=0;ScanRegion winner=null;bool tie=false;
             foreach(ScanRegion r in Regions.Where(Readable))
             {
@@ -276,10 +279,18 @@ namespace KavrosClueHelper
             }
             return tie?null:winner;
         }
-        public DetectedPuzzle Find(Bitmap image,Pixels p){return Find(image,p,null);}
-        public DetectedPuzzle Find(Bitmap image,Pixels p,Rectangle? clip)
+        public DetectedPuzzle Find(Bitmap image,Pixels p){return Find(image,p,null,true);}
+        public DetectedPuzzle Find(Bitmap image,Pixels p,Rectangle? clip){return Find(image,p,clip,true);}
+        // finishElite is false when the caller still wants the compass read
+        // before OCR. The default path never gives up on a box before OCR.
+        internal DetectedPuzzle Find(Bitmap image,Pixels p,Rectangle? clip,bool finishElite)
         {
             if(image==null||p==null)return null;
+            if(clip.HasValue)
+            {
+                DetectedPuzzle named=ReadTitleBox(p,clip.Value);
+                if(named!=null)return named;
+            }
             // Search each title once. Overlapping scenery regions otherwise
             // repeat the same white-pixel candidates hundreds of times.
             // A parchment box is searched on its own before the full window.
@@ -293,6 +304,8 @@ namespace KavrosClueHelper
             // A parchment box is small, so scale 1.0 is tried before the Auto guess.
             IEnumerable<Model> ordered=clip.HasValue?models.OrderBy(m=>ScaleRank(m.Scale,1F)).ThenBy(m=>Math.Abs(m.Scale-1F)).ThenBy(m=>m.Scale):OrderedModels();
             foreach(Model model in ordered)
+            {
+            if(clip.HasValue&&Math.Abs(model.Scale-1F)>0.02F)continue;
             foreach(Rectangle area in areas)
             foreach(Point hit in model.Title.Find(p,area,8,35,q=>PaperAround(p,q,model)))
             {
@@ -313,8 +326,16 @@ namespace KavrosClueHelper
                 var reading=new ScanReading{Region=model.Region,DifferentLevel=model.Level.Find(p,body,1,35).Count>0,Outside=titles.Outside(p,body)};
                 return new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=reading,Bounds=body,Scale=s,Confidence=0.95,Message="Scan clue"};
             }
-            if(clip.HasValue)return null;
+            }
+            if(clip.HasValue)return finishElite?ReadEliteBox(image,p,clip.Value):null;
             return ReadElite(image,p);
+        }
+        internal DetectedPuzzle ReadTitleBox(Pixels p,Rectangle box)
+        {
+            if(p==null||box.Width<40||box.Height<40)return null;
+            ScanReading found=titles.Read(p,box,Regions);
+            if(found==null)return null;
+            return new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=found,Bounds=box,Scale=1,Confidence=.97,Message="Scan clue"};
         }
         internal DetectedPuzzle FindNativeTitle(Pixels p)
         {
@@ -329,11 +350,22 @@ namespace KavrosClueHelper
             if(!Regions.Any(Readable))return null;
             foreach(Rectangle area in ScrollAreas.Find(p,true,LegacyInterface).Take(3))
             {
+                DetectedPuzzle found=ReadEliteBox(image,p,area);
+                if(found!=null)return found;
+            }
+            return null;
+        }
+        internal DetectedPuzzle ReadEliteBox(Bitmap image,Pixels p,Rectangle area)
+        {
+            if(image==null||p==null||!Regions.Any(Readable))return null;
+            area=Rectangle.Intersect(area,new Rectangle(Point.Empty,image.Size));
+            if(area.Width<40||area.Height<40)return null;
+            {
                 ulong hash=p.Hash(area);if(ocrCached&&hash==lastOcrHash&&area==lastOcrArea&&lastOcr!=null)return lastOcr;
                 ScanReading title=titles.Read(p,area,Regions);
                 if(title!=null)return new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=title,Bounds=area,Scale=1,Confidence=.97};
                 int bright=0;for(int y=area.Top;y<area.Bottom;y+=2)for(int x=area.Left;x<area.Right;x+=2){Color c=p.Get(x,y);if(c.R>190&&c.G>190&&c.B>190&&Math.Abs(c.R-c.B)<35)bright++;}
-                if(bright<30)continue;
+                if(bright<30)return null;
                 if(Progress!=null)Progress("Reading scan clue...");
                 double scale=Math.Min(1,1600.0/Math.Max(area.Width,area.Height));
                 using(Bitmap crop=Pixels.Crop(image,area,new Size((int)(area.Width*scale),(int)(area.Height*scale))))

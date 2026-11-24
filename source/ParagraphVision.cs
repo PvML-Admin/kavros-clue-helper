@@ -36,6 +36,13 @@ namespace KavrosClueHelper
         {
             return ScrollAreas.NarrowPanels(p);
         }
+        public static bool TallSheet(Pixels p)
+        {
+            if(p==null)return false;
+            List<Rectangle> scrolls=FindScrolls(p);
+            if(scrolls!=null && scrolls.Count>0)return true;
+            return NarrowSheets(p).Count>0;
+        }
         static List<Rectangle> CollectPapers(Pixels p,int minWidth,int minHeight,int take)
         {
             var regions=new List<Rectangle>();
