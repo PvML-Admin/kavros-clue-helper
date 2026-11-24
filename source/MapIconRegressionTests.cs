@@ -32,10 +32,31 @@ namespace KavrosClueHelper
                 float[] fourK = PuzzleDetector.SearchOrder(2160);
                 Check(fourK.Length >= 12 && Math.Abs(fourK[0] - 2F) < 0.01F, "a 4K frame searches the 2x interface scale first");
                 Check(PuzzleDetector.SearchOrder(1080)[0] == 1F, "a 1080p frame searches the native template first");
-                Check(PuzzleDetector.SearchOrder(1351)[0] == 1F && PuzzleDetector.SearchOrder(1351, 96)[0] == 1F, "DPI 96 keeps the 100% search order");
-                Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 120)[0] - 1.25F) < 0.01F, "Windows 125% searches the 1.25 scale first");
-                Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 144)[0] - 1.5F) < 0.01F, "Windows 150% searches the 1.5 scale first");
-                Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 192)[0] - 2F) < 0.01F, "Windows 200% searches the 2x scale first");
+                Check(PuzzleDetector.ResolutionBucket(1369) == 1440 && PuzzleDetector.ResolutionName(1440) == "1440p", "a 2560x1369 window counts as 1440p");
+                Check(Math.Abs(PuzzleDetector.SearchOrder(1369, 96)[0] - 1.25F) < 0.02F, "1440p at 100% searches the 1.25 template first");
+                Check(PuzzleDetector.ResolutionBucket(1351) == 1440, "1351px is nearer 1440p than 1080p");
+                Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 96)[0] - 1.25F) < 0.02F, "1440p at 100% starts at 1.25");
+                Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 120)[0] - 1.75F) < 0.02F, "1440p at 125% searches 1.75 first");
+                Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 144)[0] - 2F) < 0.02F, "1440p at 150% searches 2x first");
+                Check(Math.Abs(PuzzleDetector.SearchOrder(1351, 192)[0] - 2.5F) < 0.02F, "1440p at 200% searches 2.5 first");
+                Check(Math.Abs(PuzzleDetector.SearchOrder(1369, 96, 1080, 100, 1440, 125)[0] - 1F) < 0.02F, "a manual 1080p choice overrides the window height");
+                Check(Math.Abs(PuzzleDetector.SearchOrder(0, 0, 0, 0, 1440, 125)[0] - 1.75F) < 0.02F, "auto with no window uses the last manual 1440p and 125%");
+                Check(AppBranding.Shown("0.8.0") == "v0.8" && AppBranding.Shown("v0.8.0") == "v0.8" && AppBranding.Shown(new Version(0, 8, 0, 0)) == "v0.8", "the shown version is major.minor");
+                string prefsPath = Path.Combine(Path.GetTempPath(), "kavros-overlay-" + DateTime.UtcNow.Ticks.ToString() + ".txt");
+                try
+                {
+                    var prefs = new OverlayPreferences(prefsPath);
+                    Check(!prefs.LegacyInterface && prefs.Resolution == 0 && prefs.Scaling == 0 && prefs.ResolutionManual == 1080 && prefs.ScalingManual == 100, "settings default to Modern / DarkScape and Auto");
+                    prefs.LegacyInterface = true;
+                    prefs.Resolution = 1440;
+                    prefs.Scaling = 125;
+                    prefs.ResolutionManual = 1440;
+                    prefs.ScalingManual = 125;
+                    prefs.Save();
+                    var loaded = new OverlayPreferences(prefsPath);
+                    Check(loaded.LegacyInterface && loaded.Resolution == 1440 && loaded.Scaling == 125 && loaded.ResolutionManual == 1440 && loaded.ScalingManual == 125, "interface, resolution and scaling round-trip in overlay.txt");
+                }
+                finally { try { if (File.Exists(prefsPath)) File.Delete(prefsPath); } catch (IOException) { } }
                 string preferred = LodestoneIcons.Resolve(assets, "Lumbridge lodestone");
                 Check(preferred != null && preferred.Replace('\\', '/').Contains("/map-icons/lodestones/lumbridge.png"), "lodestone icons prefer assets/map-icons/lodestones");
                 string compass = LodestoneIcons.CompassFile(assets);

@@ -74,6 +74,11 @@ namespace KavrosClueHelper
         private readonly CheckBox floatingEnabled=new KavrosCheckBox();
         private readonly CheckBox checkUpdates=new KavrosCheckBox();
         private readonly CheckBox blurPreview=new KavrosCheckBox();
+        private readonly InterfaceToggle modernInterface=new InterfaceToggle();
+        private readonly InterfaceToggle legacyInterface=new InterfaceToggle();
+        private readonly ComboBox resolutionChoice=new ComboBox();
+        private readonly ComboBox scalingChoice=new ComboBox();
+        private bool choosingInterface, refreshingClient;
         private FloatingCluePanel floatingPanel;
         private CompassSession compassSession;
         private NotifyIcon tray;
@@ -137,6 +142,8 @@ namespace KavrosClueHelper
             public DateTime CapturedAt;
             public int Dpi;
             public GuideInk Guide;
+            public bool LegacyInterface;
+            public int Resolution, Scaling, ResolutionManual, ScalingManual, ClientHeight;
         }
 
         public PuzzleSuiteForm(bool startWithPanel=true)
@@ -229,7 +236,8 @@ namespace KavrosClueHelper
             blurPreview.CheckedChanged+=delegate{preferences.BlurPreview=blurPreview.Checked;KavrosTheme.BlurPreview=blurPreview.Checked;preferences.Save();PreviewStyle.Release(preview);preview.Invalidate();};
             ButtonAt("Check for updates",305,971,195,delegate{AppUpdates.Check(this,true);});
             ButtonAt("What's new",305,1012,195,ToggleWhatsNew);
-            ClientSize=new Size(ClientSize.Width,1048);
+            SetupClientOptions();
+            ClientSize=new Size(ClientSize.Width,1164);
             AppUpdates.Present=ShowToast;
             var trayMenu=new ContextMenuStrip();trayMenu.Items.Add("Open panel",null,delegate{OpenPanel();});trayMenu.Items.Add("Settings",null,delegate{ShowSettings();});trayMenu.Items.Add("Exit helper",null,delegate{ExitHelper();});
             AppBranding.ArrangeSettings(this);
@@ -429,6 +437,135 @@ namespace KavrosClueHelper
             return "Automatic detection\n\nKeep the full puzzle visible.";
         }
         private Label LabelAt(string text, int x, int y, int w, int h) { Label l = new Label { Text = text, Left = x, Top = y, Width = w, Height = h }; Controls.Add(l); return l; }
+        private void SetupClientOptions()
+        {
+            Label interfaceLabel = LabelAt("Interface", 28, 1052, 200, 18);
+            interfaceLabel.ForeColor = KavrosTheme.TextSoft;
+            modernInterface.Name = "ModernInterface";
+            modernInterface.Text = "Modern / DarkScape";
+            modernInterface.SetBounds(28, 1074, 214, 32);
+            modernInterface.Font = KavrosTheme.Ui(9F, true);
+            legacyInterface.Name = "LegacyInterface";
+            legacyInterface.Text = "Legacy";
+            legacyInterface.SetBounds(254, 1074, 214, 32);
+            legacyInterface.Font = KavrosTheme.Ui(9F, true);
+            Controls.Add(modernInterface);
+            Controls.Add(legacyInterface);
+            modernInterface.CheckedChanged += delegate { if (modernInterface.Checked) ChooseInterface(false); };
+            legacyInterface.CheckedChanged += delegate { if (legacyInterface.Checked) ChooseInterface(true); };
+            choosingInterface = true;
+            modernInterface.Checked = !preferences.LegacyInterface;
+            legacyInterface.Checked = preferences.LegacyInterface;
+            choosingInterface = false;
+            Label resolutionLabel = LabelAt("Resolution", 28, 1118, 88, 22);
+            resolutionLabel.ForeColor = KavrosTheme.TextSoft;
+            resolutionChoice.Name = "ResolutionChoice";
+            resolutionChoice.DropDownStyle = ComboBoxStyle.DropDownList;
+            resolutionChoice.SetBounds(118, 1114, 150, 28);
+            resolutionChoice.Items.AddRange(new object[] { "Auto", "1080p", "1440p", "4K" });
+            KavrosTheme.StyleCombo(resolutionChoice);
+            Controls.Add(resolutionChoice);
+            Label scalingLabel = LabelAt("Scaling", 280, 1118, 64, 22);
+            scalingLabel.ForeColor = KavrosTheme.TextSoft;
+            scalingChoice.Name = "ScalingChoice";
+            scalingChoice.DropDownStyle = ComboBoxStyle.DropDownList;
+            scalingChoice.SetBounds(348, 1114, 140, 28);
+            scalingChoice.Items.AddRange(new object[] { "Auto", "100%", "125%", "150%", "200%" });
+            KavrosTheme.StyleCombo(scalingChoice);
+            Controls.Add(scalingChoice);
+            resolutionChoice.SelectedIndex = ResolutionIndex(preferences.Resolution);
+            scalingChoice.SelectedIndex = ScalingIndex(preferences.Scaling);
+            resolutionChoice.SelectedIndexChanged += delegate { if (!refreshingClient) SaveResolution(); };
+            scalingChoice.SelectedIndexChanged += delegate { if (!refreshingClient) SaveScaling(); };
+            RefreshClientLabels();
+        }
+        private void ChooseInterface(bool legacy)
+        {
+            if (choosingInterface) return;
+            choosingInterface = true;
+            modernInterface.Checked = !legacy;
+            legacyInterface.Checked = legacy;
+            choosingInterface = false;
+            if (preferences.LegacyInterface == legacy) return;
+            preferences.LegacyInterface = legacy;
+            preferences.Save();
+            if (positionReader != null) positionReader.UseInterface(legacy);
+        }
+        private static int ResolutionValue(int index)
+        {
+            if (index == 1) return 1080;
+            if (index == 2) return 1440;
+            if (index == 3) return 2160;
+            return 0;
+        }
+        private static int ResolutionIndex(int value)
+        {
+            if (value == 1080) return 1;
+            if (value == 1440) return 2;
+            if (value == 2160) return 3;
+            return 0;
+        }
+        private static int ScalingValue(int index)
+        {
+            if (index == 1) return 100;
+            if (index == 2) return 125;
+            if (index == 3) return 150;
+            if (index == 4) return 200;
+            return 0;
+        }
+        private static int ScalingIndex(int value)
+        {
+            if (value == 100) return 1;
+            if (value == 125) return 2;
+            if (value == 150) return 3;
+            if (value == 200) return 4;
+            return 0;
+        }
+        private void SaveResolution()
+        {
+            int choice = ResolutionValue(resolutionChoice.SelectedIndex);
+            if (choice == 1080 || choice == 1440 || choice == 2160) preferences.ResolutionManual = choice;
+            preferences.Resolution = choice;
+            preferences.Save();
+            RefreshClientLabels();
+        }
+        private void SaveScaling()
+        {
+            int choice = ScalingValue(scalingChoice.SelectedIndex);
+            if (choice == 100 || choice == 125 || choice == 150 || choice == 200) preferences.ScalingManual = choice;
+            preferences.Scaling = choice;
+            preferences.Save();
+            RefreshClientLabels();
+        }
+        private void RefreshClientLabels()
+        {
+            if (resolutionChoice.DroppedDown || scalingChoice.DroppedDown) return;
+            int height = 0, dpi = 0;
+            if (SelectedWindow != IntPtr.Zero)
+            {
+                Rectangle bounds = Native.ClientBounds(SelectedWindow);
+                if (bounds.Width >= 60 && bounds.Height >= 60) height = bounds.Height;
+                try { uint raw = Native.GetDpiForWindow(SelectedWindow); if (raw >= 96) dpi = (int)raw; }
+                catch (DllNotFoundException) { }
+                catch (EntryPointNotFoundException) { }
+            }
+            string res = height > 0 ? PuzzleDetector.ResolutionName(PuzzleDetector.ResolutionBucket(height)) : PuzzleDetector.ResolutionName(preferences.ResolutionManual);
+            string scale = dpi > 0 ? PuzzleDetector.ScalingPercent(dpi) + "%" : preferences.ScalingManual + "%";
+            refreshingClient = true;
+            try
+            {
+                SetAutoItem(resolutionChoice, "Auto (" + res + ")");
+                SetAutoItem(scalingChoice, "Auto (" + scale + ")");
+            }
+            finally { refreshingClient = false; }
+        }
+        private static void SetAutoItem(ComboBox box, string text)
+        {
+            if (box.Items.Count == 0 || (string)box.Items[0] == text) return;
+            int selected = box.SelectedIndex;
+            box.Items[0] = text;
+            if (selected >= 0 && box.SelectedIndex != selected) box.SelectedIndex = selected;
+        }
         private void ButtonAt(string text, int x, int y, int w, Action action, ButtonTone tone = ButtonTone.Secondary)
         {
             Button b = new OpaqueButton { Text = text, Left = x, Top = y, Width = w, Height = 28, FlatStyle = FlatStyle.Flat, BackColor = KavrosTheme.Button, ForeColor = ForeColor, Tone = tone }; b.FlatAppearance.BorderColor = KavrosTheme.ButtonLine;
@@ -511,6 +648,7 @@ namespace KavrosClueHelper
         {
             try
             {
+            RefreshClientLabels();
             FollowWindow();
             ShowGuidance();
             PollShortestSlider();
@@ -608,7 +746,7 @@ namespace KavrosClueHelper
                 try{uint raw=Native.GetDpiForWindow(window);if(raw>=96)dpi=(int)raw;}
                 catch(DllNotFoundException){}
                 catch(EntryPointNotFoundException){}
-                QueueAnalysis(new AnalysisJob { Image=screenshot,Generation=sourceGeneration,Window=window,CaptureOffset=captureArea.Location,Cropped=cropped,ClientSize=bounds.Size,CapturedAt=DateTime.UtcNow,Stable=stable,Offline=false,Reverse=reverse.Checked,WholeRows=true,Dpi=dpi,Guide=guide });
+                QueueAnalysis(new AnalysisJob { Image=screenshot,Generation=sourceGeneration,Window=window,CaptureOffset=captureArea.Location,Cropped=cropped,ClientSize=bounds.Size,CapturedAt=DateTime.UtcNow,Stable=stable,Offline=false,Reverse=reverse.Checked,WholeRows=true,Dpi=dpi,Guide=guide,LegacyInterface=preferences.LegacyInterface,Resolution=preferences.Resolution,Scaling=preferences.Scaling,ResolutionManual=preferences.ResolutionManual,ScalingManual=preferences.ScalingManual,ClientHeight=bounds.Height });
                 ShowGuidance();
             }
             catch (Exception ex) { ClearUnreadableFrame(); status.Text = ex.Message; }
@@ -652,6 +790,7 @@ namespace KavrosClueHelper
                 PuzzleAnalysisEngine engine=EnsureEngine();
                 engine.Progress=message=>analysisStage=message;
                 analysisStage=null;
+                engine.UseClient(job.LegacyInterface, job.Resolution, job.Scaling, job.ResolutionManual, job.ScalingManual, job.ClientHeight);
                 AnalysisResult result=engine.Analyze(job.Image,job.Generation,job.Reverse,analysisCancellation.Token,!job.Offline,job.WholeRows, job.Offline ? (Point?)null : job.CaptureOffset, job.Dpi, job.Guide);
                 if(result.Plan==null || (result.Plan.Puzzle.Kind==PuzzleKind.Towers && result.Plan.Towers==null))
                 { result.DiagnosticImage=job.Image; retained=true; }
@@ -1197,7 +1336,7 @@ namespace KavrosClueHelper
             CancelAnalysis(); requestedScan=false; automatic.Checked=false; offline=true; current=null; pendingKey=null; marks.Clear(); overlay.Hide();
             ShowMasterView(false); masterView.SetClue(null,assetPath);
             detected.Text="Reading image..."; status.Text="The image is being processed in the background.";
-            QueueAnalysis(new AnalysisJob { Image=image,Generation=sourceGeneration,Offline=true,Stable=false,Reverse=reverse.Checked,WholeRows=true });
+            QueueAnalysis(new AnalysisJob { Image=image,Generation=sourceGeneration,Offline=true,Stable=false,Reverse=reverse.Checked,WholeRows=true,LegacyInterface=preferences.LegacyInterface,Resolution=preferences.Resolution,Scaling=preferences.Scaling,ResolutionManual=preferences.ResolutionManual,ScalingManual=preferences.ScalingManual });
         }
     }
 

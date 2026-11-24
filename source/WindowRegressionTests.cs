@@ -11,6 +11,10 @@ namespace KavrosClueHelper
         private static void Check(bool condition, string message) { assertions++; if (!condition) throw new Exception("FAILED: " + message); }
         private static bool BorderedScan(Color border)
         {
+            return BorderedScan(border, null);
+        }
+        private static bool BorderedScan(Color border, bool? legacy)
+        {
             using (Bitmap image = new Bitmap(320, 360))
             {
                 using (Graphics g = Graphics.FromImage(image))
@@ -21,7 +25,7 @@ namespace KavrosClueHelper
                     g.FillRectangle(frame, 30, 20, 180, 240);
                     g.FillRectangle(paper, 50, 40, 140, 200);
                 }
-                return ScrollAreas.Find(new Pixels(image), true).Count > 0;
+                return ScrollAreas.Find(new Pixels(image), true, legacy).Count > 0;
             }
         }
         private static GameWindow Window(int handle, string title, string process, string className)
@@ -204,6 +208,8 @@ namespace KavrosClueHelper
                     try { if (File.Exists(pickerFile)) File.Delete(pickerFile); } catch (Exception) { }
                 }
                 Check(BorderedScan(Color.FromArgb(28, 48, 86)) && BorderedScan(Color.FromArgb(96, 68, 38)) && !BorderedScan(Color.FromArgb(180, 30, 30)), "a scan accepts a modern blue border and a legacy brown border");
+                Check(BorderedScan(Color.FromArgb(28, 48, 86), false) && !BorderedScan(Color.FromArgb(96, 68, 38), false), "modern mode keeps the blue scan border only");
+                Check(BorderedScan(Color.FromArgb(96, 68, 38), true) && !BorderedScan(Color.FromArgb(28, 48, 86), true), "legacy mode keeps the brown scan border only");
                 File.AppendAllText(report, "\r\nV0.2.1 WINDOW REGRESSIONS PASS: " + assertions + " assertions.\r\nCovers late launch, restart, launcher exclusion, renamed client, multiple windows and stable selection.\r\n");
                 return 0;
             }

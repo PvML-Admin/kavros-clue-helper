@@ -23,6 +23,7 @@ namespace KavrosClueHelper
         private void InitializeTracking()
         {
             positionReader=new MinimapPositionReader(assetPath);
+            positionReader.UseInterface(preferences.LegacyInterface);
             trackingWorker.DoWork+=delegate(object sender,DoWorkEventArgs e)
             {
                 TrackingJob job=(TrackingJob)e.Argument;var priority=Thread.CurrentThread.Priority;

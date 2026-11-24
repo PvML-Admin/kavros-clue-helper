@@ -1,5 +1,13 @@
 # Kavros Clue Helper
 
+## 0.8
+
+Versions show one digit after the decimal, rounding up: 0.8, 0.9, 1.0, 1.1, and on through 1.9, then 2.0. Never two digits after the decimal (no 0.10 or 1.10). The release tag and the assembly version keep a trailing .0 (v0.8.0 and 0.8.0.0) so the updater can tell that 0.8.0 is newer than 0.7.28. The app shows v0.8.
+
+**Settings**
+- Interface is two toggle boxes, Modern / DarkScape and Legacy. Exactly one is selected, the selected box is gold, and there is no Auto. DarkScape uses the full modern template set.
+- Resolution (Auto, 1080p, 1440p, 4K) and scaling (Auto, 100%, 125%, 150%, 200%) default to Auto. Auto reads the game window and shows the result, for example Auto (1440p). A 2560x1369 window counts as 1440p. If the window cannot be read, Auto uses the last manual choice. That scale is searched first, and the other scales stay as fallback.
+
 ## 0.7.28
 
 **Puzzles**

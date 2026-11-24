@@ -61,6 +61,7 @@ namespace KavrosClueHelper
         private int searchBatch;
         public string Diagnostics {get;private set;}
         public MinimapPositionReader(string directory){assets=directory;anchor=new MinimapAnchor(directory);orientation=new MinimapOrientation(directory);}
+        public void UseInterface(bool legacy){anchor.InterfaceLegacy=legacy;}
         public void Reset(){previous=null;previousStructure=false;searchBatch=0;misses=0;velocity=PointF.Empty;}
         public void SetReference(Bitmap image,RectangleF bounds,int id)
         {reference=new Surface(image);world=searchWorld=bounds;regionId=id;regionLevel=Int32.MinValue;Reset();}

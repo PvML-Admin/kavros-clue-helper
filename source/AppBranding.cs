@@ -14,7 +14,27 @@ namespace KavrosClueHelper
 
         internal static string DisplayVersion
         {
-            get { return "v" + App.GetName().Version.ToString(3); }
+            get { return Shown(App.GetName().Version); }
+        }
+
+        // The assembly and the updater keep three parts (0.8.0). The app shows
+        // major.minor only, so 0.8.0.0 reads as v0.8.
+        internal static string Shown(Version version)
+        {
+            if (version == null) return "";
+            return "v" + version.Major + "." + version.Minor;
+        }
+
+        internal static string Shown(string version)
+        {
+            if (string.IsNullOrEmpty(version)) return "";
+            string text = version.Trim();
+            if (text.StartsWith("v") || text.StartsWith("V")) text = text.Substring(1);
+            string[] parts = text.Split('.');
+            int major, minor;
+            if (parts.Length >= 2 && int.TryParse(parts[0], out major) && int.TryParse(parts[1], out minor))
+                return "v" + major + "." + minor;
+            return "v" + text;
         }
 
         private static Stream Resource(string name)
