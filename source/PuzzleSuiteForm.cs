@@ -672,15 +672,12 @@ namespace KavrosClueHelper
             if (!windows.DroppedDown && WindowLocator.ShouldEnumerate(chosenAlive, DateTime.UtcNow>=nextDiscovery, handleLost)) RefreshWindows();
             if (busy || DateTime.UtcNow < nextRead)
             {
-                // An idle full-window read must not sit in front of a scroll
-                // that just opened. Cancel it, and do not wait out the miss delay.
-                if(IdleSheetAppeared())
-                {
-                    if(busy && analysisCancellation!=null)analysisCancellation.Cancel();
-                    nextRead=DateTime.MinValue;
-                    if(busy)return;
-                }
-                else return;
+                // Do not read the worker's bitmap and do not capture the
+                // window on this tick. An empty idle look can yield before
+                // the slow text search so the next capture sees a new scroll.
+                if(busy && current==null && lastLocated==null && automatic.Checked && !offline && IdleFrame.Sheet==0 && activeJob!=null && (DateTime.UtcNow-activeJob.CapturedAt).TotalMilliseconds>800)
+                    IdleFrame.Yield=true;
+                return;
             }
             if (requestedScan)
             {
@@ -704,21 +701,6 @@ namespace KavrosClueHelper
                 }
                 catch (Exception) { }
             }
-        }
-        private bool IdleSheetAppeared()
-        {
-            try
-            {
-                if(current!=null||lastLocated!=null||!automatic.Checked||offline)return false;
-                if(busy && activeJob!=null && activeJob.Image!=null && ParagraphVision.TallSheet(new Pixels(activeJob.Image)))return false;
-                IntPtr window=SelectedWindow;
-                if(window==IntPtr.Zero||!Native.IsWindow(window)||Native.IsIconic(window))return false;
-                Rectangle bounds=Native.ClientBounds(window);
-                if(bounds.Width<60||bounds.Height<60)return false;
-                using(Bitmap shot=ScreenReader.Capture(new Rectangle(bounds.Location,bounds.Size)))
-                    return ParagraphVision.TallSheet(new Pixels(shot));
-            }
-            catch(Exception){return false;}
         }
         private void RequestScan()
         {
@@ -838,6 +820,11 @@ namespace KavrosClueHelper
                 args.Result=result;
             }
             catch(OperationCanceledException) { args.Cancel=true; }
+            catch(Exception ex)
+            {
+                CrashLog.Write(ex);
+                // Leave Result empty. Completion keeps the last good read.
+            }
             finally { if(!retained) job.Image.Dispose(); try { Thread.CurrentThread.Priority=priority; } catch { } }
         }
         private PuzzleAnalysisEngine EnsureEngine(){lock(engineGate){if(analysisEngine==null)analysisEngine=new PuzzleAnalysisEngine(assetPath);return analysisEngine;}}
@@ -849,11 +836,20 @@ namespace KavrosClueHelper
             try
             {
                 if(closing || IsDisposed || job==null || job.Generation!=sourceGeneration) return;
-                if(args.Error!=null) { ClearUnreadableFrame(); status.Text="Could not read this frame: "+args.Error.Message; nextRead=DateTime.UtcNow.AddMilliseconds(250); return; }
-                if(result==null) {compassSession.Observe(null,DateTime.UtcNow);return;}
+                if(args.Error!=null)
+                {
+                    CrashLog.Write(args.Error);
+                    nextRead=DateTime.UtcNow.AddMilliseconds(250);
+                    if(current==null && lastLocated==null) status.Text="Could not read this frame: "+args.Error.Message;
+                    return;
+                }
+                // A cancelled or failed look must not clear a read that already landed.
+                if(result==null) { nextRead=DateTime.UtcNow.AddMilliseconds(current==null && lastLocated==null ? 0 : 250); return; }
                 if(diagnosticCapture!=null) { diagnosticCapture.Dispose(); diagnosticCapture=null; }
                 diagnosticCapture=result.DiagnosticImage; result.DiagnosticImage=null;
-                nextRead=job.CapturedAt.AddMilliseconds(result.Plan==null?75:125);
+                int wait=result.Plan==null?75:125;
+                if(result.Plan==null && current==null && lastLocated==null) wait=0;
+                nextRead=job.CapturedAt.AddMilliseconds(wait);
                 captureDetails += "; last analysis "+result.Milliseconds+" ms"+(result.Unchanged?"; cached":"");
                 if(result.SearchWindow&&!job.Offline)
                 {

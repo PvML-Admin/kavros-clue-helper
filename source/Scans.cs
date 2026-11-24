@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using System.Xml.Linq;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 namespace KavrosClueHelper
 {
@@ -360,7 +361,11 @@ namespace KavrosClueHelper
             if(image==null||p==null||!Regions.Any(Readable))return null;
             area=Rectangle.Intersect(area,new Rectangle(Point.Empty,image.Size));
             if(area.Width<40||area.Height<40)return null;
+            try
             {
+                // One budget for every recognition attempt. A failure, including
+                // a timeout, is no result. The UI tick does not cancel this call.
+                Stopwatch clock=Stopwatch.StartNew();
                 ulong hash=p.Hash(area);if(ocrCached&&hash==lastOcrHash&&area==lastOcrArea&&lastOcr!=null)return lastOcr;
                 ScanReading title=titles.Read(p,area,Regions);
                 if(title!=null)return new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=title,Bounds=area,Scale=1,Confidence=.97};
@@ -370,12 +375,14 @@ namespace KavrosClueHelper
                 double scale=Math.Min(1,1600.0/Math.Max(area.Width,area.Height));
                 using(Bitmap crop=Pixels.Crop(image,area,new Size((int)(area.Width*scale),(int)(area.Height*scale))))
                 {
-                    LastText=ocr.Read(crop);string originalText=LastText;ScanRegion originalMatch=MatchScrollTranscript(LastText);
+                    int left=OcrBudget(clock); if(left<50)return null;
+                    LastText=ocr.Read(crop,left);string originalText=LastText;ScanRegion originalMatch=MatchScrollTranscript(LastText);
                     if(originalMatch!=null)
                     {lastOcrHash=hash;lastOcrArea=area;ocrCached=true;lastOcr=new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=ScanReading.FromText(originalMatch,LastText),Bounds=area,Scale=1,Confidence=0.96};return lastOcr;}
                     using(Bitmap large=Pixels.Crop(crop,new Rectangle(Point.Empty,crop.Size),new Size(crop.Width*2,crop.Height*2)))
                     {
-                        LastText=ocr.Read(large);ScanRegion scaledMatch=MatchScrollTranscript(LastText);
+                        left=OcrBudget(clock); if(left<50)return null;
+                        LastText=ocr.Read(large,left);ScanRegion scaledMatch=MatchScrollTranscript(LastText);
                         if(scaledMatch!=null){lastOcrHash=hash;lastOcrArea=area;ocrCached=true;lastOcr=new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=ScanReading.FromText(scaledMatch,LastText),Bounds=area,Scale=1,Confidence=0.96};return lastOcr;}
                         originalText+=" UPSCALED: "+LastText;
                     }
@@ -383,12 +390,23 @@ namespace KavrosClueHelper
                     // before OCR so the parchment texture cannot become letters.
                     var cp=new Pixels(crop);using(Graphics g=Graphics.FromImage(crop))g.Clear(Color.White);
                     for(int y=0;y<crop.Height;y++)for(int x=0;x<crop.Width;x++){Color c=cp.Get(x,y);if(c.R>185&&c.G>185&&c.B>185&&Math.Max(c.R,Math.Max(c.G,c.B))-Math.Min(c.R,Math.Min(c.G,c.B))<45)crop.SetPixel(x,y,Color.Black);}
-                    LastText=ocr.Read(crop);string maskedText=LastText;ScanRegion region=MatchScrollTranscript(LastText);
+                    left=OcrBudget(clock); if(left<50)return null;
+                    LastText=ocr.Read(crop,left);string maskedText=LastText;ScanRegion region=MatchScrollTranscript(LastText);
                     if(region==null)LastText="ORIGINAL: "+originalText+" MASK: "+maskedText;lastOcrHash=hash;ocrCached=true;lastOcr=region==null?null:new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=ScanReading.FromText(region,originalText+" "+maskedText),Bounds=area,Scale=1,Confidence=0.96};
                     if(lastOcr!=null)return lastOcr;
                 }
             }
+            catch(Exception ex)
+            {
+                CrashLog.Write(ex);
+                return null;
+            }
             return null;
+        }
+        private static int OcrBudget(Stopwatch clock)
+        {
+            int left=2500-(int)clock.ElapsedMilliseconds;
+            return left<1?1:left;
         }
         private static bool PaperAround(Pixels p,Point q,Model model)
         {
