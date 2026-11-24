@@ -29,9 +29,10 @@ public sealed class SettingsChecks : MarshalByRefObject
         {
             var footer=form.Controls.Find("BuildCredit",true).OfType<Label>().Single();
             var crest=form.Controls.Find("KavrosCrest",true).OfType<PictureBox>().Single();
-            if(!footer.Text.Contains("v0.7.28")||crest.Image==null||form.Icon==null)throw new Exception("Missing branding or incorrect version.");
+            if(footer.Text!="Made by Zenity  ·  v0.8"||form.Text!="Kavros Clue Helper · v0.8"||crest.Image==null||form.Icon==null)throw new Exception("Missing branding or incorrect version: "+footer.Text+" / "+form.Text);
+            if(form.Controls.Find("ModernInterface",true).Length!=1||form.Controls.Find("LegacyInterface",true).Length!=1)throw new Exception("Interface toggles are missing.");
             const BindingFlags flags=BindingFlags.Instance|BindingFlags.NonPublic;
-            var option=(CheckBox)typeof(PuzzleSuiteForm).GetField("wholeRowClicks",flags).GetValue(form);
+            var option=(CheckBox)typeof(PuzzleSuiteForm).GetField("reverse",flags).GetValue(form);
             var summary=(Label)typeof(PuzzleSuiteForm).GetField("summary",flags).GetValue(form);
             for(int i=0;i<3;i++){
                 if(option.Parent!=summary.Parent||option.Bottom>summary.Top||option.GetPreferredSize(Size.Empty).Height>option.Height)

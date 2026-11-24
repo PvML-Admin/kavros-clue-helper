@@ -34,12 +34,14 @@ namespace KavrosClueHelper
         private readonly double amplitude,phase,offset;
         private readonly float[] scales={0.8F,1F,8F/9F,1.25F,4F/3F,1.5F,2F};
         private int dpi=96;
+        private float targetScale;
         public void UseDpi(int value){dpi=value<96?96:value;}
+        public void UseTarget(float value){targetScale=value;}
         private IEnumerable<float> ScaleOrder()
         {
-            if(dpi==96)return scales;
-            float target=dpi/96F;
-            return scales.OrderBy(s=>Math.Abs(s-target)).ThenBy(s=>s);
+            float aim=targetScale>0.01F?targetScale:(dpi==96?0F:dpi/96F);
+            if(aim<=0F)return scales;
+            return scales.OrderBy(s=>Math.Abs(s-aim)).ThenBy(s=>s);
         }
         public CompassVision(string assets)
         {

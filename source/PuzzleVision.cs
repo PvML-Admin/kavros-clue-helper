@@ -660,27 +660,74 @@ namespace KavrosClueHelper
         private readonly Dictionary<float, OldFrame[]> blockyFrames = new Dictionary<float, OldFrame[]>();
         private readonly Dictionary<float, ImagePattern[]> blockySliders = new Dictionary<float, ImagePattern[]>();
         private int activeDpi = 96;
+        private bool legacyInterface;
+        private int resolutionChoice;
+        private int scalingChoice;
+        private int resolutionManual = 1080;
+        private int scalingManual = 100;
+        private int clientHeight;
         private readonly float[] scales = { 1F, 0.8F, 8F/9F, 2F/3F, 0.5F, 1.25F, 1.5F, 1.75F, 2F, 2.25F, 2.5F, 3F };
-        // Templates are drawn at 1080p. A 1440p or 4K client is searched at the
-        // nearest interface scales first, then the rest, so a large UI is not
-        // matched as a small 1080p puzzle.
+        // Nearest of 1080, 1440 and 2160. A 2560x1369 window is 1440p.
+        public static int ResolutionBucket(int pixelHeight)
+        {
+            if (pixelHeight <= 0) return 0;
+            int best = 1080, bestDist = Math.Abs(pixelHeight - 1080);
+            int mid = Math.Abs(pixelHeight - 1440);
+            if (mid < bestDist) { best = 1440; bestDist = mid; }
+            int tall = Math.Abs(pixelHeight - 2160);
+            if (tall < bestDist) best = 2160;
+            return best;
+        }
+        public static string ResolutionName(int bucket)
+        {
+            if (bucket >= 2000) return "4K";
+            if (bucket >= 1300) return "1440p";
+            return "1080p";
+        }
+        public static int ScalingPercent(int dpi)
+        {
+            if (dpi <= 0) return 0;
+            float exact = dpi / 96F * 100F;
+            int best = 100;
+            float bestDist = Math.Abs(exact - 100F);
+            int[] choices = { 125, 150, 200 };
+            for (int i = 0; i < choices.Length; i++)
+            {
+                float dist = Math.Abs(exact - choices[i]);
+                if (dist < bestDist) { best = choices[i]; bestDist = dist; }
+            }
+            return best;
+        }
+        // Resolution over 1080, times the Windows scale. A manual dropdown
+        // replaces the part it names. Auto with no window uses the last manual choice.
+        public static float TargetScale(int pixelHeight, int dpi, int resolution, int scaling, int resolutionManual, int scalingManual)
+        {
+            int bucket = resolution;
+            if (bucket != 1080 && bucket != 1440 && bucket != 2160)
+            {
+                bucket = ResolutionBucket(pixelHeight);
+                if (bucket == 0) bucket = resolutionManual == 1440 || resolutionManual == 2160 ? resolutionManual : 1080;
+            }
+            float scale = bucket / 1080F;
+            if (scaling == 100 || scaling == 125 || scaling == 150 || scaling == 200) scale *= scaling / 100F;
+            else if (dpi > 0) scale *= dpi / 96F;
+            else scale *= (scalingManual == 125 || scalingManual == 150 || scalingManual == 200 ? scalingManual : 100) / 100F;
+            return scale;
+        }
         public static float[] SearchOrder(int pixelHeight)
         {
             return SearchOrder(pixelHeight, 96);
         }
-        // DPI 96 keeps the height order used today. Any other DPI searches
-        // dpi/96 first, then the neighbouring scales. 125% is 1.25, the same
-        // way 150% is 1.5 and 200% is 2.
         public static float[] SearchOrder(int pixelHeight, int dpi)
         {
+            return SearchOrder(pixelHeight, dpi, 0, 0, 1080, 100);
+        }
+        public static float[] SearchOrder(int pixelHeight, int dpi, int resolution, int scaling, int resolutionManual, int scalingManual)
+        {
             float[] classic = { 1F, 0.8F, 8F/9F, 2F/3F, 0.5F, 1.25F, 1.5F, 2F, 1.75F, 2.25F, 2.5F, 3F };
-            if (dpi == 96 || dpi <= 0)
-            {
-                if (pixelHeight < 1400) return classic;
-                float target = pixelHeight / 1080F;
-                return classic.OrderBy(s => Math.Abs(s - target)).ThenBy(s => s).ToArray();
-            }
-            return PlaceScale(classic, dpi / 96F);
+            float target = TargetScale(pixelHeight, dpi <= 0 ? 0 : dpi, resolution, scaling, resolutionManual, scalingManual);
+            if (Math.Abs(target - 1F) < 0.02F) return classic;
+            return PlaceScale(classic, target);
         }
         // The interface scale comes first. 1.0 is next, so a 1080p puzzle is
         // still found on the second try at 125%, 150% and 200%.
@@ -702,8 +749,6 @@ namespace KavrosClueHelper
         public bool LastScrollFast { get; private set; }
         public Rectangle LastScrollBounds { get; private set; }
         public float LastFirstScale { get; private set; }
-        private float lastMatchedScale;
-        private bool preferLegacy;
         private readonly System.Collections.Generic.HashSet<float> triedScales = new System.Collections.Generic.HashSet<float>();
         // Set when a dark towers grid with some edge clues is visible but the
         // clues are not all readable yet (the panel is still opening).
@@ -739,15 +784,40 @@ namespace KavrosClueHelper
             using (Bitmap image = new Bitmap(Path.Combine(assets, "alt1anchors", "rev944", name)))
             using (Bitmap resized = Pixels.Crop(image, new Rectangle(Point.Empty, image.Size), new Size((int)Math.Round(image.Width * scale), (int)Math.Round(image.Height * scale)))) return new ImagePattern(resized);
         }
+        public void UseLegacy(bool legacy)
+        {
+            UseClient(legacy, resolutionChoice, scalingChoice, resolutionManual, scalingManual, clientHeight);
+        }
+        public void UseClient(bool legacy, int resolution, int scaling, int manualResolution, int manualScaling, int height)
+        {
+            if (legacy != legacyInterface || resolution != resolutionChoice || scaling != scalingChoice || manualResolution != resolutionManual || manualScaling != scalingManual || height != clientHeight)
+                nextSearchScale = 0;
+            legacyInterface = legacy;
+            resolutionChoice = resolution;
+            scalingChoice = scaling;
+            if (manualResolution == 1080 || manualResolution == 1440 || manualResolution == 2160) resolutionManual = manualResolution;
+            if (manualScaling == 100 || manualScaling == 125 || manualScaling == 150 || manualScaling == 200) scalingManual = manualScaling;
+            clientHeight = height;
+            ApplyReaders();
+        }
+        private int ProfileHeight(int imageHeight)
+        {
+            return clientHeight > 0 ? clientHeight : imageHeight;
+        }
+        private void ApplyReaders()
+        {
+            float target = 0F;
+            if (clientHeight > 0 || resolutionChoice != 0 || scalingChoice != 0 || activeDpi > 96)
+                target = TargetScale(ProfileHeight(0), activeDpi, resolutionChoice, scalingChoice, resolutionManual, scalingManual);
+            if (compass != null) { compass.UseDpi(activeDpi); compass.UseTarget(target); }
+            if (scans != null) { scans.UseDpi(activeDpi); scans.LegacyInterface = legacyInterface; scans.UseTarget(target); }
+            if (masterClues != null) masterClues.UseDpi(activeDpi);
+        }
         public void UseDpi(int dpi)
         {
             if (dpi < 96) dpi = 96;
-            if (dpi == activeDpi) return;
-            activeDpi = dpi;
-            nextSearchScale = 0;
-            if (compass != null) compass.UseDpi(dpi);
-            if (scans != null) scans.UseDpi(dpi);
-            if (masterClues != null) masterClues.UseDpi(dpi);
+            if (dpi != activeDpi) { activeDpi = dpi; nextSearchScale = 0; }
+            ApplyReaders();
         }
         private ImagePattern BlockyPattern(string name, float scale)
         {
@@ -787,7 +857,7 @@ namespace KavrosClueHelper
         {
             BoardPasses++;
             TowerGridCandidate = null;
-            float[] order=SearchOrder(screenshot.Height, activeDpi);
+            float[] order=SearchOrder(ProfileHeight(screenshot.Height), activeDpi, resolutionChoice, scalingChoice, resolutionManual, scalingManual);
             if(!progressive)
             {
                 DetectedPuzzle fastTower = FindTowerGrid(screenshot, pixels, int.MaxValue, true);
@@ -811,17 +881,17 @@ namespace KavrosClueHelper
                 // Every pass starts at the scale this client should be using.
                 // The rotation only adds one more scale, and only while the
                 // frame budget still has time left.
-                float expected=ExpectedScale(screenshot.Height);
+                float expected=ExpectedScale(ProfileHeight(screenshot.Height));
                 LastFirstScale=expected;
                 triedScales.Add(expected);
                 DetectedPuzzle match=FindAtScale(screenshot,pixels,expected,null,int.MaxValue);
-                if(match!=null){lastMatchedScale=match.Scale>0?match.Scale:expected;return match;}
+                if(match!=null)return match;
                 float extra=NextExtraScale(order,expected);
                 if(timer.ElapsedMilliseconds<120)
                 {
                     triedScales.Add(extra);
                     match=FindAtScale(screenshot,pixels,extra,timer,budget);
-                    if(match!=null){lastMatchedScale=match.Scale>0?match.Scale:extra;return match;}
+                    if(match!=null)return match;
                 }
             }
             if(timer.ElapsedMilliseconds<budget)
@@ -864,15 +934,11 @@ namespace KavrosClueHelper
         private int lockScaleCursor;
         private int heavyGate;
         public void ResetSearch() { nextSearchScale=0; towerScanY=25; lockScaleCursor=0; triedScales.Clear(); heavyGate=0; }
-        // DPI picks the scale. Otherwise a 1080p client is 1.0, and a tall
-        // client that has already matched a puzzle keeps that scale.
+        // The chosen resolution and scaling pick the first template. The other
+        // scales stay in the order, so a near miss is still readable.
         public float ExpectedScale(int pixelHeight)
         {
-            float target;
-            if(activeDpi>96)target=activeDpi/96F;
-            else if(pixelHeight>=1400&&lastMatchedScale>0)target=lastMatchedScale;
-            else if(pixelHeight>=1400)target=pixelHeight/1080F;
-            else target=1F;
+            float target=TargetScale(pixelHeight, activeDpi, resolutionChoice, scalingChoice, resolutionManual, scalingManual);
             float best=scales[0],bestDist=Math.Abs(best-target);
             foreach(float scale in scales)
             {
@@ -923,21 +989,10 @@ namespace KavrosClueHelper
         private DetectedPuzzle FindAtScale(Bitmap screenshot,Pixels pixels,float scale,System.Diagnostics.Stopwatch clock,int budget)
         {
             if(clock!=null&&clock.ElapsedMilliseconds>=budget)return null;
-            // Modern players are the common case. A legacy client, once it has
-            // matched, is checked first on the next pass.
-            if(!preferLegacy)
-            {
-                DetectedPuzzle modern=FindModern(screenshot,pixels,scale,clock,budget);
-                if(modern!=null){preferLegacy=false;return modern;}
-                DetectedPuzzle old=FindOldInterface(screenshot,pixels,scale,clock,budget);
-                if(old!=null){preferLegacy=true;return old;}
-                return null;
-            }
-            DetectedPuzzle legacy=FindOldInterface(screenshot,pixels,scale,clock,budget);
-            if(legacy!=null){preferLegacy=true;return legacy;}
-            DetectedPuzzle again=FindModern(screenshot,pixels,scale,clock,budget);
-            if(again!=null)preferLegacy=false;
-            return again;
+            // The settings pick one interface. DarkScape is a recolour of the
+            // modern templates, so it uses that set and nothing else.
+            if(legacyInterface)return FindOldInterface(screenshot,pixels,scale,clock,budget);
+            return FindModern(screenshot,pixels,scale,clock,budget);
         }
         private DetectedPuzzle FindModern(Bitmap screenshot,Pixels pixels,float scale,System.Diagnostics.Stopwatch clock,int budget)
         {
@@ -1019,8 +1074,15 @@ namespace KavrosClueHelper
         { using (Bitmap crop = Pixels.Crop(image, body, body.Size)) { knots.Read(crop); return knots.LastError; } }
         public bool SliderFrameVisible(Bitmap image,DetectedPuzzle previous)
         {
-            ImagePattern[] anchors;if(previous==null||previous.Kind!=PuzzleKind.Sliding||!oldSliderAnchors.TryGetValue(previous.Scale,out anchors))return false;
+            if(previous==null||previous.Kind!=PuzzleKind.Sliding)return false;
             Pixels pixels=new Pixels(image);Rectangle search=Rectangle.Intersect(new Rectangle(Point.Empty,image.Size),Rectangle.Inflate(previous.Bounds,70,70));
+            if(!legacyInterface)
+            {
+                ImagePattern[] modern;
+                if(!patterns.TryGetValue(previous.Scale,out modern)||modern.Length<4)return false;
+                return modern[3].Find(pixels,search,1,47).Count>0;
+            }
+            ImagePattern[] anchors;if(!oldSliderAnchors.TryGetValue(previous.Scale,out anchors))return false;
             if(anchors.Any(a=>a.Find(pixels,search,1,47).Count>0))return true;
             if(activeDpi==96)return false;
             return BlockySliders(previous.Scale).Any(a=>a.Find(pixels,search,1,47).Count>0);
@@ -1059,7 +1121,8 @@ namespace KavrosClueHelper
             if(previous==null||previous.Kind!=PuzzleKind.Knot||!oldFrames.ContainsKey(previous.Scale))return false;
             Pixels pixels=new Pixels(image);Rectangle body=previous.Bounds;
             Rectangle header=Rectangle.Intersect(new Rectangle(body.Left-20,body.Top-40,body.Width+45,48),new Rectangle(Point.Empty,image.Size));
-            return oldFrames[previous.Scale].Any(f=>f.Close.Find(pixels,header,1,35).Count>0)||patterns[previous.Scale][1].Find(pixels,header,1,35).Count>0;
+            if(legacyInterface)return oldFrames[previous.Scale].Any(f=>f.Close.Find(pixels,header,1,35).Count>0);
+            return patterns[previous.Scale][1].Find(pixels,header,1,35).Count>0;
         }
         private DetectedPuzzle ReadModal(Bitmap image, Rectangle body, float scale)
         {

@@ -105,21 +105,24 @@ namespace KavrosClueHelper
         public string LastText;
         public readonly List<ScanRegion> Regions=new List<ScanRegion>();
         private int dpi=96;
+        private float targetScale;
         private bool added175;
+        public bool? LegacyInterface;
+        public void UseTarget(float value){targetScale=value;}
         public void UseDpi(int value)
         {
             if(value<96)value=96;
             dpi=value;
             if(dpi==96||added175)return;
-            float target=dpi/96F;
+            float target=targetScale>0.01F?targetScale:dpi/96F;
             float gap=Math.Abs(target-1.75F);
             if(gap<Math.Abs(target-1.5F)&&gap<Math.Abs(target-2F)){added175=true;AddScale(1.75F);}
         }
         private IEnumerable<Model> OrderedModels()
         {
-            if(dpi==96)return models;
-            float target=dpi/96F;
-            return models.OrderBy(m=>Math.Abs(m.Scale-target)).ThenBy(m=>m.Scale);
+            float aim=targetScale>0.01F?targetScale:(dpi==96?0F:dpi/96F);
+            if(aim<=0F)return models;
+            return models.OrderBy(m=>Math.Abs(m.Scale-aim)).ThenBy(m=>m.Scale);
         }
         private void AddScale(float scale)
         {
@@ -297,7 +300,7 @@ namespace KavrosClueHelper
         }
         internal DetectedPuzzle FindNativeTitle(Pixels p)
         {
-            foreach(Rectangle area in ScrollAreas.Find(p,true)){
+            foreach(Rectangle area in ScrollAreas.Find(p,true,LegacyInterface)){
                 ScanReading found=titles.Read(p,area,Regions);
                 if(found!=null)return new DetectedPuzzle{Kind=PuzzleKind.Scan,Scan=found,Bounds=area,Scale=1,Confidence=.97};
             }
@@ -306,7 +309,7 @@ namespace KavrosClueHelper
         private DetectedPuzzle ReadElite(Bitmap image,Pixels p)
         {
             if(!Regions.Any(Readable))return null;
-            foreach(Rectangle area in ScrollAreas.Find(p,true).Take(3))
+            foreach(Rectangle area in ScrollAreas.Find(p,true,LegacyInterface).Take(3))
             {
                 ulong hash=p.Hash(area);if(ocrCached&&hash==lastOcrHash&&area==lastOcrArea&&lastOcr!=null)return lastOcr;
                 ScanReading title=titles.Read(p,area,Regions);

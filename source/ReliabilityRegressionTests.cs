@@ -42,6 +42,7 @@ namespace KavrosClueHelper
                     using(Bitmap incomplete=(Bitmap)original.Clone())
                     {using(Graphics g=Graphics.FromImage(incomplete))using(Brush paper=new SolidBrush(Color.FromArgb(220,190,140)))g.FillRectangle(paper,335,526,310,18);using(AnalysisResult result=engine.Analyze(incomplete,91,false,CancellationToken.None))Check(result.Plan==null,"missing equipment line does not confirm an Edgeville clue");}
                 }
+                engine.UseLegacy(true);
                 using(var image=new Bitmap(Path.Combine(assets,"test_assets","reported","slider-native.png")))
                 using(AnalysisResult result=engine.Analyze(image,100,false,CancellationToken.None))
                 {

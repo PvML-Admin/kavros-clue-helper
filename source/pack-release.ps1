@@ -1,4 +1,8 @@
 $ErrorActionPreference = 'Stop'
+# Product versions show one digit after the decimal, rounding up:
+# 0.8, 0.9, 1.0, 1.1 ... 1.9, 2.0. Never 0.10 or 1.10.
+# The tag and app.manifest keep a trailing .0 (v0.8.0, 0.8.0.0) so Velopack
+# can compare 0.8.0 with 0.7.28. The app shows the short form (v0.8).
 # Velopack CLI. Keep this version aligned with the Velopack package in build.ps1.
 $vpkVersion = '1.2.161'
 $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
@@ -29,11 +33,14 @@ foreach ($doc in @('README.txt', 'LICENSE.txt', 'THIRD_PARTY.txt', 'PATCH-NOTES.
     Copy-Item -LiteralPath (Join-Path $root $doc) -Destination (Join-Path $stage $doc)
 }
 # Velopack and the GitHub release use this version's CHANGELOG section, not the whole history.
+# The heading may be the pack version (0.8.0) or the shown version (0.8).
+$display = $version
+if ($version -match '^(\d+)\.(\d+)\.0$') { $display = "$($Matches[1]).$($Matches[2])" }
 $changelog = [IO.File]::ReadAllText((Join-Path $root 'CHANGELOG.md'))
-$match = [regex]::Match($changelog, "(?ms)^## $([regex]::Escape($version))\r?\n(.*?)(?=^## |\z)")
+$match = [regex]::Match($changelog, "(?ms)^## (?:$([regex]::Escape($version))|$([regex]::Escape($display)))\r?\n(.*?)(?=^## |\z)")
 if (-not $match.Success) { throw "CHANGELOG.md has no section for $version." }
 $notesPath = Join-Path $root 'release-notes.md'
-[IO.File]::WriteAllText($notesPath, ("## {0}`r`n{1}`r`n" -f $version, $match.Groups[1].Value.Trim()))
+[IO.File]::WriteAllText($notesPath, ("## v{0}`r`n{1}`r`n" -f $display, $match.Groups[1].Value.Trim()))
 
 $out = Join-Path $root 'release-out'
 if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Recurse -Force }

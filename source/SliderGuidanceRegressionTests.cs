@@ -9,6 +9,7 @@ namespace KavrosClueHelper
    try
    {
     string assets=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"assets");var engine=new PuzzleAnalysisEngine(assets);var detector=new PuzzleDetector(assets);
+    engine.UseLegacy(true);detector.UseLegacy(true);
     using(var native=new Bitmap(Path.Combine(assets,"test_assets","reported","slider-native.png")))
     using(AnalysisResult baseline=engine.Analyze(native,150,false,CancellationToken.None,true))
     {
@@ -34,6 +35,7 @@ namespace KavrosClueHelper
       File.AppendAllText(report,"click -> next step shown (settled re-read): "+recovered.Milliseconds+" ms\r\n");
      }
      detector.UseDpi(120);
+     detector.UseLegacy(true);
      using(Bitmap modern=TestFixtures.SliderImage("castle",Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray(),"rev944"))
      using(Bitmap scaled=Pixels.ScaleNearest(modern,1.25F))
      {
@@ -46,13 +48,14 @@ namespace KavrosClueHelper
      using(Bitmap reported=new Bitmap(shot))
      using(Bitmap restored=Pixels.ScaleNearest(reported,2560F/reported.Width))
      {
-      detector.UseDpi(120);detector.ResetSearch();
+      detector.UseDpi(120);detector.ResetSearch();detector.UseLegacy(true);
       var watch=System.Diagnostics.Stopwatch.StartNew();
-      DetectedPuzzle legacy=detector.Detect(restored,true,true);
+      DetectedPuzzle legacy=detector.Detect(restored,true,false);
       watch.Stop();
       File.AppendAllText(report,"125% legacy slider: "+(legacy==null?"not found":legacy.Kind+" scale "+legacy.Scale)+" in "+watch.ElapsedMilliseconds+" ms\r\n");
       Check(legacy!=null&&legacy.Kind==PuzzleKind.Sliding,"legacy slider at Windows 125% is detected");
-      detector.UseDpi(96);
+      Check(PuzzleDetector.ResolutionBucket(restored.Height)==1440,"the 125% screenshot window is 1440p");
+      detector.UseDpi(96);detector.UseLegacy(false);
      }
      using(var painted=(Bitmap)native.Clone())
      {
@@ -104,6 +107,7 @@ namespace KavrosClueHelper
      CaptureOffsetMask(assets);
      TimeRealLoop(report,"legacy",native,assets);
     }
+    detector.UseLegacy(true);
     foreach(float scale in new[]{0.8F,1F,1.25F,2F})
     using(Bitmap original=TestFixtures.SliderImage("castle",Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray(),"rev944"))
     using(Bitmap frame=Pixels.Crop(original,new Rectangle(Point.Empty,original.Size),new Size((int)Math.Round(original.Width*scale),(int)Math.Round(original.Height*scale))))
@@ -113,6 +117,13 @@ namespace KavrosClueHelper
      var read=detector.ReadAgain(frame,puzzle);Check(read!=null&&read.Board.SequenceEqual(puzzle.Board),"badges stay readable to the detector at scale "+scale);
     }
     Check(!GuidanceDrawing.HideForCapture(false,PuzzleKind.Sliding),"slider stays visible in screenshots");
+    detector.UseLegacy(false);
+    using(Bitmap modernOnly=TestFixtures.SliderImage("castle",Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray(),"modern"))
+     Check(detector.Detect(modernOnly)!=null&&detector.Detect(modernOnly).Kind==PuzzleKind.Sliding,"Modern mode reads a modern slider");
+    detector.UseLegacy(true);
+    using(Bitmap legacyOnly=TestFixtures.SliderImage("castle",Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray(),"rev944"))
+     Check(detector.Detect(legacyOnly)!=null&&detector.Detect(legacyOnly).Kind==PuzzleKind.Sliding,"Legacy mode reads a legacy slider");
+    detector.UseLegacy(false);
     int[] modernBoard=Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray();
     using(Bitmap modern=TestFixtures.SliderImage("castle",modernBoard,"modern"))TimeCapture(report,"modern",modern,assets);
     int[] scrambled=Enumerable.Range(0,25).ToArray();
@@ -126,8 +137,8 @@ namespace KavrosClueHelper
     TimeScrolls(report,assets);
     TimeFirstGuide(report,assets);
     float[] dpi125=PuzzleDetector.SearchOrder(1369,120);
-    Check(Math.Abs(dpi125[0]-1.25F)<0.02F&&Math.Abs(dpi125[1]-1F)<0.02F,"125% board search tries scale 1.25 then 1.0");
-    Check(Math.Abs(PuzzleDetector.SearchOrder(1369,96)[0]-1F)<0.02F,"96 DPI board search still starts at 1.0");
+    Check(Math.Abs(dpi125[0]-1.75F)<0.02F&&Math.Abs(dpi125[1]-1F)<0.02F,"1440p at 125% tries scale 1.75 then 1.0");
+    Check(Math.Abs(PuzzleDetector.SearchOrder(1369,96)[0]-1.25F)<0.02F,"1440p at 100% starts at 1.25");
     File.AppendAllText(report,"V0.5.5 SLIDER GUIDANCE PASS: "+checks+" assertions. Visible badges, twelve consecutive moves, rolling four-step previews, animation retention, closure and scaled tile reading. No windows shown or game input/capture.\r\n");return 0;
    }
    catch(Exception e){File.AppendAllText(report,e+"\r\n");return 1;}
@@ -135,6 +146,7 @@ namespace KavrosClueHelper
   static void TimeCapture(string report,string label,Bitmap source,string assets)
   {
    var engine=new PuzzleAnalysisEngine(assets);
+   if(label=="legacy")engine.UseLegacy(true);
    using(Bitmap opening=(Bitmap)source.Clone())
    using(AnalysisResult found=engine.Analyze(opening,180,false,CancellationToken.None,true))
    {
@@ -217,6 +229,7 @@ namespace KavrosClueHelper
    using(Bitmap image=TestFixtures.SliderImage("castle",Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray(),"rev944"))
    {
     var detector=new PuzzleDetector(assets);
+    detector.UseLegacy(true);
     DetectedPuzzle puzzle=detector.Detect(image);
     Check(puzzle!=null&&puzzle.Kind==PuzzleKind.Sliding,"offset fixture is a slider");
     int move=Array.IndexOf(puzzle.Board,24)==24?23:Array.IndexOf(puzzle.Board,23);
@@ -236,6 +249,7 @@ namespace KavrosClueHelper
   {
    int slow=SlidingClickOptimizer.SlowSolves;
    var engine=new PuzzleAnalysisEngine(assets);
+   if(label=="legacy")engine.UseLegacy(true);
    var times=new List<long>();
    bool wholeRow=false;
    using(Bitmap scene=new Bitmap(source.Width+360,source.Height+240))
@@ -362,8 +376,10 @@ namespace KavrosClueHelper
   static void TimeOpen(string report,string assets,string label,int[] board,string skin,float scale,int dpi)
   {
    var engine=new PuzzleAnalysisEngine(assets);
+   engine.UseLegacy(skin!="modern");
+   float expect=PuzzleDetector.SearchOrder(1369,dpi)[0];
    using(Bitmap widget=TestFixtures.SliderImage("castle",board,skin))
-   using(Bitmap sized=Math.Abs(scale-1F)<0.01F?(Bitmap)widget.Clone():Pixels.ScaleNearest(widget,scale))
+   using(Bitmap sized=Math.Abs(expect-1F)<0.01F?(Bitmap)widget.Clone():Pixels.ScaleNearest(widget,expect))
    using(Bitmap idle=new Bitmap(2560,1369))
    using(Bitmap scene=new Bitmap(2560,1369))
    {
@@ -384,7 +400,6 @@ namespace KavrosClueHelper
     using(AnalysisResult found=engine.Analyze(scene,91,false,CancellationToken.None,true,true,Point.Empty,dpi,null))
     {
      open.Stop();
-     float expect=dpi<=96?1F:dpi/96F;
      File.AppendAllText(report,label+" first guide after 9 idle 2560x1369 frames: "+open.ElapsedMilliseconds+" ms (idle total "+idleMs+" ms), first scale "+engine.LastFirstScale.ToString("0.00")+"\r\n");
      Check(found.Plan!=null&&found.Plan.Puzzle.Kind==PuzzleKind.Sliding,label+" slider is found on the next frame");
      Check(Math.Abs(engine.LastFirstScale-expect)<0.05F,label+" starts at scale "+expect.ToString("0.00")+" after the rotation would have moved");
@@ -417,10 +432,12 @@ namespace KavrosClueHelper
       using(AnalysisResult shown=engine.Analyze(scene,77,false,CancellationToken.None,true,true,Point.Empty,96,null))
        Check(shown.Plan!=null&&shown.Plan.Puzzle.Kind==PuzzleKind.EmoteClue,"the clue is tracked on the full window");
       int[] one=Enumerable.Range(0,25).Select(i=>i==23?24:i==24?23:i).ToArray();
+      float expect=PuzzleDetector.SearchOrder(1369,96)[0];
       using(Bitmap slider=TestFixtures.SliderImage("castle",one,"modern"))
+      using(Bitmap sized=Pixels.ScaleNearest(slider,expect))
       using(Bitmap both=(Bitmap)scene.Clone())
       {
-       using(Graphics g=Graphics.FromImage(both))g.DrawImageUnscaled(slider,180,160);
+       using(Graphics g=Graphics.FromImage(both))g.DrawImageUnscaled(sized,180,160);
        System.Threading.Thread.Sleep(150);
        var watch=System.Diagnostics.Stopwatch.StartNew();
        using(AnalysisResult opened=engine.Analyze(both,77,false,CancellationToken.None,true,true,Point.Empty,96,null))
@@ -428,7 +445,7 @@ namespace KavrosClueHelper
         watch.Stop();
         File.AppendAllText(report,"tracked clue, slider opens elsewhere: "+watch.ElapsedMilliseconds+" ms, first scale "+engine.LastFirstScale.ToString("0.00")+"\r\n");
         Check(opened.Plan!=null&&opened.Plan.Puzzle.Kind==PuzzleKind.Sliding,"a puzzle opening elsewhere replaces the tracked clue");
-        Check(Math.Abs(engine.LastFirstScale-1F)<0.02F,"that search starts at scale 1.0");
+        Check(Math.Abs(engine.LastFirstScale-expect)<0.02F,"that search starts at the 1440p scale");
        }
       }
      }

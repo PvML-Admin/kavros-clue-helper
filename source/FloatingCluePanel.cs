@@ -16,6 +16,9 @@ namespace KavrosClueHelper
         public bool WholeRowClicks=true;
         public bool CheckForUpdates = true;
         public bool BlurPreview;
+        public bool LegacyInterface;
+        public int Resolution, Scaling;
+        public int ResolutionManual=1080, ScalingManual=100;
         public Point Offset=new Point(12,72);
         public readonly List<CompassPosition> SavedPositions=new List<CompassPosition>();
         private readonly string path;
@@ -34,6 +37,11 @@ namespace KavrosClueHelper
                     if(p.Length==2&&p[0]=="whole-row-clicks")WholeRowClicks=true;
                     if(p.Length==2&&p[0]=="check-updates"&&Boolean.TryParse(p[1],out b))CheckForUpdates=b;
                     if(p.Length==2&&p[0]=="blur-preview"&&Boolean.TryParse(p[1],out b))BlurPreview=b;
+                    if(p.Length==2&&p[0]=="interface")LegacyInterface=p[1]=="legacy";
+                    if(p.Length==2&&p[0]=="resolution")Resolution=ParseChoice(p[1],1080,1440,2160);
+                    if(p.Length==2&&p[0]=="scaling")Scaling=ParseChoice(p[1],100,125,150,200);
+                    if(p.Length==2&&p[0]=="resolution-manual")ResolutionManual=ParseChoice(p[1],1080,1440,2160)==0?1080:ParseChoice(p[1],1080,1440,2160);
+                    if(p.Length==2&&p[0]=="scaling-manual")ScalingManual=ParseChoice(p[1],100,125,150,200)==0?100:ParseChoice(p[1],100,125,150,200);
                     if(p.Length==3&&p[0]=="offset"&&Int32.TryParse(p[1],out x)&&Int32.TryParse(p[2],out y))Offset=new Point(x,y);
                     if(p.Length==5&&p[0]=="spot"&&Int32.TryParse(p[2],out x)&&Int32.TryParse(p[3],out y))
                     {
@@ -45,6 +53,13 @@ namespace KavrosClueHelper
             }
             catch(IOException){}catch(UnauthorizedAccessException){}catch(UriFormatException){}
         }
+        private static int ParseChoice(string text, params int[] allowed)
+        {
+            int value;
+            if (!int.TryParse(text, out value)) return 0;
+            for (int i = 0; i < allowed.Length; i++) if (allowed[i] == value) return value;
+            return 0;
+        }
         public void Save()
         {
             try
@@ -55,6 +70,11 @@ namespace KavrosClueHelper
                 lines.Add("whole-row-clicks\t"+WholeRowClicks);
                 lines.Add("check-updates\t"+CheckForUpdates);
                 lines.Add("blur-preview\t"+BlurPreview);
+                lines.Add("interface\t"+(LegacyInterface?"legacy":"modern"));
+                lines.Add("resolution\t"+(Resolution==0?"auto":Resolution.ToString()));
+                lines.Add("scaling\t"+(Scaling==0?"auto":Scaling.ToString()));
+                lines.Add("resolution-manual\t"+ResolutionManual);
+                lines.Add("scaling-manual\t"+ScalingManual);
                 lines.AddRange(SavedPositions.Select(p=>"spot\t"+Uri.EscapeDataString(p.Name)+"\t"+p.X+"\t"+p.Y+"\t"+p.Radius.ToString(CultureInfo.InvariantCulture)));
                 File.WriteAllLines(path,lines);
             }
