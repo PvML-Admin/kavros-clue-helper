@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.9.6
+
+The Meerkat and auto-follow checkboxes on the scan card are visible again. The guide ends above them, and a long route still wraps on the card. The buttons along the bottom stay clear.
+
+Settings shows **Made by Zenity  ·  v0.9.6**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.9.5
 
 Elite dungeon scans lock your position on the minimap. The wall lines on those maps are white, the same way Prifddinas already was. The pictures on the clue card are unchanged. The right-click line stays hidden while auto-follow is on.

@@ -1,5 +1,11 @@
 # Kavros Clue Helper
 
+## 0.9.6
+
+**Scan clues**
+- The Meerkat and auto-follow checkboxes on the scan card are visible again. The guide ends above them, and a long route still wraps on the card.
+- The buttons along the bottom stay clear of the guide.
+
 ## 0.9.5
 
 **Scan clues**
