@@ -313,7 +313,7 @@ namespace KavrosClueHelper
             settings.SetBounds(298,4,65,24);
             collapse.Text=prefs.Collapsed?"+":"-";collapse.SetBounds(369,4,25,24);Style(collapse);Controls.Add(collapse);collapse.Click+=delegate{prefs.Collapsed=!prefs.Collapsed;collapse.Text=prefs.Collapsed?"+":"-";prefs.Save();LayoutMode();};
             summary.BackColor=BackColor;heading.BackColor=BackColor;originStatus.BackColor=BackColor;
-            summary.SetBounds(10,38,380,56);summary.ForeColor=KavrosTheme.Ok;Controls.Add(summary);
+            summary.AutoSize=false;summary.SetBounds(10,38,380,56);summary.ForeColor=KavrosTheme.Ok;Controls.Add(summary);
             heading.SetBounds(10,38,380,23);heading.ForeColor=KavrosTheme.Ice;Controls.Add(heading);
             map=new CompassMap(directory);map.SetBounds(10,66,380,260);map.PositionPicked+=delegate(PointF p){selectingOrigin=true;positions.SelectedIndex=-1;positions.Text="Custom position";x.Value=Clamp((decimal)Math.Round(p.X),x);y.Value=Clamp((decimal)Math.Round(p.Y),y);selectingOrigin=false;originSelected=true;RefreshCompass(false);};map.LodestonePicked+=SelectOrigin;Controls.Add(map);
             master.SetBounds(6,36,388,397);Controls.Add(master);
@@ -486,10 +486,14 @@ namespace KavrosClueHelper
             record.Enabled=originSelected&&session.CanRecord(SelectedPosition(),DateTime.UtcNow);
             if(mode==PuzzleKind.Compass)map.SetSession(session,fit);
         }
+        public static Rectangle ScanGuideBounds(){return new Rectangle(10,330,380,248);}
+        public static Rectangle ScanControlBounds(int height){Rectangle guide=ScanGuideBounds();return new Rectangle(guide.Left,guide.Bottom+4,guide.Width,height);}
+        public static int ScanFooterTop(int controlsHeight){Rectangle controls=ScanControlBounds(controlsHeight);return controls.Bottom+2;}
         private void LayoutMode()
         {
             bool compass=mode==PuzzleKind.Compass,scan=mode==PuzzleKind.Scan,emote=mode==PuzzleKind.EmoteClue,sliding=mode==PuzzleKind.Sliding,expanded=!prefs.Collapsed;
-            int bottom=compass?518:scan?514:emote?442:sliding?292:102;
+            Rectangle scanGuide=ScanGuideBounds(),scanControlsBox=ScanControlBounds(scanControls.Height);
+            int bottom=compass?518:scan?ScanFooterTop(scanControls.Height):emote?442:sliding?292:102;
             int bannerSpace=bannerShown?BannerHeight:0;
             Size wanted=new Size(400,(prefs.Collapsed?32:bottom+38)+bannerSpace);
             bool changed=layoutKind!=mode||layoutCollapsed!=prefs.Collapsed||layoutBanner!=bannerShown||ClientSize!=wanted;
@@ -504,7 +508,9 @@ namespace KavrosClueHelper
                 master.Visible=expanded&&emote;sliderGuide.Visible=expanded&&sliding;map.Visible=compassControls.Visible=expanded&&compass;
                 scanMap.Visible=scanControls.Visible=expanded&&scan;heading.Visible=expanded&&(compass||scan);
                 summary.Visible=expanded&&!emote;footer.Visible=expanded;
-                summary.Top=compass||scan?330:38;summary.Height=scan?176:56;footer.Top=bottom;footer.BringToFront();
+                summary.Top=compass||scan?scanGuide.Top:38;summary.Height=scan?scanGuide.Height:56;
+                if(scan){scanControls.SetBounds(scanControlsBox.X,scanControlsBox.Y,scanControlsBox.Width,scanControlsBox.Height);scanControls.BringToFront();}
+                footer.Top=bottom;footer.BringToFront();
                 if(banner!=null){banner.SetBounds(1,wanted.Height-BannerHeight-1,wanted.Width-2,BannerHeight);banner.Visible=bannerShown;if(bannerShown)banner.BringToFront();}
                 layoutKind=mode;layoutCollapsed=prefs.Collapsed;layoutBanner=bannerShown;
             }
