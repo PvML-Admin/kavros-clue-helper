@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.9.9
+
+Celtic Knot puzzles are found on the angled window. This works on Modern and DarkScape, without the old full-width title bar. Sand behind the window is not treated as the puzzle.
+
+Settings shows **Made by Zenity  ·  v0.9.9**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.9.8
 
 Towers puzzles are detected during live play again. Each look checks the Towers board before the other puzzle searches, so a full-size client no longer skips it.

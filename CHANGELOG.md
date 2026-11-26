@@ -1,5 +1,10 @@
 # Kavros Clue Helper
 
+## 0.9.9
+
+**Puzzles**
+- Celtic Knot puzzles are found on the angled window. This works on Modern and DarkScape, without the old full-width title bar. Sand behind the window is not treated as the puzzle.
+
 ## 0.9.8
 
 **Puzzles**
