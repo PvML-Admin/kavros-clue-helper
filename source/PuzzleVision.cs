@@ -135,6 +135,26 @@ namespace KavrosClueHelper
             int b = data[i], g = data[i + 1], r = data[i + 2];
             return r >= 138 && r <= 190 && g >= 125 && g <= 175 && b >= 68 && b <= 115 && r > g && g > b && r - g >= 6 && r - g <= 32 && r - b >= 40 && r - b <= 95;
         }
+        public bool KnotDark(int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= Width || y >= Height) return false;
+            int i = (y * Width + x) * 4;
+            int b = data[i], g = data[i + 1], r = data[i + 2];
+            int high = r > g ? r : g;
+            if (b > high) high = b;
+            return high < 80;
+        }
+        public bool KnotInk(int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= Width || y >= Height || KnotPaper(x, y)) return false;
+            int i = (y * Width + x) * 4;
+            int b = data[i], g = data[i + 1], r = data[i + 2];
+            int high = r > g ? r : g;
+            if (b > high) high = b;
+            int low = r < g ? r : g;
+            if (b < low) low = b;
+            return high - low >= 18 && high >= 40;
+        }
         public int Error(int x, int y, Color b)
         {
             if (x < 0 || y < 0 || x >= Width || y >= Height) return 765;
@@ -1176,6 +1196,8 @@ namespace KavrosClueHelper
                 Pixels ink=pixels??new Pixels(screenshot);
                 return LockboxSurface(ink, previous.Grid.Location, previous.Scale)?previous:null;
             }
+            if (previous.Kind == PuzzleKind.Knot)
+                return ReadLockedKnot(screenshot, previous);
             return ReadModal(screenshot, previous.Bounds, previous.Scale);
         }
         public bool KnotFrameVisible(Bitmap image,DetectedPuzzle previous)
@@ -1349,16 +1371,6 @@ namespace KavrosClueHelper
                 return new DetectedPuzzle{Kind=PuzzleKind.Towers,Bounds=area,Grid=previous.Grid,Scale=previous.Scale,Towers=previous.Towers,TowerSolutions=previous.TowerSolutions,Confidence=previous.Confidence};
             }
         }
-        private static bool KnotParchment(Color c)
-        {
-            return c.R >= 138 && c.R <= 190 && c.G >= 125 && c.G <= 175 && c.B >= 68 && c.B <= 115 && c.R > c.G && c.G > c.B && c.R - c.G >= 6 && c.R - c.G <= 32 && c.R - c.B >= 40 && c.R - c.B <= 95;
-        }
-        private static bool KnotFrame(Color c)
-        {
-            int high = c.R > c.G ? c.R : c.G;
-            if (c.B > high) high = c.B;
-            return high < 80;
-        }
         private static bool KnotSpan(Pixels pixels, int left, int right, int y)
         {
             if (y < 0 || y >= pixels.Height || right <= left) return false;
@@ -1366,7 +1378,7 @@ namespace KavrosClueHelper
             for (int x = left; x <= right; x += 8)
             {
                 n++;
-                if (KnotParchment(pixels.Get(x, y))) hits++;
+                if (pixels.KnotPaper(x, y)) hits++;
             }
             return n > 0 && hits * 10 >= n * 3;
         }
@@ -1377,30 +1389,16 @@ namespace KavrosClueHelper
             {
                 int x = left + (right - left) * i / 6;
                 int y = top + (bottom - top) * i / 6;
-                if (BorderDark(pixels, x, top - 3)) dark++;
+                if (pixels.KnotDark(x, top - 3)) dark++;
                 n++;
-                if (BorderDark(pixels, x, bottom + 3)) dark++;
+                if (pixels.KnotDark(x, bottom + 3)) dark++;
                 n++;
-                if (BorderDark(pixels, left - 3, y)) dark++;
+                if (pixels.KnotDark(left - 3, y)) dark++;
                 n++;
-                if (BorderDark(pixels, right + 3, y)) dark++;
+                if (pixels.KnotDark(right + 3, y)) dark++;
                 n++;
             }
             return n > 0 && dark * 3 >= n * 2;
-        }
-        private static bool BorderDark(Pixels pixels, int x, int y)
-        {
-            if (x < 0 || y < 0 || x >= pixels.Width || y >= pixels.Height) return false;
-            return KnotFrame(pixels.Get(x, y));
-        }
-        private static bool KnotInk(Color c)
-        {
-            if (KnotParchment(c)) return false;
-            int high = c.R > c.G ? c.R : c.G;
-            if (c.B > high) high = c.B;
-            int low = c.R < c.G ? c.R : c.G;
-            if (c.B < low) low = c.B;
-            return high - low >= 18 && high >= 40;
         }
         private static bool KnotCentre(Pixels pixels, Rectangle body)
         {
@@ -1410,10 +1408,22 @@ namespace KavrosClueHelper
             for (int y = y0; y < y1; y += 6) for (int x = x0; x < x1; x += 6)
             {
                 n++;
-                if (KnotInk(pixels.Get(x, y))) ink++;
+                if (pixels.KnotInk(x, y)) ink++;
             }
             // Blank parchment has no coloured tracks. A knot's diamond does.
             return n > 0 && ink * 25 >= n;
+        }
+        // The sampled end of a run can sit a few pixels inside the parchment.
+        // Walk out to the first non-paper pixel. A real knot has its dark frame there.
+        private static bool KnotEdgeDark(Pixels pixels, int edge, int direction, int y)
+        {
+            for (int i = 1; i <= 16; i++)
+            {
+                int x = edge + direction * i;
+                if (pixels.KnotPaper(x, y)) continue;
+                return pixels.KnotDark(x, y);
+            }
+            return false;
         }
         internal DetectedPuzzle FindKnotBoard(Bitmap image, Pixels pixels, int budgetMs)
         {
@@ -1423,22 +1433,27 @@ namespace KavrosClueHelper
             int yStart = knotScanY;
             if (yStart < 24 || yStart >= pixels.Height - 80) yStart = 24;
             int reads = 0, rows = 0;
-            for (int y = yStart; y < pixels.Height - 60; y += 8)
+            // The parchment is hundreds of pixels tall, so a coarse row step
+            // still lands inside it. Unframed tan runs are skipped before any
+            // rune read, so sand cannot eat the slice.
+            for (int y = yStart; y < pixels.Height - 60; y += 12)
             {
-                if ((++rows & 7) == 0)
+                if ((++rows & 3) == 0)
                 {
                     SearchCancellation.Check();
                     if (clock.ElapsedMilliseconds >= budgetMs) { knotScanY = y; return null; }
                 }
                 int runStart = -1, runLast = -1;
-                for (int x = 8; x < pixels.Width; x += 4)
+                for (int x = 8; x < pixels.Width; x += 8)
                 {
                     bool on = pixels.KnotPaper(x, y);
                     if (on) { if (runStart < 0) runStart = x; runLast = x; }
-                    if (runStart >= 0 && ((!on && x - runLast > 20) || x >= pixels.Width - 4))
+                    if (runStart >= 0 && ((!on && x - runLast > 16) || x >= pixels.Width - 8))
                     {
+                        while (runStart > 1 && pixels.KnotPaper(runStart - 1, y)) runStart--;
+                        while (runLast < pixels.Width - 2 && pixels.KnotPaper(runLast + 1, y)) runLast++;
                         int length = runLast - runStart + 1;
-                        if (length >= 240 && length <= 1600)
+                        if (length >= 240 && length <= 1600 && KnotEdgeDark(pixels, runStart, -1, y) && KnotEdgeDark(pixels, runLast, 1, y))
                         {
                             bool tried;
                             DetectedPuzzle found = ReadKnotSpan(image, pixels, runStart, runLast, y, seen, out tried);
@@ -1452,6 +1467,18 @@ namespace KavrosClueHelper
             }
             knotScanY = 24;
             return null;
+        }
+        private DetectedPuzzle ReadLockedKnot(Bitmap image, DetectedPuzzle previous)
+        {
+            if (previous == null) return null;
+            Rectangle body = previous.Bounds;
+            DetectedPuzzle read = ReadKnotBody(image, body);
+            if (read != null) return read;
+            // A few pixels of movement stay inside this crop. This is not a
+            // search of the rest of the client.
+            Rectangle slack = Rectangle.Intersect(Rectangle.Inflate(body, 16, 16), new Rectangle(Point.Empty, image.Size));
+            if (slack.Width < 240 || slack.Height < 150 || slack == body) return null;
+            return ReadKnotBody(image, slack);
         }
         private DetectedPuzzle ReadKnotSpan(Bitmap image, Pixels pixels, int runStart, int runLast, int y, List<Rectangle> seen, out bool tried)
         {
@@ -1475,12 +1502,17 @@ namespace KavrosClueHelper
             if (!KnotCentre(pixels, body)) return null;
             seen.Add(body);
             tried = true;
+            return ReadKnotBody(image, body);
+        }
+        private DetectedPuzzle ReadKnotBody(Bitmap image, Rectangle body)
+        {
+            if (body.Width < 240 || body.Height < 150 || !new Rectangle(Point.Empty, image.Size).Contains(body)) return null;
             float scale = 1F;
             Size size = body.Size;
-            if (width < 420 || width > 620)
+            if (body.Width < 420 || body.Width > 620)
             {
-                scale = width / 494F;
-                size = new Size(494, Math.Max(180, (int)Math.Round(height / scale)));
+                scale = body.Width / 494F;
+                size = new Size(494, Math.Max(180, (int)Math.Round(body.Height / scale)));
             }
             using (Bitmap crop = Pixels.Crop(image, body, size))
             {

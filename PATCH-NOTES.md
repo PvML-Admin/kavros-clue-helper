@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.9.10
+
+Celtic Knot guidance appears on the first clean look, including when it asks you to turn one ring. The click counts update as soon as a ring settles, and a knot that is already open is re-read from that window.
+
+Settings shows **Made by Zenity  ·  v0.9.10**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.9.9
 
 Celtic Knot puzzles are found on the angled window. This works on Modern and DarkScape, without the old full-width title bar. Sand behind the window is not treated as the puzzle.

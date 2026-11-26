@@ -74,8 +74,11 @@ namespace KavrosClueHelper
                 DetectedPuzzle flicker=rotated(0);flicker.Knot.Lanes[0][0]=new RuneValue(flicker.Knot.Lanes[0][0].Id,!flicker.Knot.Lanes[0][0].IsNot);flicker.Knot.Reliable=true;
                 Check(!sureTracker.Observe(flicker,knotTime.AddMilliseconds(40),true),"a match-marker flicker does not hide the counts");
                 DetectedPuzzle turned=rotated(1);turned.Knot.Reliable=true;
-                Check(sureTracker.Observe(turned,knotTime.AddMilliseconds(80),true),"a confident turn still waits until the ring stops");
-                Check(!sureTracker.Observe(turned,knotTime.AddMilliseconds(120),true),"the same stopped ring then shows its counts");
+                Check(!sureTracker.Observe(turned,knotTime.AddMilliseconds(80),true),"a reliable turn updates the count on the first frame");
+                Check(!sureTracker.Observe(turned,knotTime.AddMilliseconds(120),true),"the stopped ring keeps that count");
+                DetectedPuzzle blur=rotated(2);
+                Check(sureTracker.Observe(blur,knotTime.AddMilliseconds(160),true),"an unreliable mid-spin frame waits");
+                Check(!sureTracker.Observe(blur,knotTime.AddMilliseconds(200),true),"the same mid-spin frame shows counts once it repeats");
                 foreach(int offset in new[]{3,7,2,6})Check(knotTracker.Observe(rotated(offset),knotTime.AddMilliseconds(140+offset),true),"rapid multi-rotation knot updates defer stale guidance");
                 knotTracker.Missing(knotTime.AddMilliseconds(300));Check(knotTracker.History!=null,"brief animation miss retains settled rune memory");
                 Check(knotTracker.Observe(rotated(5),knotTime.AddMilliseconds(400),true),"recovered knot requires fresh confirmation");

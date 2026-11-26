@@ -1,5 +1,11 @@
 # Kavros Clue Helper
 
+## 0.9.10
+
+**Puzzles**
+- Celtic Knot guidance appears on the first clean look, including when it asks you to turn one ring.
+- The click counts update as soon as a ring settles, and a knot that is already open is re-read from that window.
+
 ## 0.9.9
 
 **Puzzles**
