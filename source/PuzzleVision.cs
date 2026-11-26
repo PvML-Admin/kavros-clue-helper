@@ -876,6 +876,13 @@ namespace KavrosClueHelper
                 }
                 return null;
             }
+            // Towers is a short resumable slice at the front of the live frame.
+            // The scale search and the lockbox search were using the whole
+            // 180 ms, so this scan never started. The slice stays capped, and
+            // the 180 ms budget for those other searches starts after it.
+            const int towerSlice=40;
+            DetectedPuzzle tower=FindTowerGrid(screenshot,pixels,towerSlice,false);
+            if(tower!=null) return tower;
             var timer=System.Diagnostics.Stopwatch.StartNew();
             const int budget=180;
             if(allowBroadSearch)
@@ -901,11 +908,6 @@ namespace KavrosClueHelper
             {
                 DetectedPuzzle lockbox=FindLockboxGrid(screenshot,pixels,order,budget-(int)timer.ElapsedMilliseconds,false);
                 if(lockbox!=null) return lockbox;
-            }
-            if(timer.ElapsedMilliseconds<budget)
-            {
-                DetectedPuzzle tower=FindTowerGrid(screenshot,pixels,budget-(int)timer.ElapsedMilliseconds,false);
-                if(tower!=null) return tower;
             }
             return null;
         }

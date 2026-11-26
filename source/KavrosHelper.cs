@@ -30,6 +30,7 @@ namespace KavrosClueHelper
                 if(args.Length>1&&args[0]=="--window-test")return WindowRegressionTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--legacy-test")return LegacyInterfaceTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--darkscape-test")return DarkscapeTowersTests.Run(args[1]);
+                if(args.Length>1&&args[0]=="--tower-poll-test")return TowerPollingTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--knot-test")return KnotSpeedTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--steady-test")return SteadyTrackingTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--reliability-test")return ReliabilityRegressionTests.Run(args[1]);
@@ -72,6 +73,8 @@ namespace KavrosClueHelper
                     if(maps!=0) return maps;
                     int analysis=AnalysisRegressionTests.Run(report);
                     if(analysis!=0) return analysis;
+                    int towerPoll=TowerPollingTests.Run(report);
+                    if(towerPoll!=0) return towerPoll;
                     int overlay=OverlayRegressionTests.Run(report);
                     if(overlay!=0) return overlay;
                     int countdown=CountdownRegressionTests.Run(report);
