@@ -1,5 +1,10 @@
 # Kavros Clue Helper
 
+## 0.9.8
+
+**Puzzles**
+- Towers puzzles are detected during live play again. Each look checks the Towers board before the other puzzle searches, so a full-size client no longer skips it.
+
 ## 0.9.7
 
 **Puzzles**

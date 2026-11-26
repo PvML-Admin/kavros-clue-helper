@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.9.8
+
+Towers puzzles are detected during live play again. Each look checks the Towers board before the other puzzle searches, so a full-size client no longer skips it.
+
+Settings shows **Made by Zenity  ·  v0.9.8**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.9.7
 
 Towers puzzles on the DarkScape skin are detected again. The dark brown cells count as the board, and the clue numbers are read.
