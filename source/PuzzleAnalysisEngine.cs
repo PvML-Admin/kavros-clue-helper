@@ -374,8 +374,8 @@ namespace KavrosClueHelper
                 {
                     // A click changes the board for good; a misread lasts one
                     // frame. Show the new board only once it is read twice.
-                    // A confident knot is not held here. Its own tracker shows
-                    // the first still reading and waits only while a ring is turning.
+                    // A clean knot is not held here. Its tracker shows that
+                    // frame at once and waits only while the ring is blurred.
                     if(!boardChange.Accept(last.Key,puzzle.Key)){boardHold.Seen();return Held(timer.ElapsedMilliseconds);}
                 }
                 else boardChange.Reset();

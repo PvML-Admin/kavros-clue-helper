@@ -848,6 +848,7 @@ namespace KavrosClueHelper
                 if(diagnosticCapture!=null) { diagnosticCapture.Dispose(); diagnosticCapture=null; }
                 diagnosticCapture=result.DiagnosticImage; result.DiagnosticImage=null;
                 int wait=result.Plan==null?75:125;
+                if(result.Plan!=null&&result.Plan.Puzzle!=null&&result.Plan.Puzzle.Kind==PuzzleKind.Knot)wait=40;
                 if(result.Plan==null && current==null && lastLocated==null) wait=0;
                 nextRead=job.CapturedAt.AddMilliseconds(wait);
                 captureDetails += "; last analysis "+result.Milliseconds+" ms"+(result.Unchanged?"; cached":"");
@@ -871,7 +872,7 @@ namespace KavrosClueHelper
                 if(result.Pending&&current!=null&&current.Kind==PuzzleKind.Knot)
                 {
                     // A missed frame is not a turn. Keep the counts that are already up.
-                    status.Text="Reading the knot again.";nextRead=DateTime.UtcNow.AddMilliseconds(75);ShowGuidance();return;
+                    status.Text="Reading the knot again.";nextRead=DateTime.UtcNow.AddMilliseconds(40);ShowGuidance();return;
                 }
                 if(!job.Offline&&result.Plan==null&&result.TowerGrid.HasValue)
                 {
