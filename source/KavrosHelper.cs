@@ -29,6 +29,7 @@ namespace KavrosClueHelper
                 if(args.Length>1&&args[0]=="--follow-test")return FollowRegressionTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--window-test")return WindowRegressionTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--legacy-test")return LegacyInterfaceTests.Run(args[1]);
+                if(args.Length>1&&args[0]=="--darkscape-test")return DarkscapeTowersTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--knot-test")return KnotSpeedTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--steady-test")return SteadyTrackingTests.Run(args[1]);
                 if(args.Length>1&&args[0]=="--reliability-test")return ReliabilityRegressionTests.Run(args[1]);
@@ -82,7 +83,9 @@ namespace KavrosClueHelper
                     int robust=RobustnessRegressionTests.Run(report);
                     if(robust!=0)return robust;
                     int discovery=DiscoveryRegressionTests.Run(report);
-                    return discovery==0?CompassRegressionTests.Run(report):discovery;
+                    if(discovery!=0)return discovery;
+                    int darkscape=DarkscapeTowersTests.Run(report);
+                    return darkscape==0?CompassRegressionTests.Run(report):darkscape;
                 }
                 if (args.Length > 1 && args[0] == "--render-ui")
                 {

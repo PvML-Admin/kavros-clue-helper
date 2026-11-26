@@ -1,3 +1,9 @@
+# Kavros Clue Helper v0.9.7
+
+Towers puzzles on the DarkScape skin are detected again. The dark brown cells count as the board, and the clue numbers are read.
+
+Settings shows **Made by Zenity  ·  v0.9.7**. The full notes are in CHANGELOG.md.
+
 # Kavros Clue Helper v0.9.6
 
 The Meerkat and auto-follow checkboxes on the scan card are visible again. The guide ends above them, and a long route still wraps on the card. The buttons along the bottom stay clear.

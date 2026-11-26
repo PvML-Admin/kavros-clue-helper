@@ -1,5 +1,10 @@
 # Kavros Clue Helper
 
+## 0.9.7
+
+**Puzzles**
+- Towers puzzles on the DarkScape skin are detected again. The dark brown cells count as the board, and the clue numbers are read.
+
 ## 0.9.6
 
 **Scan clues**
