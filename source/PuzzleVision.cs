@@ -139,14 +139,17 @@ namespace KavrosClueHelper
             // Modern cells are dark slate, with blue at least as strong as red.
             if (c.R < 80 && c.G < 100 && c.B < 110 && c.G >= c.R && c.B >= c.R) return true;
             // Legacy cells are dark brown stone. Red leads and blue stays behind it.
-            return c.R >= 45 && c.R <= 100 && c.G >= 35 && c.G <= 90 && c.B >= 18 && c.B <= 75 && c.R >= c.G - 4 && c.G + 8 >= c.B && c.R - c.B >= 12 && c.R - c.B <= 45;
+            if (c.R >= 45 && c.R <= 100 && c.G >= 35 && c.G <= 90 && c.B >= 18 && c.B <= 75 && c.R >= c.G - 4 && c.G + 8 >= c.B && c.R - c.B >= 12 && c.R - c.B <= 45) return true;
+            // DarkScape cells are a near-black warm brown, around RGB(26, 15, 9).
+            return c.R >= 10 && c.R <= 50 && c.G >= 5 && c.G <= 40 && c.B <= 30 && c.R > c.G && c.G >= c.B && c.R - c.B >= 8;
         }
         public bool GridPixel(int x, int y)
         {
             if (x < 0 || y < 0 || x >= Width || y >= Height) return false;
             int i = (y * Width + x) * 4, b = data[i], g = data[i+1], r = data[i+2];
             int low = Math.Min(r, Math.Min(g,b)), high = Math.Max(r, Math.Max(g,b));
-            return low >= 110 && high - low <= 75;
+            // DarkScape's top border is a little dimmer than the other grid lines.
+            return low >= 100 && high - low <= 75;
         }
         public ulong Hash(Rectangle region) { return Hash(region, null); }
         public ulong Hash(Rectangle region, GuideInk ink)
@@ -1279,7 +1282,8 @@ namespace KavrosClueHelper
                 }
                 if(dark<85) return null;
                 TowerPuzzle puzzle = new TowerPuzzle { Top = new int[5], Bottom = new int[5], Left = new int[5], Right = new int[5] };
-                double minimum=scale<0.72F ? 0.52 : 0.68;
+                // A thin DarkScape clue at a full-size client scores just under 0.68.
+                double minimum=scale<0.72F ? 0.52 : 0.62;
                 for (int i = 0; i < 5; i++)
                 {
                     int centre = 35 + i * 44 + 21;
