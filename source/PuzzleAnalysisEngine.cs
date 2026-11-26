@@ -233,19 +233,33 @@ namespace KavrosClueHelper
                 }
                 if (puzzle == null && !trackingBoard)
                 {
+                    // The knot has no full-width title bar, so a scroll-shaped
+                    // parchment must not hide it. The slice stays capped.
+                    DetectedPuzzle knotFirst=detector.FindKnotBoard(image,pixels,45);
+                    if(knotFirst!=null)puzzle=knotFirst;
+                }
+                if (puzzle == null && !trackingBoard)
+                {
                     DetectedPuzzle scroll=detector.TryScroll(image,pixels);
                     if(scroll!=null)puzzle=scroll;
                     else if(detector.LastScrollFast)
                     {
-                        // The frame is a scroll, but the sheet was not read.
-                        // Maps and the other clue readers still run. The board
-                        // search stays skipped, so sand behind a real scroll
-                        // is not walked as a puzzle.
-                        puzzle=detector.DetectClues(image,pixels,detector.LastScrollBounds);
-                        if(puzzle==null&&cached!=null&&last!=null&&last.Kind==PuzzleKind.EmoteClue)
-                            return new AnalysisResult{Plan=cached,Unchanged=true,Milliseconds=timer.ElapsedMilliseconds};
-                        if(puzzle==null)
-                            return new AnalysisResult{Preview=MakePreview(image,new Rectangle(Point.Empty,image.Size)),Milliseconds=timer.ElapsedMilliseconds};
+                        // A knot's parchment can look like a scroll. Read it
+                        // before this look gives up on boards.
+                        DetectedPuzzle knot=detector.FindKnotBoard(image,pixels,45);
+                        if(knot!=null)puzzle=knot;
+                        else
+                        {
+                            // The frame is a scroll, but the sheet was not read.
+                            // Maps and the other clue readers still run. The board
+                            // search stays skipped, so sand behind a real scroll
+                            // is not walked as a puzzle.
+                            puzzle=detector.DetectClues(image,pixels,detector.LastScrollBounds);
+                            if(puzzle==null&&cached!=null&&last!=null&&last.Kind==PuzzleKind.EmoteClue)
+                                return new AnalysisResult{Plan=cached,Unchanged=true,Milliseconds=timer.ElapsedMilliseconds};
+                            if(puzzle==null)
+                                return new AnalysisResult{Preview=MakePreview(image,new Rectangle(Point.Empty,image.Size)),Milliseconds=timer.ElapsedMilliseconds};
+                        }
                     }
                     else if(hashUnchanged && cached!=null && last!=null && (last.Kind==PuzzleKind.Scan || last.Kind==PuzzleKind.Compass))
                     {

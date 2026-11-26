@@ -128,6 +128,13 @@ namespace KavrosClueHelper
             int i = (y * Width + x) * 4;
             return Color.FromArgb(data[i + 3], data[i + 2], data[i + 1], data[i]);
         }
+        public bool KnotPaper(int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= Width || y >= Height) return false;
+            int i = (y * Width + x) * 4;
+            int b = data[i], g = data[i + 1], r = data[i + 2];
+            return r >= 138 && r <= 190 && g >= 125 && g <= 175 && b >= 68 && b <= 115 && r > g && g > b && r - g >= 6 && r - g <= 32 && r - b >= 40 && r - b <= 95;
+        }
         public int Error(int x, int y, Color b)
         {
             if (x < 0 || y < 0 || x >= Width || y >= Height) return 765;
@@ -868,6 +875,8 @@ namespace KavrosClueHelper
                 DetectedPuzzle lockbox=FindLockboxGrid(screenshot,pixels,order,int.MaxValue,true);
                 if(lockbox!=null) return lockbox;
                 if(!allowBroadSearch) return null;
+                DetectedPuzzle knot=FindKnotBoard(screenshot,pixels,80);
+                if(knot!=null) return knot;
                 BroadSearches++;
                 foreach(float scale in order)
                 {
@@ -883,6 +892,11 @@ namespace KavrosClueHelper
             const int towerSlice=40;
             DetectedPuzzle tower=FindTowerGrid(screenshot,pixels,towerSlice,false);
             if(tower!=null) return tower;
+            // The knot window has no full-width title bar, so it is not part of
+            // the scale search. A short slice keeps it from eating the budget
+            // Towers, Lockbox and the sliders still use.
+            DetectedPuzzle liveKnot=FindKnotBoard(screenshot,pixels,45);
+            if(liveKnot!=null) return liveKnot;
             var timer=System.Diagnostics.Stopwatch.StartNew();
             const int budget=180;
             if(allowBroadSearch)
@@ -978,9 +992,10 @@ namespace KavrosClueHelper
         }
         private int nextSearchScale;
         private int towerScanY = 25;
+        private int knotScanY = 24;
         private int lockScaleCursor;
         private int heavyGate;
-        public void ResetSearch() { nextSearchScale=0; towerScanY=25; lockScaleCursor=0; triedScales.Clear(); heavyGate=0; }
+        public void ResetSearch() { nextSearchScale=0; towerScanY=25; knotScanY=24; lockScaleCursor=0; triedScales.Clear(); heavyGate=0; }
         // The chosen resolution and scaling pick the first template. The other
         // scales stay in the order, so a near miss is still readable.
         public float ExpectedScale(int pixelHeight)
@@ -1165,8 +1180,10 @@ namespace KavrosClueHelper
         }
         public bool KnotFrameVisible(Bitmap image,DetectedPuzzle previous)
         {
-            if(previous==null||previous.Kind!=PuzzleKind.Knot||!oldFrames.ContainsKey(previous.Scale))return false;
+            if(previous==null||previous.Kind!=PuzzleKind.Knot)return false;
             Pixels pixels=new Pixels(image);Rectangle body=previous.Bounds;
+            if(body.Width>=240&&body.Height>=150&&KnotBorder(pixels,body.Left,body.Top,body.Right-1,body.Bottom-1)&&KnotSpan(pixels,body.Left,body.Right-1,(body.Top+body.Bottom)/2))return true;
+            if(!oldFrames.ContainsKey(previous.Scale))return false;
             Rectangle header=Rectangle.Intersect(new Rectangle(body.Left-20,body.Top-40,body.Width+45,48),new Rectangle(Point.Empty,image.Size));
             if(legacyInterface)return oldFrames[previous.Scale].Any(f=>f.Close.Find(pixels,header,1,35).Count>0);
             return patterns[previous.Scale][1].Find(pixels,header,1,35).Count>0;
@@ -1330,6 +1347,147 @@ namespace KavrosClueHelper
                 }
                 if(dark<8)return null;
                 return new DetectedPuzzle{Kind=PuzzleKind.Towers,Bounds=area,Grid=previous.Grid,Scale=previous.Scale,Towers=previous.Towers,TowerSolutions=previous.TowerSolutions,Confidence=previous.Confidence};
+            }
+        }
+        private static bool KnotParchment(Color c)
+        {
+            return c.R >= 138 && c.R <= 190 && c.G >= 125 && c.G <= 175 && c.B >= 68 && c.B <= 115 && c.R > c.G && c.G > c.B && c.R - c.G >= 6 && c.R - c.G <= 32 && c.R - c.B >= 40 && c.R - c.B <= 95;
+        }
+        private static bool KnotFrame(Color c)
+        {
+            int high = c.R > c.G ? c.R : c.G;
+            if (c.B > high) high = c.B;
+            return high < 80;
+        }
+        private static bool KnotSpan(Pixels pixels, int left, int right, int y)
+        {
+            if (y < 0 || y >= pixels.Height || right <= left) return false;
+            int hits = 0, n = 0;
+            for (int x = left; x <= right; x += 8)
+            {
+                n++;
+                if (KnotParchment(pixels.Get(x, y))) hits++;
+            }
+            return n > 0 && hits * 10 >= n * 3;
+        }
+        private static bool KnotBorder(Pixels pixels, int left, int top, int right, int bottom)
+        {
+            int dark = 0, n = 0;
+            for (int i = 1; i <= 5; i++)
+            {
+                int x = left + (right - left) * i / 6;
+                int y = top + (bottom - top) * i / 6;
+                if (BorderDark(pixels, x, top - 3)) dark++;
+                n++;
+                if (BorderDark(pixels, x, bottom + 3)) dark++;
+                n++;
+                if (BorderDark(pixels, left - 3, y)) dark++;
+                n++;
+                if (BorderDark(pixels, right + 3, y)) dark++;
+                n++;
+            }
+            return n > 0 && dark * 3 >= n * 2;
+        }
+        private static bool BorderDark(Pixels pixels, int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= pixels.Width || y >= pixels.Height) return false;
+            return KnotFrame(pixels.Get(x, y));
+        }
+        private static bool KnotInk(Color c)
+        {
+            if (KnotParchment(c)) return false;
+            int high = c.R > c.G ? c.R : c.G;
+            if (c.B > high) high = c.B;
+            int low = c.R < c.G ? c.R : c.G;
+            if (c.B < low) low = c.B;
+            return high - low >= 18 && high >= 40;
+        }
+        private static bool KnotCentre(Pixels pixels, Rectangle body)
+        {
+            int ink = 0, n = 0;
+            int x0 = body.Left + body.Width / 5, x1 = body.Right - body.Width / 5;
+            int y0 = body.Top + body.Height / 5, y1 = body.Bottom - body.Height / 5;
+            for (int y = y0; y < y1; y += 6) for (int x = x0; x < x1; x += 6)
+            {
+                n++;
+                if (KnotInk(pixels.Get(x, y))) ink++;
+            }
+            // Blank parchment has no coloured tracks. A knot's diamond does.
+            return n > 0 && ink * 25 >= n;
+        }
+        internal DetectedPuzzle FindKnotBoard(Bitmap image, Pixels pixels, int budgetMs)
+        {
+            if (image == null || pixels == null) return null;
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var seen = new List<Rectangle>();
+            int yStart = knotScanY;
+            if (yStart < 24 || yStart >= pixels.Height - 80) yStart = 24;
+            int reads = 0, rows = 0;
+            for (int y = yStart; y < pixels.Height - 60; y += 8)
+            {
+                if ((++rows & 7) == 0)
+                {
+                    SearchCancellation.Check();
+                    if (clock.ElapsedMilliseconds >= budgetMs) { knotScanY = y; return null; }
+                }
+                int runStart = -1, runLast = -1;
+                for (int x = 8; x < pixels.Width; x += 4)
+                {
+                    bool on = pixels.KnotPaper(x, y);
+                    if (on) { if (runStart < 0) runStart = x; runLast = x; }
+                    if (runStart >= 0 && ((!on && x - runLast > 20) || x >= pixels.Width - 4))
+                    {
+                        int length = runLast - runStart + 1;
+                        if (length >= 240 && length <= 1600)
+                        {
+                            bool tried;
+                            DetectedPuzzle found = ReadKnotSpan(image, pixels, runStart, runLast, y, seen, out tried);
+                            if (found != null) { knotScanY = 24; return found; }
+                            if (tried) reads++;
+                            if (reads >= 2 || clock.ElapsedMilliseconds >= budgetMs) { knotScanY = y; return null; }
+                        }
+                        runStart = -1;
+                    }
+                }
+            }
+            knotScanY = 24;
+            return null;
+        }
+        private DetectedPuzzle ReadKnotSpan(Bitmap image, Pixels pixels, int runStart, int runLast, int y, List<Rectangle> seen, out bool tried)
+        {
+            tried = false;
+            int top = y, bottom = y;
+            while (top > 8 && KnotSpan(pixels, runStart, runLast, top - 4)) top -= 4;
+            while (bottom < pixels.Height - 8 && KnotSpan(pixels, runStart, runLast, bottom + 4)) bottom += 4;
+            while (top > 1 && KnotSpan(pixels, runStart, runLast, top - 1)) top--;
+            while (bottom < pixels.Height - 2 && KnotSpan(pixels, runStart, runLast, bottom + 1)) bottom++;
+            int width = runLast - runStart + 1, height = bottom - top + 1;
+            if (width < 240 || height < 150) return null;
+            float aspect = width / (float)height;
+            if (aspect < 1.35F || aspect > 1.9F) return null;
+            Rectangle body = new Rectangle(runStart, top, width, height);
+            foreach (Rectangle prior in seen)
+            {
+                Rectangle hit = Rectangle.Intersect(prior, body);
+                if (hit.Width > 0 && hit.Height > 0 && hit.Width * hit.Height * 2 > body.Width * body.Height) return null;
+            }
+            if (!KnotBorder(pixels, body.Left, body.Top, body.Right - 1, body.Bottom - 1)) return null;
+            if (!KnotCentre(pixels, body)) return null;
+            seen.Add(body);
+            tried = true;
+            float scale = 1F;
+            Size size = body.Size;
+            if (width < 420 || width > 620)
+            {
+                scale = width / 494F;
+                size = new Size(494, Math.Max(180, (int)Math.Round(height / scale)));
+            }
+            using (Bitmap crop = Pixels.Crop(image, body, size))
+            {
+                if (crop == null) return null;
+                KnotPuzzle knot = knots.Read(crop);
+                if (knot == null) return null;
+                return new DetectedPuzzle { Kind = PuzzleKind.Knot, Bounds = body, Grid = body, Scale = scale, Knot = knot, Confidence = 0.9 };
             }
         }
         private DetectedPuzzle FindTowerGrid(Bitmap image, Pixels pixels, int budgetMs, bool complete)

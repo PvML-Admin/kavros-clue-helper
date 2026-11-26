@@ -144,6 +144,14 @@ namespace KavrosClueHelper
                     }
                 }
                 if (valid < 20) { LastError += "; valid tiles " + valid; return null; }
+                bool rs3 = false;
+                for (int y = 0; y < height && !rs3; y++) for (int x = 0; x < width; x++) if (grid[x, y] != null && grid[x, y].Intersection && RedRing(pixels, new Point(origin.X + x * 24, origin.Y + y * 24))) rs3 = true;
+                if (rs3) for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
+                {
+                    Tile cell = grid[x, y];
+                    if (cell == null || !cell.Intersection) continue;
+                    cell.Matches = !RedRing(pixels, new Point(origin.X + x * 24, origin.Y + y * 24));
+                }
                 List<Lane> lanes = new List<Lane>();
                 while (true)
                 {
@@ -183,7 +191,9 @@ namespace KavrosClueHelper
                     locks.Add(new KnotLock { A = a, IndexA = i, B = b, IndexB = j });
                 }
                 if (locks.Count < 3) { LastError = "too few locks: " + locks.Count; return null; }
-                KnotPuzzle puzzle = new KnotPuzzle { Lanes = lanes.Select(l => l.Tiles.Select(t => new RuneValue(t.Id, t.Intersection && !t.Matches && t.Colour != l.Colour)).ToArray()).ToArray(), Locks = locks.ToArray(), Colours = lanes.Select(l => l.Colour).ToArray(), MinRune = worstRune, MinTrack = worstTrack, MinMargin = worstMargin, Reliable = worstRune >= 0.93 && worstTrack >= 0.88 && worstMargin >= 0.45 };
+                // A still capture from the game scores a rune just under 0.93.
+                // 0.92 still rejects a blurred or half-read ring.
+                KnotPuzzle puzzle = new KnotPuzzle { Lanes = lanes.Select(l => l.Tiles.Select(t => new RuneValue(t.Id, t.Intersection && !t.Matches && t.Colour != l.Colour)).ToArray()).ToArray(), Locks = locks.ToArray(), Colours = lanes.Select(l => l.Colour).ToArray(), MinRune = worstRune, MinTrack = worstTrack, MinMargin = worstMargin, Reliable = worstRune >= 0.92 && worstTrack >= 0.88 && worstMargin >= 0.45 };
                 long[] shape = puzzle.Lanes.Select(l => (long)l.Length).Concat(puzzle.Locks.Select(l => l.A < l.B ? 10000L * (l.A * 100 + l.IndexA) + l.B * 100 + l.IndexB : 10000L * (l.B * 100 + l.IndexB) + l.A * 100 + l.IndexA).OrderBy(h => h)).ToArray();
                 Layout layout = layouts.Find(l => l.Hash.SequenceEqual(shape));
                 if (layout == null) { LastError = "unknown shape " + String.Join(",", shape); return null; }
@@ -209,7 +219,22 @@ namespace KavrosClueHelper
             bool intersection = neighbours < 2;
             double green = MatchSamples.Sum(s => Greens.Max(c => Pixels.ColourSimilarity(c, image.Get(p.X + s.X, p.Y + s.Y))));
             double red = MatchSamples.Sum(s => Reds.Max(c => Pixels.ColourSimilarity(c, image.Get(p.X + s.X, p.Y + s.Y))));
-            return new Tile { Id = id, Colour = colour, Intersection = intersection, Matches = green > red, Neighbours = background.Select(b => !b).ToArray(), RuneScore = score, TrackScore = certainty, MatchMargin = Math.Abs(green - red) };
+            // The current client draws a red ring around a crossing that does
+            // not match. Older knots use a small green or red pip instead.
+            bool matches = green > red;
+            return new Tile { Id = id, Colour = colour, Intersection = intersection, Matches = matches, Neighbours = background.Select(b => !b).ToArray(), RuneScore = score, TrackScore = certainty, MatchMargin = Math.Abs(green - red) };
+        }
+        private static bool RedRing(Pixels image, Point p)
+        {
+            int red = 0;
+            for (int dy = -12; dy <= 12; dy++) for (int dx = -12; dx <= 12; dx++)
+            {
+                int d2 = dx * dx + dy * dy;
+                if (d2 < 81 || d2 > 144) continue;
+                Color c = image.Get(p.X + 13 + dx, p.Y + 13 + dy);
+                if (c.R > 90 && c.G < 40 && c.B < 40 && c.R > c.G + 60) red++;
+            }
+            return red >= 10;
         }
         private static ulong HashTile(Pixels image, Point p)
         {
